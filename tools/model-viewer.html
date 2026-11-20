@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Model viewer</title>
+  <!-- Grown-up / Friend tool: open /tools/model-viewer.html?name=<model>&color=%23hex to check a Tripo mesh with game shading. -->
+  <script type="importmap">
+    { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    } }
+  </script>
+  <style>html,body{margin:0;height:100%;background:#4B2A8C;color:#fff;font:14px system-ui}#info{position:fixed;top:8px;left:8px}</style>
+</head>
+<body>
+  <div id="info">loading…</div>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    const { loadModel } = await import('../src/models.js?v=' + Date.now()); // fresh copy every load
+    const q = new URLSearchParams(location.search);
+    const name = q.get('name') || 'smoke-test-chimney';
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(innerWidth, innerHeight); document.body.appendChild(renderer.domElement);
+    const scene = new THREE.Scene(); scene.background = new THREE.Color('#4B2A8C');
+    scene.add(new THREE.HemisphereLight('#B9A0FF', '#3A2A5C', 1.6));
+    const sun = new THREE.DirectionalLight('#FFE7C4', 1.4); sun.position.set(3, 5, 4); scene.add(sun);
+    const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100); camera.position.set(3, 2.5, 4);
+    const controls = new OrbitControls(camera, renderer.domElement); controls.target.set(0, 1, 0);
+    try {
+      const model = await loadModel(name, { color: q.get('color') || '#C9B8B0', height: 2 });
+      scene.add(model);
+      let tris = 0; model.traverse(o => { if (o.isMesh) tris += o.geometry.index ? o.geometry.index.count / 3 : o.geometry.attributes.position.count / 3; });
+      document.getElementById('info').textContent = `${name}: ${tris} triangles`;
+    } catch (e) { document.getElementById('info').textContent = `failed: ${e.message}`; console.error(e); }
+    renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+  </script>
+</body>
+</html>

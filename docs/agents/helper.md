@@ -69,6 +69,17 @@ If the Team hasn't picked 2D or 3D yet, offer one picture of each so the choice 
 - **3D**: describe how to build each object from simple shapes (which primitives, proportions, colours from the palette), for the building Friend to follow.
 - **Look check**: after a visual change lands, give the drawing Friend a screenshot of the game next to the chosen concept and ask for the 3 most useful fixes to bring them closer (colour, size, shape, layout). Pass those to a building Friend as the next small step.
 
+## Fancier 3D models
+
+Only in a 3D game, only once the first prototype is playable, and only when the Team wants something to look more detailed than our simple-shape version ("can the dragon look more real?"). The new model must still fit the Style Lock: the same toy look with more shape, never photo-real.
+
+1. **Concept it**: the drawing Friend draws ONE object in the Style Lock: a low-poly toy figure in flat palette colours, three-quarter view, centred, whole object visible, plain white background, no scenery, no text. Show it to the Team as a Picture Choice ("Like this? ✨"). Save the chosen picture as `assets/concepts/<name>-model.png`.
+2. **Sculpt it** (a building Friend, in the background): `python tools/tripo_model.py --image assets/concepts/<name>-model.png --name <name>`. It takes about 2 minutes and makes `assets/models/<name>.glb`: a smart low-poly mesh with no textures. Use the wait for question time ("My sculpting friend is making it in 3D! 🗿").
+3. **Drop it in**: load it with `loadModel()` from `src/models.js`, which shades it with flat palette-coloured triangles like the rest of the game. Keep the simple-shape version as the fallback when loading fails. Check it in `tools/model-viewer.html?name=<name>` first if the size or direction looks off.
+4. **Look check** with the drawing Friend, as in **Art direction**.
+
+A Tripo model comes as one piece, so it gets one palette colour. Parts that need their own colours (a cape, a hat) stay as simple shapes attached to it.
+
 ## While a big build runs: question time
 
 Waiting is the best time to dream up details. Whenever a Friend is on a build that takes more than a minute or so, use the wait to guide the Team through what isn't clear yet, and quietly grow the Game Plan into a proper plan for the next steps.

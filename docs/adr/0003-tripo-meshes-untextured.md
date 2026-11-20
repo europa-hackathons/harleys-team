@@ -1,0 +1,3 @@
+# Tripo meshes are untextured and recoloured in the game
+
+When the Team wants a more detailed 3D model, we generate it with Tripo (`tools/tripo_model.py`: `smart_low_poly`, `texture: false`, `pbr: false`, UVs kept) and shade it in-game with the same flat Lambert palette colours as the hand-built primitives (`src/models.js`). Textured or PBR output would clash with the toy look of everything else, and multiply file sizes for GitHub Pages. The trade-off is one colour per generated mesh; multi-coloured details stay as primitives attached to it. The API key lives in the `TRIPO_API_KEY` environment variable on the session machine, never in the repo.
