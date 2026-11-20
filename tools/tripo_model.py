@@ -3,17 +3,30 @@
 Usage (from the repo root):
   python tools/tripo_model.py --image assets/concepts/hero-model.png --name hero
   python tools/tripo_model.py --prompt "a chunky low-poly chimney" --name chimney
+  python tools/tripo_model.py --rebake --name hero --palette "#1FA39A,#F2635F"   # recolour, no API call
 
-Reads the API key from the TRIPO_API_KEY environment variable. Standard library only.
-Requests smart_low_poly with no texture and no PBR (the game shades triangles with flat
-palette colours, see src/models.js). Prints one JSON line with the result.
+Default ("sections"): Tripo paints the smart-low-poly mesh, then this script samples that paint
+per triangle, snaps it to the Style Lock palette and writes one mesh per palette colour, named by
+its hex code (e.g. "#1FA39A"). Textures and UVs are dropped: the game shades flat-coloured
+triangles (see src/models.js). The painted Tripo original is kept, git-ignored, in
+assets/models/_source/ so --rebake can recolour it for free.
+
+--one-color skips the paint entirely (texture off) and gives a single uncoloured mesh.
+
+Palette: --palette "#hex,#hex,..." or, by default, every hex code in the Style section of
+docs/game-plan.md. Reads the API key from TRIPO_API_KEY. Needs Pillow and numpy for sections.
+Prints one JSON line with the result.
 """
-import argparse, json, mimetypes, os, sys, time, urllib.error, urllib.request, uuid
+import argparse, io, json, mimetypes, os, re, struct, sys, time, urllib.error, urllib.request, uuid
 
 API = "https://openapi.tripo3d.ai/v3"
 MODEL_VERSION = "v3.1-20260211"   # smart_low_poly needs v3.0-20250812 or newer
-OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "models")
+ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+OUT_DIR = os.path.join(ROOT, "assets", "models")
+SOURCE_DIR = os.path.join(OUT_DIR, "_source")
 
+
+# ---------- Tripo API ----------
 
 def call(method, path, key, body=None, headers=None):
     req = urllib.request.Request(API + path, data=body, method=method,
@@ -38,23 +51,9 @@ def upload(path, key):
     return call("POST", "/files", key, body, {"Content-Type": f"multipart/form-data; boundary={boundary}"})["file_token"]
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    src = ap.add_mutually_exclusive_group(required=True)
-    src.add_argument("--image", help="concept picture of ONE object on a plain background (PNG/JPEG)")
-    src.add_argument("--prompt", help="text description, if there is no picture")
-    ap.add_argument("--name", required=True, help="file name for assets/models/<name>.glb (lowercase, dashes)")
-    ap.add_argument("--faces", type=int, default=2000, help="triangle budget, 500-20000 (default 2000)")
-    ap.add_argument("--timeout", type=int, default=600, help="seconds to wait for Tripo (default 600)")
-    a = ap.parse_args()
-
-    key = os.environ.get("TRIPO_API_KEY")
-    if not key:
-        sys.exit("TRIPO_API_KEY is not set")
-    faces = max(500, min(20000, a.faces))
-    options = {"model": MODEL_VERSION, "smart_low_poly": True, "texture": False, "pbr": False,
-               "face_limit": faces, "export_uv": True}
-
+def generate(a, key, painted):
+    options = {"model": MODEL_VERSION, "smart_low_poly": True, "pbr": False, "texture": painted,
+               "face_limit": max(500, min(20000, a.faces)), "export_uv": True}
     if a.image:
         options["input"] = upload(a.image, key)
         path = "/generation/image-to-model"
@@ -63,7 +62,6 @@ def main():
         path = "/generation/text-to-model"
     task_id = call("POST", path, key, json.dumps(options).encode(), {"Content-Type": "application/json"})["task_id"]
     print(f"task {task_id} started", file=sys.stderr)
-
     deadline = time.time() + a.timeout
     while True:
         task = call("GET", f"/tasks/{task_id}", key)
@@ -76,14 +74,238 @@ def main():
             sys.exit(f"task {task_id} still {status} after {a.timeout}s")
         print(f"  {status} {task.get('progress', 0)}%", file=sys.stderr)
         time.sleep(5)
+    with urllib.request.urlopen(task["output"]["model_url"], timeout=120) as r:
+        return r.read(), task_id, task.get("credits_consumed")
 
-    url = task["output"]["model_url"]
-    os.makedirs(OUT_DIR, exist_ok=True)
+
+# ---------- GLB read/write ----------
+
+COMPONENTS = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4}
+DTYPES = {5126: "<f4", 5125: "<u4", 5123: "<u2", 5121: "u1"}
+
+
+def read_glb(data):
+    import numpy as np
+    json_len = struct.unpack("<I", data[12:16])[0]
+    gltf = json.loads(data[20:20 + json_len])
+    rest = data[20 + json_len:]
+    bin_chunk = rest[8:8 + struct.unpack("<I", rest[:4])[0]] if rest else b""
+
+    def view(i):
+        bv = gltf["bufferViews"][i]
+        off = bv.get("byteOffset", 0)
+        return bin_chunk[off:off + bv["byteLength"]]
+
+    def accessor(i):
+        acc = gltf["accessors"][i]
+        bv = gltf["bufferViews"][acc["bufferView"]]
+        n = COMPONENTS[acc["type"]]
+        dtype = np.dtype(DTYPES[acc["componentType"]])
+        start = bv.get("byteOffset", 0) + acc.get("byteOffset", 0)
+        stride = bv.get("byteStride", n * dtype.itemsize)
+        raw = np.frombuffer(bin_chunk, dtype=np.uint8, count=stride * (acc["count"] - 1) + n * dtype.itemsize, offset=start)
+        rows = np.lib.stride_tricks.as_strided(raw, shape=(acc["count"], n * dtype.itemsize), strides=(stride, 1))
+        out = np.ascontiguousarray(rows).view(dtype).reshape(acc["count"], n).astype(np.float64)
+        if acc.get("normalized") and acc["componentType"] != 5126:
+            out /= np.iinfo(dtype).max
+        return out
+    return gltf, view, accessor
+
+
+def node_matrices(gltf):
+    """World matrix for every mesh index (first node that uses it)."""
+    import numpy as np
+
+    def local(node):
+        if "matrix" in node:
+            return np.array(node["matrix"], dtype=np.float64).reshape(4, 4).T
+        t = np.eye(4)
+        t[:3, 3] = node.get("translation", [0, 0, 0])
+        x, y, z, w = node.get("rotation", [0, 0, 0, 1])
+        r = np.array([[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w), 0],
+                      [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w), 0],
+                      [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y), 0], [0, 0, 0, 1]])
+        s = np.diag(list(node.get("scale", [1, 1, 1])) + [1])
+        return t @ r @ s
+
+    found = {}
+
+    def walk(i, parent):
+        node = gltf["nodes"][i]
+        m = parent @ local(node)
+        if "mesh" in node and node["mesh"] not in found:
+            found[node["mesh"]] = m
+        for c in node.get("children", []):
+            walk(c, m)
+    scene = gltf.get("scenes", [{"nodes": list(range(len(gltf.get("nodes", []))))}])[gltf.get("scene", 0)]
+    for i in scene["nodes"]:
+        walk(i, np.eye(4))
+    return found
+
+
+def write_glb(sections):
+    """sections: list of (name, rgb_linear[3], positions Nx3 float32, normals Nx3 float32). Non-indexed tris."""
+    import numpy as np
+    bin_parts, views, accessors, meshes, materials, nodes = [], [], [], [], [], []
+    offset = 0
+
+    def add(arr, target=34962):
+        nonlocal offset
+        b = arr.astype(np.float32).tobytes()
+        views.append({"buffer": 0, "byteOffset": offset, "byteLength": len(b), "target": target})
+        bin_parts.append(b)
+        offset += len(b)
+        return len(views) - 1
+
+    for i, (name, rgb, pos, nor) in enumerate(sections):
+        pv, nv = add(pos), add(nor)
+        accessors.append({"bufferView": pv, "componentType": 5126, "count": len(pos), "type": "VEC3",
+                          "min": pos.min(0).tolist(), "max": pos.max(0).tolist()})
+        accessors.append({"bufferView": nv, "componentType": 5126, "count": len(nor), "type": "VEC3"})
+        materials.append({"name": name, "pbrMetallicRoughness": {"baseColorFactor": [*map(float, rgb), 1.0],
+                                                                 "metallicFactor": 0.0, "roughnessFactor": 1.0}})
+        meshes.append({"name": name, "primitives": [{"attributes": {"POSITION": 2 * i, "NORMAL": 2 * i + 1}, "material": i}]})
+        nodes.append({"name": name, "mesh": i})
+    blob = b"".join(bin_parts)
+    gltf = {"asset": {"version": "2.0", "generator": "harleys-team tripo_model.py"}, "scene": 0,
+            "scenes": [{"nodes": list(range(len(nodes)))}], "nodes": nodes, "meshes": meshes,
+            "materials": materials, "accessors": accessors, "bufferViews": views,
+            "buffers": [{"byteLength": len(blob)}]}
+    js = json.dumps(gltf, separators=(",", ":")).encode()
+    js += b" " * (-len(js) % 4)
+    blob += b"\0" * (-len(blob) % 4)
+    total = 12 + 8 + len(js) + 8 + len(blob)
+    return (struct.pack("<III", 0x46546C67, 2, total) + struct.pack("<II", len(js), 0x4E4F534A) + js
+            + struct.pack("<II", len(blob), 0x004E4942) + blob)
+
+
+# ---------- palette sections ----------
+
+def srgb_to_linear(c):
+    import numpy as np
+    c = np.asarray(c, dtype=np.float64)
+    return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+
+
+def style_palette():
+    path = os.path.join(ROOT, "docs", "game-plan.md")
+    try:
+        text = open(path, encoding="utf-8").read()
+    except OSError:
+        return []
+    m = re.search(r"^## Style\b(.*?)(?=^## |\Z)", text, re.S | re.M)
+    return list(dict.fromkeys(h.upper() for h in re.findall(r"#[0-9A-Fa-f]{6}\b", m.group(1) if m else "")))
+
+
+def bake_sections(glb, palette_hex):
+    """Painted GLB -> list of sections, one per palette colour, coloured per triangle."""
+    import numpy as np
+    from PIL import Image
+    gltf, view, accessor = read_glb(glb)
+    worlds = node_matrices(gltf)
+    images = {}
+    tris, colours = [], []
+    for mi, mesh in enumerate(gltf["meshes"]):
+        world = worlds.get(mi, np.eye(4))
+        for prim in mesh["primitives"]:
+            pos = accessor(prim["attributes"]["POSITION"])
+            pos = (np.c_[pos, np.ones(len(pos))] @ world.T)[:, :3]
+            idx = accessor(prim["indices"]).astype(np.int64).ravel() if "indices" in prim else np.arange(len(pos))
+            faces = idx.reshape(-1, 3)
+            mat = gltf.get("materials", [{}])[prim["material"]] if "material" in prim else {}
+            pbr = mat.get("pbrMetallicRoughness", {})
+            factor = np.array(pbr.get("baseColorFactor", [1, 1, 1, 1])[:3])
+            tex = pbr.get("baseColorTexture")
+            uv_key = f"TEXCOORD_{tex.get('texCoord', 0)}" if tex else None
+            if tex and uv_key in prim["attributes"]:
+                img_i = gltf["textures"][tex["index"]]["source"]
+                if img_i not in images:
+                    images[img_i] = np.asarray(Image.open(io.BytesIO(view(gltf["images"][img_i]["bufferView"]))).convert("RGB"),
+                                               dtype=np.float64) / 255.0
+                img = images[img_i]
+                h, w = img.shape[:2]
+                uv = accessor(prim["attributes"][uv_key])
+                # 4 samples per triangle (3 inset corners + centre), averaged: robust to seams.
+                c = uv[faces]
+                centre = c.mean(1, keepdims=True)
+                samples = np.concatenate([centre + 0.6 * (c - centre), centre], 1)
+                px = np.clip((samples[..., 0] % 1.0) * w, 0, w - 1).astype(int)
+                py = np.clip((samples[..., 1] % 1.0) * h, 0, h - 1).astype(int)
+                rgb = img[py, px].mean(1) * factor   # sRGB-ish 0..1
+            else:
+                rgb = np.tile(factor, (len(faces), 1))
+            tris.append(pos[faces])
+            colours.append(rgb)
+    tris = np.concatenate(tris)
+    colours = np.concatenate(colours)
+
+    if palette_hex:
+        pal = np.array([[int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)] for h in palette_hex])
+        names = palette_hex
+    else:   # no palette: let Pillow pick 6 representative colours
+        sample = Image.fromarray((colours.reshape(-1, 1, 3) * 255).astype(np.uint8)).quantize(6)
+        pal = np.array(sample.getpalette()[:18]).reshape(6, 3) / 255
+        names = ["#%02X%02X%02X" % tuple((p * 255).round().astype(int)) for p in pal]
+    # nearest palette colour, weighted RGB distance (closer to perceived difference than plain RGB)
+    weights = np.array([0.3, 0.59, 0.11]) ** 0.5
+    choice = (((colours[:, None, :] - pal[None]) * weights) ** 2).sum(-1).argmin(1)
+
+    sections = []
+    for k, name in enumerate(names):
+        sel = tris[choice == k]
+        if not len(sel):
+            continue
+        n = np.cross(sel[:, 1] - sel[:, 0], sel[:, 2] - sel[:, 0])
+        n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
+        sections.append((name, srgb_to_linear(pal[k]), sel.reshape(-1, 3), np.repeat(n, 3, 0)))
+    return sections, len(tris)
+
+
+# ---------- main ----------
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    src = ap.add_mutually_exclusive_group(required=True)
+    src.add_argument("--image", help="concept picture of ONE object on a plain background (PNG/JPEG)")
+    src.add_argument("--prompt", help="text description, if there is no picture")
+    src.add_argument("--rebake", action="store_true", help="recolour the saved painted original, no API call")
+    ap.add_argument("--name", required=True, help="file name for assets/models/<name>.glb (lowercase, dashes)")
+    ap.add_argument("--palette", help='comma-separated hex colours; default: the Style section of docs/game-plan.md')
+    ap.add_argument("--one-color", action="store_true", help="no paint, no sections: one plain mesh")
+    ap.add_argument("--faces", type=int, default=2000, help="face budget, 500-20000 (default 2000)")
+    ap.add_argument("--timeout", type=int, default=600, help="seconds to wait for Tripo (default 600)")
+    a = ap.parse_args()
+
+    os.makedirs(SOURCE_DIR, exist_ok=True)
     out = os.path.join(OUT_DIR, f"{a.name}.glb")
-    with urllib.request.urlopen(url, timeout=120) as r, open(out, "wb") as f:
-        f.write(r.read())
-    print(json.dumps({"file": f"assets/models/{a.name}.glb", "bytes": os.path.getsize(out), "task_id": task_id,
-                      "credits": task.get("credits_consumed"), "faces": faces}))
+    source = os.path.join(SOURCE_DIR, f"{a.name}.glb")
+    task_id = credits = None
+
+    if a.rebake:
+        with open(source, "rb") as f:
+            raw = f.read()
+    else:
+        key = os.environ.get("TRIPO_API_KEY")
+        if not key:
+            sys.exit("TRIPO_API_KEY is not set")
+        raw, task_id, credits = generate(a, key, painted=not a.one_color)
+        with open(source, "wb") as f:
+            f.write(raw)
+
+    result = {"file": f"assets/models/{a.name}.glb", "task_id": task_id, "credits": credits}
+    if a.one_color:
+        with open(out, "wb") as f:
+            f.write(raw)
+    else:
+        palette = [h.strip().upper() for h in a.palette.split(",")] if a.palette else style_palette()
+        sections, tri_count = bake_sections(raw, palette)
+        with open(out, "wb") as f:
+            f.write(write_glb(sections))
+        result.update({"triangles": tri_count, "palette_source": "--palette" if a.palette else
+                       ("game-plan Style" if palette else "auto (6 colours)"),
+                       "sections": {name: len(pos) // 3 for name, _, pos, _ in sections}})
+    result["bytes"] = os.path.getsize(out)
+    print(json.dumps(result))
 
 
 if __name__ == "__main__":

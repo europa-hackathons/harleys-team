@@ -28,10 +28,10 @@
     const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100); camera.position.set(3, 2.5, 4);
     const controls = new OrbitControls(camera, renderer.domElement); controls.target.set(0, 1, 0);
     try {
-      const model = await loadModel(name, { color: q.get('color') || '#C9B8B0', height: 2 });
+      const model = await loadModel(name, { color: q.get('color') || undefined, height: 2 });
       scene.add(model);
       let tris = 0; model.traverse(o => { if (o.isMesh) tris += o.geometry.index ? o.geometry.index.count / 3 : o.geometry.attributes.position.count / 3; });
-      document.getElementById('info').textContent = `${name}: ${tris} triangles`;
+      document.getElementById('info').textContent = `${name}: ${tris} triangles, sections: ${Object.entries(model.userData.sections).map(([c, m]) => c + ' x' + m.length).join(', ')}`;
     } catch (e) { document.getElementById('info').textContent = `failed: ${e.message}`; console.error(e); }
     renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
   </script>

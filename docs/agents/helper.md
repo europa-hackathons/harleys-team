@@ -74,11 +74,11 @@ If the Team hasn't picked 2D or 3D yet, offer one picture of each so the choice 
 Only in a 3D game, only once the first prototype is playable, and only when the Team wants something to look more detailed than our simple-shape version ("can the dragon look more real?"). The new model must still fit the Style Lock: the same toy look with more shape, never photo-real.
 
 1. **Concept it**: the drawing Friend draws ONE object in the Style Lock: a low-poly toy figure in flat palette colours, three-quarter view, centred, whole object visible, plain white background, no scenery, no text. Show it to the Team as a Picture Choice ("Like this? ✨"). Save the chosen picture as `assets/concepts/<name>-model.png`.
-2. **Sculpt it** (a building Friend, in the background): `python tools/tripo_model.py --image assets/concepts/<name>-model.png --name <name>`. It takes about 2 minutes and makes `assets/models/<name>.glb`: a smart low-poly mesh with no textures. Use the wait for question time ("My sculpting friend is making it in 3D! 🗿").
-3. **Drop it in**: load it with `loadModel()` from `src/models.js`, which shades it with flat palette-coloured triangles like the rest of the game. Keep the simple-shape version as the fallback when loading fails. Check it in `tools/model-viewer.html?name=<name>` first if the size or direction looks off.
-4. **Look check** with the drawing Friend, as in **Art direction**.
+2. **Sculpt it** (a building Friend, in the background): `python tools/tripo_model.py --image assets/concepts/<name>-model.png --name <name> --palette "<every colour the object needs>"`. It takes about 1–2 minutes and makes `assets/models/<name>.glb`: a smart low-poly mesh split into **colour sections**, one per palette colour (suit, cape, skin, hair…), with no textures. List every colour the object needs, including ones missing from the Style section (skin, hair); leave out `--palette` to use the Style section. Use the wait for question time ("My sculpting friend is making it in 3D! 🗿").
+3. **Drop it in**: load it with `loadModel()` from `src/models.js`, which shades every section with flat palette-coloured triangles like the rest of the game. `recolor` swaps a section's colour ("make her cape purple!") without asking Tripo again; `userData.sections` gives each section's meshes (e.g. to flap the cape). Keep the simple-shape version as the fallback when loading fails. Check it in `tools/model-viewer.html?name=<name>` first if the size, direction or colours look off.
+4. **Look check** with the drawing Friend, as in **Art direction**. If a colour landed on the wrong part, re-run with `--rebake` and a better `--palette`: it recolours the saved original for free.
 
-A Tripo model comes as one piece, so it gets one palette colour. Parts that need their own colours (a cape, a hat) stay as simple shapes attached to it.
+Tiny painted details (eyes, mouths, star logos) are smaller than one triangle and disappear; add them as simple shapes on top when they matter.
 
 ## While a big build runs: question time
 

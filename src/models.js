@@ -1,10 +1,15 @@
 // Loads a Tripo game mesh (assets/models/<name>.glb) and shades it like the rest of the game:
 // flat-shaded Lambert triangles in Style Lock palette colours, no textures.
 //
-//   import { loadModel } from './models.js';
-//   const chimney = await loadModel('chimney', { color: '#C9B8B0', height: 3 });
-//   scene.add(chimney);
+// Models made by tools/tripo_model.py come in colour sections: one part per palette colour,
+// each keeping its colour. Swap any section's colour with `recolor`:
 //
+//   import { loadModel } from './models.js';
+//   const hero = await loadModel('hero', { height: 2, recolor: { '#1FA39A': '#F2635F' } });
+//   scene.add(hero);
+//   hero.userData.sections['#F2635F']  // -> the meshes in that section, e.g. to animate the cape
+//
+// One-colour models (made with --one-color) take `color` instead.
 // Always keep the hand-built shape as a fallback: if loading fails, loadModel rejects
 // and the caller keeps using the primitive version, so the game never breaks.
 import * as THREE from 'three';
@@ -16,22 +21,26 @@ const cache = new Map();
 /**
  * @param {string} name       file name in assets/models, without .glb
  * @param {object} [opts]
- * @param {string|string[]} [opts.color]  one palette colour, or one per mesh in file order
- * @param {number} [opts.height]          scale so the model is this tall (world units)
- * @param {number} [opts.rotationY]       turn to face the game's forward direction (radians)
- * @returns {Promise<THREE.Group>} a group whose origin sits at the model's feet, centred
+ * @param {string} [opts.color]              colour for a one-colour model (default: keep section colours)
+ * @param {Object<string,string>} [opts.recolor]  section hex -> new colour, e.g. { '#1FA39A': '#00FF88' }
+ * @param {number} [opts.height]             scale so the model is this tall (world units)
+ * @param {number} [opts.rotationY]          turn to face the game's forward direction (radians)
+ * @returns {Promise<THREE.Group>} a group whose origin sits at the model's feet, centred.
+ *   group.userData.sections maps each (final) section colour to its meshes.
  */
-export async function loadModel(name, { color = '#ffffff', height, rotationY = 0 } = {}) {
+export async function loadModel(name, { color, recolor = {}, height, rotationY = 0 } = {}) {
   if (!cache.has(name)) cache.set(name, loader.loadAsync(new URL(`../assets/models/${name}.glb`, import.meta.url).href));
   const gltf = await cache.get(name);
   const model = gltf.scene.clone(true);
 
-  const colors = Array.isArray(color) ? color : [color];
-  let i = 0;
+  const swaps = Object.fromEntries(Object.entries(recolor).map(([k, v]) => [k.toUpperCase(), v]));
+  const sections = {};
   model.traverse((obj) => {
     if (!obj.isMesh) return;
-    obj.material = new THREE.MeshLambertMaterial({ color: colors[Math.min(i, colors.length - 1)], flatShading: true });
-    i++;
+    const original = '#' + obj.material.color.getHexString().toUpperCase();
+    const final = color ?? swaps[original] ?? original;
+    obj.material = new THREE.MeshLambertMaterial({ color: final, flatShading: true });
+    (sections[final.toUpperCase()] ??= []).push(obj);
   });
 
   model.rotation.y = rotationY;
@@ -45,5 +54,6 @@ export async function loadModel(name, { color = '#ffffff', height, rotationY = 0
 
   const group = new THREE.Group();
   group.add(model);
+  group.userData.sections = sections;
   return group;
 }
