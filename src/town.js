@@ -2,6 +2,7 @@
 // Everything static is merged into a few meshes (one per colour) so it stays fast.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { loadModel } from './models.js';
 
 export const PALETTE = {
   sky: '#4B2A8C',
@@ -92,68 +93,196 @@ function addWindow(b, house, x, y, z, rot, ww, wh) {
   b.add(GEO.box, PALETTE.windowFrame, mat(house, x + ox * 2, y - wh / 2 - 0.06, z + oz * 2, ww + 0.3, 0.14, 0.2, 0, rot, 0));
 }
 
-// A cozy house: walls, a wall-coloured gable, two red roof slabs with an overhang,
-// a chunky chimney with a rim and a dark opening, and big four-pane golden windows.
-// The gable ends (with the door) face local +z/-z; ry turns the house a quarter turn at a time,
-// so some houses show their gable to the street and some their long roof side.
-const ROOF_THICK = 0.3, EAVE = 0.55, GABLE_OVERHANG = 0.35;
+// --- Houses ---
+// The town's houses are three sculpted variants (assets/models/house2..4.glb, made from
+// assets/concepts/house-model-2..4.png), drawn with one InstancedMesh per colour section per variant.
+// Their shapes for landing and walking come from a height map measured from each model (below), so
+// the gameplay is ready at once; until the models load (or if they fail) simple-shape houses of the
+// same size stand in.
+//
+// Height maps: N x N cells over the model's footprint (x-major, then z), each a letter of HMAP_ABC
+// (0..63) times rim/63 = the highest roof, porch or chimney point there, in model units above the
+// ground. Measured with the cap block on top of the chimney taken off, so people can stand in it.
+const HMAP_ABC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+const HOUSE_VARIANTS = [
+  { // one storey, tall lavender chimney with brick knobs
+    name: 'house2', scale: 10,
+    min: [-0.2906, -0.5, -0.3317], max: [0.2906, 0.4374, 0.3317], rim: 0.4374, chim: [-0.0391, 0.1888, 0.0822], N: 24,
+    h: 'XYacegikmoqqpnmkigfdbZYWXYacegikmoqqpnmkigfdbaYWXYacegikmoqqpnmkihfdbaYWXYacegikmoqqpnmkihfdbaYWXYacegikmoqqpnmkihfdcaYWXYacegikmoqqpnmkjhfdcaYWXYacegikmoqqpnmkjhfdcaYWXYacegikmoqqpnm1//////YWXYacegikmoqqpnm1//////YWXYacegikmoqqpnm1//////YWXYacegikmoqqpnmk//////YWXYacegikmoqqpnmk//////tWXYacegikmoqqpnmk//////tWXYacegikmoqqpnmk//////tWXYacegikmoqqpnmkjhfdcaYWXYacegikmoqqpnmkjhfdcaYWXYacegikmoqqpnmkjhfdcaYWXYacegikmoqqpnmkihfdcaYWXYacegikmoqqpnmkihfdbaYWXYacegikmoqqpnmkihfdbaYWXYacegikmoqqpnmkihfdbaYWXYacegikmoqqpnmkigfdbaYWXYacegikmoqqpnmkigfdbaYWXYacegikmoqqpnmkigfdbaYW',
+    // simple-shape stand-in: wall box [x0, x1, z0, z1], eave and ridge height above the ground, ridge direction
+    body: [-0.257, 0.246, -0.293, 0.285], eave: 0.32, ridge: 0.6, ridgeAlongX: true,
+  },
+  { // two storeys
+    name: 'house3', scale: 11,
+    min: [-0.2476, -0.5, -0.2769], max: [0.2476, 0.4472, 0.2769], rim: 0.4472, chim: [-0.0166, 0.1918, 0.0763], N: 24,
+    h: 'deghjklnoqrttsqpnmkjhgeddeghjklnoqrttsqpnmkjhgeddeghjklnoqrttsqpnmkjhgeddeghjklnoqrttsqpnmkjhgeddeghjklnoqrttsqpnmkjhgeddeghjklnoqrttsqpnmkjhgeddeghjklnoqrttsqpnmkjhgeddeghjklnoqrttsqpn///////deghjklnoqrttsqpn///////deghjklnoqrttsqpn///////deghjklnoqrttsqpn///////deghjklnoqrttsqpn///////deghjklnoqrttsqpn///////deghjklnoqrttsqpn///////deghjklnoqrttsqpn///////deghjklnoqrttsqpnmkjhgeddeghjklnoqrttsqpnmkjhgeddeghjklnoqrttsqpnmkjhgeddeghjklnoqrttsqpnmkjhgeddeghjklnoqrttsqpnmkjhgeddeghjklnoqrttsqpnmkjhgeddeghjklnoqrttsqpnmkjhgeddeghjklnoqrttsqpnmkjhgeddeghjklnoqrttsqpnmkjhged',
+    body: [-0.226, 0.226, -0.248, 0.26], eave: 0.42, ridge: 0.66, ridgeAlongX: true,
+  },
+  { // cottage with a front porch
+    name: 'house4', scale: 8.5,
+    min: [-0.3787, -0.4961, -0.5], max: [0.3787, 0.4295, 0.5], rim: 0.4295, chim: [0.001, 0.2798, 0.092], N: 24,
+    h: 'abbbbbbbbbbbbbbbbbbbbbaXbhjjjjjjjjjjjjjjjjjigdaYbikkkkkkkkkkkkkkkkkjgdaXbikkkkkkkkkkkkkkkkkjgdaXcikkkkkkkkkkkkkkkkkifcZXcjkkkkkkkkkkkkkkkkkifcZXcjlllllllllllllllljhecZXcjlllllllllllllllljgebZXcjlllllllllllllllligebZXcjlllllllllllllll////bZXcjllllllllllllll7////bZXcijjjjjjjjjjjjjj7////bZXchiiiiiiiiiiiiii7////bZXcggggggggggggggg7////aZXceeeeeeeeeeeeeee7////aZXcddddddddddddddddddcbaZXbbbbbbbbbbbbbbbbbbbbbaYXZZZZZZZZZZZZZZZZZZZZZZYXYYYYYYYYYYYYYYYYYYYYYYXWWWWWWWWWWWXZaaZYWWWWWWWWAAAAAAAAAVXZabaYWUAAAAAAAAAAAAAAAVXZabaYWUAAAAAAAAAAAAAAAVXZabaYWUAAAAAAAAAAAAAAAAACCCCCAAAAAAAA',
+    body: [-0.351, 0.2, -0.459, 0.459], eave: 0.36, ridge: 0.54, ridgeAlongX: false,
+  },
+];
+// The models' painted shade colours fold back into their base colour (walls, roof, chimney).
+const HOUSE_COLORS = {
+  walls: '#E9A989', roof: '#B8405E', chimney: '#C495B0', window: '#FFD45C', door: '#A8443F', frame: '#E08A3A',
+};
+const HOUSE_RECOLOR = { '#B9765E': HOUSE_COLORS.walls, '#8A2E48': HOUSE_COLORS.roof, '#8E6A86': HOUSE_COLORS.chimney };
 
-function addHouse(b, x, z, chimneys, roofs) {
-  const w = rand(4.8, 5.8), d = rand(6, 7.4), h = rand(3, 5.2);
-  const ry = Math.floor(Math.random() * 4) * Math.PI / 2;
-  const house = mat(null, x, 0, z, 1, 1, 1, 0, ry, 0);
-  const wall = pick(PALETTE.walls), roof = pick(PALETTE.roof);
-
-  b.add(GEO.box, wall, mat(house, 0, h / 2, 0, w, h, d));
-
-  // Gable: a 3-sided cylinder lying along local z, one edge up, exactly as wide as the walls.
-  const r = w / 1.732;
-  const sy = rand(0.6, 0.85);
-  const apex = 1.5 * r * sy;
-  b.add(GEO.prism, wall, mat(house, 0, h + 0.5 * r * sy, 0, r, d, r * sy, -Math.PI / 2, 0, 0));
-
-  // Two red roof slabs along the slopes, sticking out past the eaves and the gable ends.
-  const half = w / 2, slope = Math.hypot(half, apex), theta = Math.atan2(apex, half);
-  const c = Math.cos(theta), s = Math.sin(theta);
-  const ridge = 0.12; // a little past the ridge so the two slabs meet
-  for (const side of [-1, 1]) {
-    // Middle of the slab: halfway down the slope, shifted for the overhangs, lifted by half its thickness.
-    const shift = (EAVE - ridge) / 2;
-    const mx = side * (half / 2 + c * shift + s * ROOF_THICK / 2);
-    const my = h + apex / 2 - s * shift + c * ROOF_THICK / 2;
-    b.add(GEO.box, roof, mat(house, mx, my, 0, slope + EAVE + ridge, ROOF_THICK, d + GABLE_OVERHANG * 2, 0, 0, -side * theta));
+// Unpack the height maps and work out each variant's centre (the model is centred on it when loaded),
+// rim height and highest roof point (not counting the chimney).
+for (const v of HOUSE_VARIANTS) {
+  v.cx = (v.min[0] + v.max[0]) / 2;
+  v.cz = (v.min[2] + v.max[2]) / 2;
+  v.rimH = v.rim - v.min[1];
+  v.heights = Float32Array.from(v.h, (ch) => (HMAP_ABC.indexOf(ch) / 63) * v.rimH);
+  v.roofTop = 0;
+  for (let i = 0; i < v.N; i++) {
+    for (let j = 0; j < v.N; j++) {
+      const nx = v.min[0] + (i + 0.5) / v.N * (v.max[0] - v.min[0]), nz = v.min[2] + (j + 0.5) / v.N * (v.max[2] - v.min[2]);
+      if (Math.abs(nx - v.chim[0]) < v.chim[2] && Math.abs(nz - v.chim[1]) < v.chim[2]) continue;
+      v.roofTop = Math.max(v.roofTop, v.heights[i * v.N + j]);
+    }
   }
+}
 
-  // Chunky chimney on one slope: shaft, a wider rim, and a dark opening on top.
-  const side = Math.random() < 0.5 ? -1 : 1;
-  const cx = side * w * 0.24, cz = rand(-d * 0.22, d * 0.22);
-  const top = h + apex * 0.55 + rand(1.7, 3.2); // top of the shaft
-  const ch = top - h;
-  b.add(GEO.box, PALETTE.chimney, mat(house, cx, h + ch / 2, cz, 1.6, ch, 1.6));
-  b.add(GEO.box, PALETTE.chimneyCap, mat(house, cx, top + 0.2, cz, 2.1, 0.4, 2.1));
-  b.add(GEO.box, PALETTE.chimneyHole, mat(house, cx, top + 0.41, cz, 1.4, 0.04, 1.4));
-  const rimTop = top + 0.4;
-  const worldTop = new THREE.Vector3(cx, rimTop, cz).applyMatrix4(house);
-  chimneys.push({ pos: worldTop, person: null });
-  roofs.push({
-    x, z, half: Math.max(w, d) / 2 + EAVE + 0.2, top: h + apex + ROOF_THICK / c, ry, w, d, h, apex,
-    eaveX: half + EAVE * c, eaveZ: d / 2 + GABLE_OVERHANG, roofLift: ROOF_THICK / c,
-    cx, cz, chimneyTop: rimTop,
-  });
+// How high the house is at a point in its own model units (x, z relative to its centre), 0 outside.
+function houseHeight(v, lx, lz) {
+  const i = Math.floor((lx + v.cx - v.min[0]) / (v.max[0] - v.min[0]) * v.N);
+  const j = Math.floor((lz + v.cz - v.min[2]) / (v.max[2] - v.min[2]) * v.N);
+  if (i < 0 || j < 0 || i >= v.N || j >= v.N) return 0;
+  return v.heights[i * v.N + j];
+}
 
-  // Big glowing windows: two on each gable end (beside the door), two along each long side.
+// Simple-shape stand-in for a variant: walls, gable, two roof slabs, a chimney with a rim and a dark
+// opening, four-pane golden windows and a door. `house` is the house matrix (already scaled by s).
+const ROOF_THICK = 0.3, EAVE = 0.55, GABLE_OVERHANG = 0.35;
+function addSimpleHouse(b, house, v, s) {
+  // Work in world-sized units, in a frame where the ridge runs along z.
+  const turn = v.ridgeAlongX ? Math.PI / 2 : 0;
+  const frame = house.clone().multiply(new THREE.Matrix4().makeScale(1 / s, 1 / s, 1 / s)).multiply(new THREE.Matrix4().makeRotationY(turn));
+  const toFrame = (nx, nz) => { // model units -> this frame (undoing the quarter turn)
+    const x = (nx - v.cx) * s, z = (nz - v.cz) * s;
+    return v.ridgeAlongX ? [-z, x] : [x, z];
+  };
+  const [bx0, bz0] = toFrame(v.body[0], v.body[2]), [bx1, bz1] = toFrame(v.body[1], v.body[3]);
+  const m = frame.clone().multiply(new THREE.Matrix4().makeTranslation((bx0 + bx1) / 2, 0, (bz0 + bz1) / 2));
+  const w = Math.abs(bx1 - bx0), d = Math.abs(bz1 - bz0), h = v.eave * s, apex = (v.ridge - v.eave) * s;
+  const wall = HOUSE_COLORS.walls, roof = HOUSE_COLORS.roof;
+
+  b.add(GEO.box, wall, mat(m, 0, h / 2, 0, w, h, d));
+  const r = w / 1.732, sy = apex / (1.5 * r);
+  b.add(GEO.prism, wall, mat(m, 0, h + 0.5 * r * sy, 0, r, d, r * sy, -Math.PI / 2, 0, 0));
+  const half = w / 2, slope = Math.hypot(half, apex), theta = Math.atan2(apex, half);
+  const c = Math.cos(theta), sn = Math.sin(theta), ridge = 0.12, shift = (EAVE - ridge) / 2;
+  for (const side of [-1, 1]) {
+    const mx = side * (half / 2 + c * shift + sn * ROOF_THICK / 2);
+    const my = h + apex / 2 - sn * shift + c * ROOF_THICK / 2;
+    b.add(GEO.box, roof, mat(m, mx, my, 0, slope + EAVE + ridge, ROOF_THICK, d + GABLE_OVERHANG * 2, 0, 0, -side * theta));
+  }
+  const [cx, cz] = toFrame(v.chim[0], v.chim[1]);
+  const top = v.rimH * s, cw = v.chim[2] * s * 2;
+  b.add(GEO.box, HOUSE_COLORS.chimney, mat(frame, cx, (top - 0.4) / 2, cz, cw * 0.8, top - 0.4, cw * 0.8));
+  b.add(GEO.box, HOUSE_COLORS.chimney, mat(frame, cx, top - 0.2, cz, cw, 0.4, cw));
+  b.add(GEO.box, PALETTE.chimneyHole, mat(frame, cx, top + 0.01, cz, cw * 0.7, 0.04, cw * 0.7));
+
   const ww = 1.25, wh = 1.45, wy = Math.max(h * 0.55, 1.75);
   for (const [fx, fz, rot, halfDepth] of [[0, 1, 0, d / 2], [0, -1, Math.PI, d / 2], [1, 0, Math.PI / 2, w / 2], [-1, 0, -Math.PI / 2, w / 2]]) {
     const span = fx ? d : w;
     const slots = fz ? [-span * 0.29, span * 0.29] : [-span * 0.22, span * 0.22];
-    for (const sl of slots) {
-      const px = fx ? fx * (halfDepth + 0.02) : sl, pz = fz ? fz * (halfDepth + 0.02) : sl;
-      addWindow(b, house, px, wy, pz, rot, ww, wh);
-    }
+    for (const sl of slots) addWindow(b, m, fx ? fx * (halfDepth + 0.02) : sl, wy, fz ? fz * (halfDepth + 0.02) : sl, rot, ww, wh);
   }
-  // A little attic window up in the front gable.
-  if (apex > 2.4) addWindow(b, house, 0, h + apex * 0.32, d / 2 + 0.02, 0, 0.8, 0.9);
-  b.add(GEO.box, PALETTE.door, mat(house, 0, 0.85, d / 2 + 0.03, 1.0, 1.7, 0.1));
+  b.add(GEO.box, PALETTE.door, mat(m, 0, 0.85, d / 2 + 0.03, 1.0, 1.7, 0.1));
+}
+
+// Picks a variant for each lot: random-ish but fixed (the same town every time), never the same as the
+// house to the left or behind it. Also a quarter turn (so a front or a side faces a street) and a size wobble.
+function hash(i, j, k) {
+  const n = Math.sin(i * 127.1 + j * 311.7 + k * 74.7) * 43758.5453;
+  return n - Math.floor(n);
+}
+const lotVariants = new Map();
+function lotVariant(i, j) {
+  const taken = [lotVariants.get(`${i - 1},${j}`), lotVariants.get(`${i},${j - 1}`)];
+  const options = HOUSE_VARIANTS.map((_, k) => k).filter((k) => !taken.includes(k));
+  const v = options[Math.floor(hash(i, j, 1) * options.length)];
+  lotVariants.set(`${i},${j}`, v);
+  return v;
+}
+
+// Places a house on a lot: its stand-in shapes, its chimney (where townsfolk stand) and its shape
+// for landing and walking.
+function addHouse(b, i, j, x, z, chimneys, houses) {
+  const vi = lotVariant(i, j), v = HOUSE_VARIANTS[vi];
+  const ry = Math.floor(hash(i, j, 2) * 4) * Math.PI / 2;
+  const s = v.scale * (0.94 + hash(i, j, 3) * 0.1);
+  const matrix = mat(null, x, 0, z, s, s, s, 0, ry, 0);
+  addSimpleHouse(b, matrix, v, s);
+  const pos = new THREE.Vector3(v.chim[0] - v.cx, v.rimH, v.chim[1] - v.cz).applyMatrix4(matrix);
+  chimneys.push({ pos, person: null });
+  const reach = Math.max(v.max[0] - v.min[0], v.max[2] - v.min[2]) * s * 0.75;
+  houses.push({ v: vi, x, z, s, ry, cos: Math.cos(ry), sin: Math.sin(ry), matrix, half: reach, top: v.roofTop * s });
+}
+
+// Swaps the stand-in houses for the sculpted ones once all three models have loaded.
+async function buildSculptedHouses(scene, houses, standIn, standInGlows) {
+  const models = await Promise.all(HOUSE_VARIANTS.map((v) => loadModel(v.name, { recolor: HOUSE_RECOLOR })));
+  const materials = {};
+  const materialFor = (color) => {
+    if (materials[color]) return materials[color];
+    const glow = color === HOUSE_COLORS.window;
+    const m = glow ? new THREE.MeshBasicMaterial({ color }) : new THREE.MeshLambertMaterial({ color, flatShading: true });
+    if (glow) GLOW_MATERIALS.push(m); // the sky lights the windows up at night
+    return (materials[color] = m);
+  };
+  const group = new THREE.Group();
+  HOUSE_VARIANTS.forEach((v, vi) => {
+    const list = houses.filter((h) => h.v === vi);
+    if (!list.length) return;
+    const model = models[vi];
+    model.updateMatrixWorld(true);
+    const capLine = v.rimH - 0.01; // the little cap block on the chimney top comes off: people stand there
+    for (const [color, meshes] of Object.entries(model.userData.sections)) {
+      const parts = meshes.map((mesh) => {
+        let g = mesh.geometry.clone().applyMatrix4(mesh.matrixWorld);
+        if (g.index) g = g.toNonIndexed();
+        const src = g.attributes.position.array, keep = [];
+        for (let t = 0; t < src.length; t += 9) {
+          if (color !== HOUSE_COLORS.chimney && Math.min(src[t + 1], src[t + 4], src[t + 7]) >= capLine) continue;
+          for (let k = 0; k < 9; k++) keep.push(src[t + k]);
+        }
+        g.dispose();
+        const out = new THREE.BufferGeometry();
+        out.setAttribute('position', new THREE.Float32BufferAttribute(keep, 3));
+        return out;
+      });
+      const geo = mergeGeometries(parts);
+      parts.forEach((g) => g.dispose());
+      geo.computeVertexNormals();
+      const mesh = new THREE.InstancedMesh(geo, materialFor(color), list.length);
+      list.forEach((h, k) => mesh.setMatrixAt(k, h.matrix));
+      mesh.castShadow = mesh.receiveShadow = true;
+      mesh.frustumCulled = false; // the instances spread over the whole town
+      group.add(mesh);
+    }
+  });
+  // A dark opening inside each chimney rim.
+  const holes = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
+    new THREE.MeshLambertMaterial({ color: PALETTE.chimneyHole }), houses.length);
+  houses.forEach((h, k) => {
+    const v = HOUSE_VARIANTS[h.v];
+    holes.setMatrixAt(k, h.matrix.clone().multiply(mat(null, v.chim[0] - v.cx, v.rimH - 0.03, v.chim[1] - v.cz, v.chim[2] * 1.3, 1, v.chim[2] * 1.3)));
+  });
+  holes.frustumCulled = false;
+  holes.receiveShadow = true;
+  group.add(holes);
+
+  scene.add(group);
+  scene.remove(standIn);
+  for (const m of standInGlows) GLOW_MATERIALS.splice(GLOW_MATERIALS.indexOf(m), 1);
+  standIn.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
 }
 
 // Small solid things on the ground (lamp posts, tree trunks, crates): x, z, radius, top height,
@@ -285,7 +414,8 @@ export function buildTown(scene) {
 
   const b = new Batcher();
   const chimneys = [];
-  const roofs = []; // one entry per house: its footprint, roof shape and chimney, for flying and walking
+  const houses = []; // one entry per house: variant, place, turn and size, for drawing, flying and walking
+  const hb = new Batcher(); // the simple-shape stand-in houses
 
   b.add(GEO.plane, PALETTE.ground, mat(null, 0, 0, 0, 600, 600, 1, -Math.PI / 2, 0, 0));
 
@@ -294,7 +424,7 @@ export function buildTown(scene) {
     for (let j = -5; j <= 5; j++) {
       const x = i * spacing + rand(-1, 1), z = j * spacing + rand(-1, 1);
       b.add(GEO.plane, PALETTE.grass, mat(null, x, 0.02, z, 9, 9, 1, -Math.PI / 2, 0, 0));
-      if (Math.random() < 0.82) addHouse(b, x, z, chimneys, roofs);
+      if (Math.random() < 0.82) addHouse(hb, i, j, x, z, chimneys, houses);
       else { addTree(b, x - 2, z - 1); addTree(b, x + 2, z + 1.5); }
       if (Math.random() < 0.3) addTree(b, x + 4, z - 4.1, rand(0.8, 1.1));
       // Streetlamps on the plot corners, some with a little tree and a crate beside them.
@@ -321,12 +451,19 @@ export function buildTown(scene) {
 
   b.build(scene);
   buildLampPools(scene);
+  const standIn = new THREE.Group();
+  const glowsBefore = GLOW_MATERIALS.length;
+  hb.build(standIn);
+  scene.add(standIn);
+  const standInGlows = GLOW_MATERIALS.slice(glowsBefore);
+  buildSculptedHouses(scene, houses, standIn, standInGlows)
+    .catch((err) => console.warn('Sculpted houses did not load; keeping the simple ones.', err));
 
   // The lowest the hero may fly at a spot: a little above any roof or chimney there, and above the trees.
   function floorAt(px, pz) {
     let floor = 7;
-    for (const r of roofs) {
-      if (Math.abs(px - r.x) < r.half + 1 && Math.abs(pz - r.z) < r.half + 1) floor = Math.max(floor, r.top + 1.4);
+    for (const h of houses) {
+      if (Math.abs(px - h.x) < h.half + 1 && Math.abs(pz - h.z) < h.half + 1) floor = Math.max(floor, h.top + 1.4);
     }
     for (const c of chimneys) {
       const dx = px - c.pos.x, dz = pz - c.pos.z;
@@ -339,16 +476,12 @@ export function buildTown(scene) {
   // or a chimney top. Used for landing and walking.
   function surfaceAt(px, pz) {
     let top = 0;
-    for (const r of roofs) {
-      const dx = px - r.x, dz = pz - r.z;
-      if (Math.abs(dx) > r.half + 1 || Math.abs(dz) > r.half + 1) continue;
-      // Into the house's own directions (it is turned by ry around y).
-      const c = Math.cos(r.ry), s = Math.sin(r.ry);
-      const lx = c * dx - s * dz, lz = s * dx + c * dz;
-      // The roof slabs (with their overhang), else the flat wall top.
-      if (Math.abs(lx) < r.eaveX && Math.abs(lz) < r.eaveZ) top = Math.max(top, r.h + r.apex * (1 - Math.abs(lx) / (r.w / 2)) + r.roofLift);
-      else if (Math.abs(lx) < r.w / 2 && Math.abs(lz) < r.d / 2) top = Math.max(top, r.h);
-      if (Math.abs(lx - r.cx) < 1.05 && Math.abs(lz - r.cz) < 1.05) top = Math.max(top, r.chimneyTop);
+    for (const h of houses) {
+      const dx = px - h.x, dz = pz - h.z;
+      if (Math.abs(dx) > h.half || Math.abs(dz) > h.half) continue;
+      // Into the house's own directions (turned by ry around y, scaled by s), then its height map.
+      const lx = (h.cos * dx - h.sin * dz) / h.s, lz = (h.sin * dx + h.cos * dz) / h.s;
+      top = Math.max(top, houseHeight(HOUSE_VARIANTS[h.v], lx, lz) * h.s);
     }
     return top;
   }
