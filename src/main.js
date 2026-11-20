@@ -9,6 +9,7 @@ import { createSky } from './sky.js';
 import { createClouds } from './clouds.js';
 import { createTraffic } from './traffic.js';
 import { createFireworks } from './fireworks.js';
+import { createScenery } from './scenery.js';
 
 const ROUND_SECONDS = 60;
 const PARTY_SECONDS = 4.5; // the sunrise party plays this long before the end screen shows
@@ -38,6 +39,7 @@ resize();
 
 const { chimneys, floorAt, surfaceAt, solidAt, blocksCamera, skyParts } = buildTown(scene);
 const sky = createSky(scene, skyParts);
+createScenery(scene); // hills, river, bridge, church and far buildings outside the town
 const effects = createEffects(scene, camera, document.getElementById('fx-layer'));
 // Touchdown: a little puff of dust and sparkles round her boots.
 const onLand = (feet) => effects.burst(feet.add(new THREE.Vector3(0, 0.3, 0)), ['dust', 'dust', 'dust', 'sparkle'], 14, 3);
@@ -153,8 +155,8 @@ document.getElementById('play-again').addEventListener('click', startRound);
 // Close behind her, a little over her right shoulder (like the concept picture), so her goggles,
 // reaching glove and the chimney ahead are on screen together.
 const CAM = {
-  fly: { back: 3.3, up: 1.25, side: 1.0, ahead: 7, down: 0.9 },
-  high: { back: 12, up: 7.5, side: 0.5, ahead: 9, down: 5 },  // at her highest: pulled back to see the town
+  fly: { back: 2.6, up: 1.0, side: 0.85, ahead: 7, down: 0.8 },
+  high: { back: 6.5, up: 4, side: 0.7, ahead: 9, down: 3 },  // at her highest: pulled back to see the town
   walk: { back: 3.0, up: 0.95, side: 0.75, ahead: 5, down: -0.2 },
   party: { back: 8, up: 2.6, side: 2.2, ahead: 14, down: -3.5 }, // pulled back, looking up at the fireworks
 };
@@ -168,7 +170,7 @@ function desiredCamera(dt = 1) {
   walkCam += ((hero.mode === 'walk' ? 1 : 0) - walkCam) * (1 - Math.exp(-dt * 2.5));
   // Higher up, the camera pulls back and looks down a bit more so the town stays easy to read.
   const high = THREE.MathUtils.clamp((p.y - CRUISE_HEIGHT) / (MAX_HEIGHT - CRUISE_HEIGHT), 0, 1);
-  const h = Math.sqrt(high) * (1 - walkCam); // pulls back early in the climb
+  const h = high * (1 - walkCam); // pulls back gently as she climbs
   const v = {};
   for (const k in CAM.fly) v[k] = THREE.MathUtils.lerp(THREE.MathUtils.lerp(CAM.fly[k], CAM.high[k], h), CAM.walk[k], walkCam);
   for (const k in CAM.fly) v[k] = THREE.MathUtils.lerp(v[k], CAM.party[k], partyBlend);
