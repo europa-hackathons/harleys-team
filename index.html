@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="sv">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Our Game</title>
+  <title>Unicorn Candy Race</title>
   <link rel="stylesheet" href="src/style.css">
   <!-- three.js is available to any module via `import * as THREE from 'three'`. Pinned version, no build step (see docs/adr/0002). -->
   <script type="importmap">
@@ -17,19 +17,35 @@
 </head>
 <body>
   <canvas id="stage"></canvas>
+  <div class="zoom-frame"></div>
+
+  <div id="hud" class="hidden">
+    <div class="pill you">🦄 You <b id="you-count">0</b></div>
+    <div class="pill timer">⏱ <b id="time-left">60</b></div>
+    <div class="pill rival">💜 Rival <b id="rival-count">0</b></div>
+  </div>
+
+  <div id="callout" class="callout"></div>
 
   <main id="title-screen" class="screen">
-    <h1 class="title">? ? ?</h1>
-    <p class="subtitle">Ett nytt spel är på väg… <span class="en">A new game is on its way…</span></p>
-    <button id="play" class="big-button">▶ SPELA · PLAY</button>
+    <div class="card">
+      <h1 class="title">Unicorn<br>Candy Race</h1>
+      <p class="subtitle">Grab more candy than the rival unicorn!</p>
+      <p class="hint">← → to steer, ↑ to jump</p>
+      <p class="hint small">🌈 Rainbows make you ZOOM · Jump over the jelly!</p>
+      <button id="play" class="big-button">▶ PLAY</button>
+    </div>
   </main>
 
-  <main id="design-screen" class="screen hidden">
-    <div class="pencil">✏️</div>
-    <h2>Dags att designa!</h2>
-    <p>Berätta för din hjälpare vad spelet ska handla om.</p>
-    <p class="en">Time to design! Tell your helper what the game should be about.</p>
-    <button id="back" class="small-button">⏪</button>
+  <main id="end-screen" class="screen hidden">
+    <div class="card">
+      <h2 id="result" class="title">You win!</h2>
+      <div class="final">
+        <div class="pill you">🦄 You <b id="final-you">0</b></div>
+        <div class="pill rival">💜 Rival <b id="final-rival">0</b></div>
+      </div>
+      <button id="again" class="big-button">↻ PLAY AGAIN</button>
+    </div>
   </main>
 
   <script type="module" src="src/main.js"></script>
