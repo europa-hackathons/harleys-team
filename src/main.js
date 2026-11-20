@@ -8,8 +8,10 @@ import { createEffects } from './effects.js';
 import { createSky } from './sky.js';
 import { createClouds } from './clouds.js';
 import { createTraffic } from './traffic.js';
+import { createFireworks } from './fireworks.js';
 
 const ROUND_SECONDS = 60;
+const PARTY_SECONDS = 4.5; // the sunrise party plays this long before the end screen shows
 
 const canvas = document.getElementById('stage');
 const titleScreen = document.getElementById('title-screen');
@@ -43,6 +45,7 @@ const hero = createHero(scene, floorAt, { surfaceAt, solidAt, onLand });
 const townsfolk = createTownsfolk(scene, chimneys, effects);
 const clouds = createClouds(scene, effects);
 const traffic = createTraffic(scene);
+const fireworks = createFireworks(scene);
 
 // A yellow arrow above the hero that points to the nearest person who needs help.
 const arrowGeo = new THREE.ConeGeometry(0.3, 0.9, 4);
@@ -84,16 +87,24 @@ function shootWeb() {
 }
 
 // --- Game flow ---
+// 'title' -> 'playing' -> 'party' (sunrise party, ~4.5 s) -> 'ended' (end screen; the party carries on behind it)
 let state = 'title';
 let rescued = 0;
 let timeLeft = ROUND_SECONDS;
+let partyTime = 0;
+let partyBlend = 0;           // 0 = normal camera, 1 = pulled back to watch the party
+const partyLook = new THREE.Vector3(); // where the crowd is; she turns to face it
+let partyHoverY = 0;
+const HOLD = { hold: true };  // no keys, and she hovers in place
 
 function startRound() {
   rescued = 0;
   timeLeft = ROUND_SECONDS;
   hero.reset();
   effects.clear();
+  fireworks.clear();
   clouds.clear();
+  partyBlend = 0;
   townsfolk.reset(hero.root.position);
   snapCamera();
   rescuedText.textContent = '0';
@@ -105,10 +116,33 @@ function startRound() {
   canvas.focus();
 }
 
+// The sun is up: a sunrise party! Everyone she rescued pops up on the chimneys in front of her
+// and cheers, fireworks go off over the town, and after a few seconds the end screen shows.
 function endRound() {
-  state = 'ended';
-  endScore.textContent = `The sun is up! You rescued ${rescued} ${rescued === 1 ? 'person' : 'people'}!`;
+  state = 'party';
+  timeLeft = 0;
+  partyTime = 0;
+  partyHoverY = hero.root.position.y;
   hud.classList.add('hidden');
+  const hp = hero.root.position;
+  const crowd = townsfolk.party(hp, hero.forward, rescued);
+  if (crowd) partyLook.copy(crowd);
+  else partyLook.copy(hp).addScaledVector(hero.forward, 20).setY(8);
+  // Fireworks over the town a bit beyond the crowd, so they fill the sky in front of her.
+  const away = new THREE.Vector3().subVectors(partyLook, hp).setY(0);
+  if (away.lengthSq() < 1e-6) away.copy(hero.forward);
+  away.normalize();
+  fireworks.start(new THREE.Vector3(partyLook.x + away.x * 14, 8, partyLook.z + away.z * 14), 12);
+  if (crowd) fireworks.sprinkle(partyLook.clone().setY(partyLook.y + 5), 80, 16);
+  else effects.say("The sun is up! Let's try again!", hp.clone().setY(hp.y + 1.5), 'bubble');
+}
+
+function showEndScreen() {
+  state = 'ended';
+  endScore.textContent = rescued
+    ? `The sun is up! You rescued ${rescued} ${rescued === 1 ? 'person' : 'people'}!`
+    : 'The sun is up! Try again, you can do it!';
+  endScreen.querySelector('p').textContent = rescued ? 'The whole town says THANK YOU!' : 'Fly close to people waving HELP! to rescue them.';
   endScreen.classList.remove('hidden');
 }
 
@@ -122,6 +156,7 @@ const CAM = {
   fly: { back: 3.3, up: 1.25, side: 1.0, ahead: 7, down: 0.9 },
   high: { back: 12, up: 7.5, side: 0.5, ahead: 9, down: 5 },  // at her highest: pulled back to see the town
   walk: { back: 3.0, up: 0.95, side: 0.75, ahead: 5, down: -0.2 },
+  party: { back: 8, up: 2.6, side: 2.2, ahead: 14, down: -3.5 }, // pulled back, looking up at the fireworks
 };
 const camTarget = new THREE.Vector3();
 const camLook = new THREE.Vector3();
@@ -136,6 +171,7 @@ function desiredCamera(dt = 1) {
   const h = Math.sqrt(high) * (1 - walkCam); // pulls back early in the climb
   const v = {};
   for (const k in CAM.fly) v[k] = THREE.MathUtils.lerp(THREE.MathUtils.lerp(CAM.fly[k], CAM.high[k], h), CAM.walk[k], walkCam);
+  for (const k in CAM.fly) v[k] = THREE.MathUtils.lerp(v[k], CAM.party[k], partyBlend);
   const rx = -f.z, rz = f.x; // her right-hand side
   camTarget.set(p.x - f.x * v.back + rx * v.side, p.y + v.up, p.z - f.z * v.back + rz * v.side);
   camLook.set(p.x + f.x * v.ahead + rx * v.side * 0.5, p.y - v.down, p.z + f.z * v.ahead + rz * v.side * 0.5);
@@ -212,8 +248,21 @@ function frame() {
       timerText.parentElement.classList.toggle('hurry', timeLeft < 10);
       if (timeLeft <= 0) endRound();
     } else {
-      hero.update(dt, {});
-      townsfolk.update(dt, hero.root.position, false);
+      // Sunrise party (and the end screen after it): she turns to face the crowd and hovers proudly.
+      partyTime += dt;
+      partyBlend += (1 - partyBlend) * (1 - Math.exp(-dt * 1.5));
+      const hp = hero.root.position;
+      const dx = partyLook.x - hp.x, dz = partyLook.z - hp.z;
+      if (!hero.zipping && dx * dx + dz * dz > 1) {
+        let d = Math.atan2(dx, dz) - hero.yaw;
+        d = Math.atan2(Math.sin(d), Math.cos(d));
+        hero.yaw += d * (1 - Math.exp(-dt * 2));
+      }
+      hero.update(dt, HOLD);
+      if (hero.zipping || hero.mode !== 'fly') partyHoverY = hp.y;
+      else hp.y = partyHoverY + Math.sin(partyTime * 2.2) * 0.25;
+      townsfolk.update(dt, hp, false);
+      if (state === 'party' && partyTime >= PARTY_SECONDS) showEndScreen();
     }
 
     desiredCamera(dt);
@@ -242,11 +291,12 @@ function frame() {
   sky.update(state === 'title' ? null : timeLeft, ROUND_SECONDS, camera, focus);
   clouds.update(dt, state === 'playing' ? hero.root.position : null, camera);
   traffic.update(dt);
+  fireworks.update(dt);
   effects.update(dt);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 smoothLook.set(0, 4, 0);
 // For building Friends' headless checks: open the game with ?debug to reach these from the console.
-if (location.search.includes('debug')) window.game = { hero, camera, townsfolk, keys, surfaceAt, solidAt, blocksCamera, renderer, scene, clouds, traffic, chimneys, setTimeLeft: (t) => { timeLeft = t; } };
+if (location.search.includes('debug')) window.game = { fireworks, state: () => state, hero, camera, townsfolk, keys, surfaceAt, solidAt, blocksCamera, renderer, scene, clouds, traffic, chimneys, setTimeLeft: (t) => { timeLeft = t; } };
 requestAnimationFrame(frame);

@@ -430,7 +430,7 @@ export function createHero(scene, floorAt = () => 7, { surfaceAt = () => 0, soli
         if (z.t >= 1) { this.zip = null; this.speed = 9; this.climb = 0; this.webTimer = 0.15; } // keeps her new height
       } else {
         this.yaw += turn * TURN_SPEED * dt;
-        const want = keys.ArrowUp ? FAST : keys.ArrowDown ? BACK : DRIFT;
+        const want = keys.hold ? 0 : keys.ArrowUp ? FAST : keys.ArrowDown ? BACK : DRIFT; // hold: hover in place (sunrise party)
         this.speed += (want - this.speed) * (1 - Math.exp(-dt * 3));
         this.forward.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
         root.position.addScaledVector(this.forward, this.speed * dt);

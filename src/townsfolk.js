@@ -7,6 +7,8 @@ const SHIRTS = ['#FF8C42', '#5BC0EB', '#9BC53D', '#FDE74C', '#E55934', '#C08DFF'
 const SKIN = ['#F2C9A0', '#D9A066', '#A86B3C', '#7A4B2A', '#FFDBB8'];
 const HATS = ['#3D5A80', '#8E4A2B', '#2A9D8F', '#E76F51', '#6D597A'];
 const THANKS = ['THANK YOU!', 'THANK YOU!', 'MY HERO!', 'THANK YOU SO MUCH!', 'YAY! THANK YOU!'];
+const CHEERS = ['HOORAY!', 'YAY!', 'MY HERO!', 'WOO-HOO!', 'THANK YOU!'];
+const PARTY_MAX = 12;       // at the sunrise party, at most this many people cheer (keeps it smooth)
 const WANTED = 7;           // how many people wait for help at once
 const RESCUE_RADIUS = 4.5;  // how close (sideways) the hero must fly
 const SINK = 0.4;           // how far below the chimney rim a waiting person stands (waist at the rim)
@@ -50,11 +52,13 @@ const helpTexture = (() => {
 const SCULPT_HEIGHT = 2.1;   // person units (the whole person is scaled 1.5): about as tall as the simple one
 const SCULPT_FEET_Y = -0.53; // feet this far down, so his waist (vest bottom, y 0.8) sits at the chimney rim
 const SHOULDER = new THREE.Vector3(-0.24, 1.3, 0);       // his right shoulder
+const LEFT_SHOULDER = new THREE.Vector3(0.24, 1.3, 0);   // his left shoulder (the sculpt is about mirror-even)
 // His arm slopes out from the shoulder to the hand (x -0.66 at y 0.75); keep his side and hip out of it.
 const isRightArm = (x, y, z) => y > 0.6 && y < 1.4 && x < Math.min(-0.26, -0.24 - (1.3 - y) * 0.76 + 0.17);
+const isLeftArm = (x, y, z) => isRightArm(-x, y, z);
 const SHOULDER_CAP = 0.06; // arm triangles this close to the shoulder stay on the body, so no hole opens
 const ARM_REST = 0.5;  // the sculpt's arm already hangs out; straight up would hide the hand behind his cap
-let sculpt = null; // { body: [{geometry, material}], arm: [{geometry, material}] }
+let sculpt = null; // { body, arm, leftArm: [{geometry, material}] }
 
 // Splits one non-indexed geometry's triangles in two by a test on each triangle's middle point.
 function splitTriangles(geo, test) {
@@ -78,31 +82,40 @@ function splitTriangles(geo, test) {
 
 function bakeSculpt(model) {
   model.updateMatrixWorld(true);
-  const body = [], arm = [];
+  const body = [], arm = [], leftArm = [];
+  const near = (s) => (x, y, z) => Math.hypot(x - s.x, y - s.y, z - s.z) < SHOULDER_CAP;
+  const nearR = near(SHOULDER), nearL = near(LEFT_SHOULDER);
   model.traverse((o) => {
     if (!o.isMesh) return;
     const geo = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(o.matrixWorld);
-    const near = (x, y, z) => Math.hypot(x - SHOULDER.x, y - SHOULDER.y, z - SHOULDER.z) < SHOULDER_CAP;
-    const [onArm, rest] = splitTriangles(geo, (x, y, z) => isRightArm(x, y, z) && !near(x, y, z));
+    const [onArm, rest0] = splitTriangles(geo, (x, y, z) => isRightArm(x, y, z) && !nearR(x, y, z));
+    const [onLeft, rest] = splitTriangles(rest0, (x, y, z) => isLeftArm(x, y, z) && !nearL(x, y, z));
     rest.translate(0, SCULPT_FEET_Y, 0);
     if (rest.attributes.position.count) body.push({ geometry: rest, material: o.material });
     if (onArm.attributes.position.count) {
       onArm.translate(-SHOULDER.x, -SHOULDER.y, -SHOULDER.z); // around the shoulder pivot
       arm.push({ geometry: onArm, material: o.material });
     }
+    if (onLeft.attributes.position.count) {
+      onLeft.translate(-LEFT_SHOULDER.x, -LEFT_SHOULDER.y, -LEFT_SHOULDER.z);
+      leftArm.push({ geometry: onLeft, material: o.material });
+    }
   });
-  return { body, arm };
+  return { body, arm, leftArm };
 }
 
-// A sculpted person: { body, arms: [left (unused), right (waves)] } in the same frame as the simple one.
+// A sculpted person: { body, arms: [left, right (waves)] } in the same frame as the simple one.
 function buildSculptedBody() {
   const body = new THREE.Group();
   for (const s of sculpt.body) body.add(new THREE.Mesh(s.geometry, s.material));
-  const pivot = new THREE.Group();
-  pivot.position.copy(SHOULDER).y += SCULPT_FEET_Y;
-  for (const s of sculpt.arm) pivot.add(new THREE.Mesh(s.geometry, s.material));
-  body.add(pivot);
-  return { body, arms: [new THREE.Group(), pivot] };
+  const makePivot = (at, parts) => {
+    const pivot = new THREE.Group();
+    pivot.position.copy(at).y += SCULPT_FEET_Y;
+    for (const s of parts) pivot.add(new THREE.Mesh(s.geometry, s.material));
+    body.add(pivot);
+    return pivot;
+  };
+  return { body, arms: [makePivot(LEFT_SHOULDER, sculpt.leftArm), makePivot(SHOULDER, sculpt.arm)] };
 }
 
 function buildSimpleBody() {
@@ -136,6 +149,12 @@ function setWaveArm(p, angle) {
   else p.arms[1].rotation.set(0, 0, angle);
 }
 
+// The other (left-hand) arm, same terms: 0 = hanging, ~2.6 = up high.
+function setOtherArm(p, angle) {
+  if (p.sculpted) p.arms[0].rotation.set(0, 0, angle - ARM_REST); // his left arm is on the +x side
+  else p.arms[0].rotation.set(0, 0, -angle);
+}
+
 // Puts a body (sculpted if it has loaded, else simple shapes) into a person's group.
 function dressPerson(p) {
   if (p.body) p.group.remove(p.body);
@@ -162,6 +181,7 @@ function buildPerson() {
 export function createTownsfolk(scene, chimneys, effects) {
   const people = [];
   let respawnTimers = [];
+  let partying = false; // sunrise party: nobody new needs help any more
 
   // Swap in the sculpted townsperson once it has loaded; the simple-shape people stay if it fails.
   loadModel('townsperson', { height: SCULPT_HEIGHT, rotationY: -Math.PI / 2 }).then((model) => {
@@ -172,7 +192,10 @@ export function createTownsfolk(scene, chimneys, effects) {
   function spawn(awayFrom, delay = 0) {
     const options = chimneys.filter((c) => !c.person && c.pos.distanceTo(awayFrom) > 25);
     if (!options.length) return;
-    const chimney = pick(options);
+    placePerson(pick(options), delay, false);
+  }
+
+  function placePerson(chimney, delay, party) {
     const p = buildPerson();
     p.group.position.copy(chimney.pos);
     p.group.position.y -= 3; // hidden down inside the chimney until the pop
@@ -182,6 +205,8 @@ export function createTownsfolk(scene, chimneys, effects) {
     p.state = 'popping';
     p.timer = -delay;
     p.wave = Math.random() * 10;
+    p.party = party;
+    p.heartTimer = 0.5 + Math.random();
     chimney.person = p;
     scene.add(p.group);
     people.push(p);
@@ -191,6 +216,7 @@ export function createTownsfolk(scene, chimneys, effects) {
     for (const p of people) { scene.remove(p.group); p.chimney.person = null; }
     people.length = 0;
     respawnTimers = [];
+    partying = false;
     for (let i = 0; i < WANTED; i++) spawn(heroPos, i * STAGGER);
   }
 
@@ -215,14 +241,31 @@ export function createTownsfolk(scene, chimneys, effects) {
         const t = p.timer / POP_SECONDS;
         g.position.y = rim - SINK - 2.6 * (1 - springOut(t));
         g.scale.set(1.5 * (1 + 0.15 * (1 - springOut(t))), 1.5, 1.5 * (1 + 0.15 * (1 - springOut(t))));
-        p.arms[0].rotation.set(0, 0, -2.8); // arms up as they spring out
+        setOtherArm(p, 2.8); // arms up as they spring out
         setWaveArm(p, 2.8);
         p.help.visible = false;
-        if (t >= 1) { p.state = 'waiting'; g.scale.setScalar(1.5); p.help.visible = true; }
+        if (t >= 1) {
+          g.scale.setScalar(1.5);
+          if (p.party) {
+            p.state = 'party';
+            if (i % 2 === 0) effects.say(pick(CHEERS), p.chimney.pos.clone().add(new THREE.Vector3(0, 3.2, 0)));
+          } else { p.state = 'waiting'; p.help.visible = true; }
+        }
+      } else if (p.state === 'party') {
+        // Sunrise party: up on the rim, both arms up, happy jumps, little hearts now and then.
+        g.rotation.x = 0;
+        setOtherArm(p, 2.6 + Math.sin(p.wave * 12) * 0.35);
+        setWaveArm(p, 2.6 + Math.sin(p.wave * 12 + 1.2) * 0.35);
+        g.position.y = rim - SINK + 0.7 + Math.abs(Math.sin(p.wave * 7)) * 0.45;
+        p.heartTimer -= dt;
+        if (p.heartTimer <= 0) {
+          p.heartTimer = 1.2 + Math.random() * 1.2;
+          effects.burst(g.position.clone().add(new THREE.Vector3(0, 3, 0)), ['heart', 'heart', 'star'], 4, 3);
+        }
       } else if (p.state === 'waiting') {
         // One arm resting over the rim in front, the other waving big above the cap.
         g.rotation.x = 0.12;
-        p.arms[0].rotation.set(-0.65, 0, -0.3);
+        p.arms[0].rotation.set(-0.65, 0, p.sculpted ? 0 : -0.3);
         setWaveArm(p, 2.6 + Math.sin(p.wave * 9) * 0.5);
         g.position.y = rim - SINK + Math.abs(Math.sin(p.wave * 4)) * 0.08;
         p.help.position.y = 2.4 + Math.sin(p.wave * 3) * 0.1;
@@ -241,7 +284,7 @@ export function createTownsfolk(scene, chimneys, effects) {
       } else {
         // Cheering: they spring up out of the chimney, both arms up in a V, happy hops, then poof!
         g.rotation.x = 0;
-        p.arms[0].rotation.set(0, 0, -2.6 - Math.sin(p.timer * 14) * 0.3);
+        setOtherArm(p, 2.6 + Math.sin(p.timer * 14) * 0.3);
         setWaveArm(p, 2.6 + Math.sin(p.timer * 14) * 0.3);
         g.position.y = rim - SINK + 1.0 * springOut(Math.min(p.timer / 0.5, 1)) + Math.abs(Math.sin(p.timer * 8)) * 0.5;
         if (p.timer > 1.3) {
@@ -249,7 +292,7 @@ export function createTownsfolk(scene, chimneys, effects) {
           scene.remove(g);
           p.chimney.person = null;
           people.splice(i, 1);
-          respawnTimers.push(0.8);
+          if (!partying) respawnTimers.push(0.8);
         }
       }
     }
@@ -258,6 +301,35 @@ export function createTownsfolk(scene, chimneys, effects) {
       if (respawnTimers[i] <= 0) { respawnTimers.splice(i, 1); spawn(heroPos); }
     }
     return rescued;
+  }
+
+  // Sunrise party: the people still waiting go poof (the sun is up, they climb down happily), and
+  // `count` rescued people (at most PARTY_MAX) pop up on chimneys in front of the hero and cheer.
+  // Returns the middle of the crowd, or null if nobody came.
+  function party(heroPos, forward, count) {
+    partying = true;
+    respawnTimers = [];
+    for (let i = people.length - 1; i >= 0; i--) {
+      const p = people[i];
+      if (p.state === 'cheering') continue; // just rescued: let them finish their cheer
+      if (p.group.visible) effects.burst(p.group.position.clone().add(new THREE.Vector3(0, 1.5, 0)), ['sparkle', 'star'], 8, 3);
+      scene.remove(p.group);
+      p.chimney.person = null;
+      people.splice(i, 1);
+    }
+    const n = Math.min(count, PARTY_MAX);
+    if (!n) return null;
+    const to = new THREE.Vector3();
+    const options = chimneys.filter((c) => !c.person).map((c) => {
+      to.subVectors(c.pos, heroPos).setY(0);
+      const dist = to.length();
+      const angle = Math.acos(THREE.MathUtils.clamp(to.dot(forward) / Math.max(dist, 1e-6), -1, 1));
+      return { c, dist, score: dist + angle * 14 };
+    }).filter((o) => o.dist > 6 && o.dist < 45).sort((a, b) => a.score - b.score);
+    const middle = new THREE.Vector3();
+    const picked = options.slice(0, n);
+    picked.forEach((o, i) => { placePerson(o.c, i * 0.2, true); middle.add(o.c.pos); });
+    return picked.length ? middle.divideScalar(picked.length) : null;
   }
 
   function nearestWaiting(pos) {
@@ -270,5 +342,5 @@ export function createTownsfolk(scene, chimneys, effects) {
     return best;
   }
 
-  return { reset, update, nearestWaiting };
+  return { reset, update, nearestWaiting, party };
 }
