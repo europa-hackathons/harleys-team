@@ -14,7 +14,7 @@ How the Team sees the game depends on the setup: **Show the game** in `docs/agen
 
 The Helper sends one record keeper after each delivered change. Run only one at a time; if another record keeper is still running, the next one waits.
 
-The brief includes: the **exact list of files** the finished Friend reported, a one-line English summary of the wish, how it was understood, what was decided and why, any flags (content redirect, Big Change parked), and the Wish Record number when the wish chains onto an earlier one (or "new"). Never a placeholder like `#A`.
+The brief includes: the **exact list of files** the finished Friend reported, a one-line summary of the wish, how it was understood, what was decided and why, any flags (content redirect, Big Change parked), and the Wish Record number when the wish chains onto an earlier one (or "new"). Never a placeholder like `#A`.
 
 1. **New wish?** Write its Wish Record first (step 5), so the commit can name its number.
 2. Stage **only the listed files**: `git add -- <files>`. Other Friends may be mid-edit in the same folder, so never `git add -A` or `git add .`. Leave anything unlisted alone and mention it in the report.
@@ -23,8 +23,10 @@ The brief includes: the **exact list of files** the finished Friend reported, a 
 5. Write the **Wish Record** where **Wish Records** in `docs/agents/environment.md` says. With GitHub issues:
    - New wish: `gh issue create --label wish --title "<Wish summary>"` with the body below. During a rehearsal, also add `--label test-run`.
    - Chained wish: `gh issue comment <n>` with the same body sections for the new step.
-   - Without GitHub: one file per wish, `.scratch/wishes/<n>-<short-name>.md`, with the same body; append chained steps to it and mark it `Closed` at the top when done.
+   - Without GitHub: one file per wish, `docs/wishes/<NNN>-<short-name>.md` (numbered 001, 002, … in order), with the same body; append chained steps to it and mark it `Closed` at the top when done.
    - When the Team moves on from a feature, the Helper says so in the next brief: `gh issue close <n>` after a final comment naming the commits. A feature is never left open once the Team has moved on.
+**Design saves**: the game plan, concept pictures and mockups aren't wishes, so they get a plain commit with no Wish Record (`Design: <what was decided>`), sent by the Helper when Design ends and whenever the Style is locked.
+
 6. Report back to the Helper in one line: commit hash, issue number, published or not, and any unlisted changed files you saw.
 
 Wish Record body:
@@ -39,7 +41,7 @@ Wish Record body:
 
 ## Time Machine
 
-To undo the latest wish: `git revert --no-edit <commit(s) for that wish>`, push, and comment on its Wish Record: "Reverted at the Team's request." Never rewrite history; a revert keeps the old version recoverable.
+To undo the latest wish: `git revert --no-edit <commit(s) for that wish>`, push only where **Saving and publishing** allows, and add "Reverted at the Team's request." to its Wish Record (an issue comment, or a line appended to its file). Never rewrite history; a revert keeps the old version recoverable.
 
 ## Handover
 

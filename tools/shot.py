@@ -1,6 +1,6 @@
 """Screenshot a page of the game with headless Edge/Chrome, WebGL included. No packages needed.
 
-Usage (the preview server must be running on http://localhost:8000):
+Usage (the game server must be running; default port 8000, otherwise pass --port):
   python tools/shot.py                                   # the game's title screen -> shot.png in the temp folder
   python tools/shot.py --js "document.getElementById('play').click()" --wait 4000 --out C:/tmp/play.png
   python tools/shot.py --page "/tools/model-viewer.html?name=hero&anim=walk"
@@ -10,7 +10,7 @@ Usage (the preview server must be running on http://localhost:8000):
 messages from the page (errors included) as lines starting with "console:".
 Use this instead of the kids' preview tab: hidden preview tabs draw 3D scenes blank.
 """
-import argparse, os, shutil, subprocess, sys, tempfile, urllib.parse
+import argparse, os, shutil, subprocess, sys, tempfile, time, urllib.parse
 
 BROWSERS = [
     r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
@@ -52,6 +52,34 @@ def take(url, out, size, budget_ms):
         sys.exit("Screenshot failed (is the server running?)")
 
 
+def check_same_repo(port):
+    """Warn when the server on this port isn't serving this copy of the repo (e.g. another team's game)."""
+    import urllib.error, urllib.request, uuid
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+    name = f".shot-probe-{uuid.uuid4().hex}"
+    probe = os.path.join(root, name)
+    open(probe, "w").close()   # a file only this folder has; the right server can serve it back
+    try:
+        with urllib.request.urlopen(f"http://localhost:{port}/{name}", timeout=5) as r:
+            r.read()
+        same = True
+    except urllib.error.HTTPError:
+        same = False
+    except Exception:
+        same = None
+    finally:
+        for _ in range(20):   # Windows: the server may hold the file for a moment
+            try:
+                os.remove(probe)
+                break
+            except PermissionError:
+                time.sleep(0.1)
+    if same is None:
+        sys.exit(f"Nothing is serving the game on port {port}. Start the game server (see docs/agents/environment.md) or pass --port.")
+    if not same:
+        print(f"warning: port {port} serves a different copy of the game than this folder; pass --port for this copy's server", file=sys.stderr)
+
+
 def blank(path):
     try:
         from PIL import Image
@@ -73,6 +101,7 @@ def main():
 
     out = os.path.abspath(a.out)
     direct = f"http://localhost:{a.port}{a.page}"
+    check_same_repo(a.port)
     if a.js:
         query = {"page": a.page, "delay": a.delay, "js": a.js}
         url = f"http://localhost:{a.port}/tools/shot-frame.html?" + urllib.parse.urlencode(query)

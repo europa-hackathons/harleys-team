@@ -4,3 +4,4 @@ tools/__pycache__/
 *.b64
 .team-machine
 .scratch/
+.shot-probe-*

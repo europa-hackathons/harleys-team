@@ -59,7 +59,7 @@ def main():
         code, out = run(["gh", "auth", "status"])
         line(code == 0, "GitHub CLI", "logged in" if code == 0 else "installed but not logged in")
     else:
-        line(False, "GitHub CLI", "missing: keep Wish Records as files in .scratch/wishes/")
+        line(False, "GitHub CLI", "missing: keep Wish Records as files in docs/wishes/")
 
     def free(port):
         with socket.socket() as sock:

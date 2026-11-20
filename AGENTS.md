@@ -20,7 +20,7 @@ A group of kids aged 8–10 (the **Team**) design and build a browser arcade gam
 - Edit only the files your brief says you own; finish by reporting the exact list of files you changed or created. `docs/game-plan.md` belongs to the Helper: report open questions instead of editing it.
 - Leave git alone unless your task says you are the record keeper; then follow `docs/agents/backstage.md`.
 - The Helper's game server (port 8000 on the team machine; elsewhere see the game plan's `## Session` notes) is not yours: leave it running and point `tools/shot.py --port` at it. Need your own server? Use another free port and stop it when you're done.
-- Scratch and temporary files (downloads, base64, `.tmp`) go in the system temp folder, never in the repo (`.scratch/wishes/` records are the one exception).
+- Scratch and temporary files (downloads, base64, `.tmp`) go in the system temp folder, never in the repo.
 - Before finishing anything visible, check it with `python tools/shot.py` (it can click PLAY first with `--js`): look at the screenshot next to the concept picture in your brief (size, proportions, colours, camera) and confirm there are no console errors. "Loads without errors" alone isn't done.
 
 ## Where things are

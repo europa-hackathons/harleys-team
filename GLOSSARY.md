@@ -9,7 +9,7 @@ The kids building the game together. They share one laptop and take turns typing
 _Avoid_: user, client, players (when you mean the builders)
 
 **Grown-up**:
-The supervising adult. Reads the English notes, approves Big Changes, and cleans up afterwards.
+The supervising adult. Reads the Grown-up Notes, approves Big Changes, and cleans up afterwards.
 _Avoid_: admin, supervisor, user
 
 ## Talking
@@ -23,11 +23,11 @@ A behind-the-scenes helper that the Helper sends a job to, such as drawing art o
 _Avoid_: subagent, delegate, worker (when speaking to the Team)
 
 **Grown-up Mode**:
-How the Helper answers a single message that starts with any adult or "vuxen" prefix ("adult:", "hey, adult here", "vuxen -"): in plain technical English, with authority to approve Big Changes.
+How the Helper answers a single message that starts with any adult or "vuxen" prefix ("adult:", "hey, adult here", "vuxen -"): in plain technical language (English on the team machine), with authority to approve Big Changes.
 _Avoid_: admin mode, debug mode
 
 **Grown-up Note**:
-The short English summary at the end of every Helper reply, written for the Grown-up.
+The short summary at the end of every Helper reply, written for the Grown-up in their language (English on the team machine).
 _Avoid_: log, summary, changelog
 
 ## Making the game
@@ -37,7 +37,7 @@ Anything the Team asks the game to do or become, however vague.
 _Avoid_: request, ticket, feature request, issue (when speaking to the Team)
 
 **Wish Record**:
-The record (a GitHub issue, or a file in `.scratch/wishes/` where there's no GitHub) that tells the Grown-up what was wished for, how it was understood, and what was decided. Wishes that chain onto the same feature share one Wish Record.
+The record (a GitHub issue, or a file in `docs/wishes/` where there's no GitHub) that tells the Grown-up what was wished for, how it was understood, and what was decided. Wishes that chain onto the same feature share one Wish Record.
 _Avoid_: ticket, bug report
 
 **Idea Jar**:
