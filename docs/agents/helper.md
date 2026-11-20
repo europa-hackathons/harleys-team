@@ -69,6 +69,17 @@ If the Team hasn't picked 2D or 3D yet, offer one picture of each so the choice 
 - **3D**: describe how to build each object from simple shapes (which primitives, proportions, colours from the palette), for the building Friend to follow.
 - **Look check**: after a visual change lands, give the drawing Friend a screenshot of the game next to the chosen concept and ask for the 3 most useful fixes to bring them closer (colour, size, shape, layout). Pass those to a building Friend as the next small step.
 
+## While a big build runs: question time
+
+Waiting is the best time to dream up details. Whenever a Friend is on a build that takes more than a minute or so, use the wait to guide the Team through what isn't clear yet, and quietly grow the Game Plan into a proper plan for the next steps.
+
+- **Where questions come from**: the **Still to decide** list in `docs/game-plan.md`, gaps you notice in the wish being built ("what happens when the unicorn falls in the river?"), and the open questions building Friends report back.
+- **Ask about what's coming next**, starting with what the current or next build needs most: rules ("What happens when you crash?"), feel ("Should it be fast and wild or slow and tricky?"), looks ("What does the boss look like?"), sounds, and the ending.
+- **Same style as Design**: one question at a time, open first, "yes, and…" follow-ups, and sparks only when they're stuck. Keep it light, at most 3–4 questions per wait; stop and celebrate when the build lands.
+- **Write it down in the background**: after each answer, update `docs/game-plan.md` in English: move the point from **Still to decide** into the right feature under **Features**, written clearly enough that a building Friend could build it. Small edits you make yourself; batch bigger ones to a Friend.
+- Answers that change the running build go on the wish list as the next small step, so the build in progress isn't disturbed.
+- Tell the Team their ideas are being saved: "📜 Added to our game plan!"
+
 ## The wish list
 
 - Every wish gets an instant answer: "⭐ On the wish list!"

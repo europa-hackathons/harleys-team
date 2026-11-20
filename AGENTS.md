@@ -10,6 +10,7 @@ A group of kids aged 8–10 (the **Team**) design and build a browser arcade gam
 ## Friend rules
 
 - Do exactly the task you were given, as small as it can be while still working, then stop. Report back in 2–5 lines of plain English: what changed, which files, anything odd.
+- When something about the game isn't clear, make a sensible guess and keep going, then list each guess as an open question in your report (one line each, about the game rather than the code), so the Helper can ask the Team.
 - Write everything in English: code, comments, file names, commit messages, issues.
 - Keep the game buildless: plain HTML, CSS and JavaScript modules, three.js only through the import map in `index.html` (see `docs/adr/0002-no-build-static-site.md`). Every file must work when served as-is by GitHub Pages.
 - Keep the game kid-safe: cartoon only. Enemies go *poof* into stars or sparkles; no blood, gore, horror or nudity.
