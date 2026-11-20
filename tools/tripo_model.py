@@ -24,6 +24,7 @@ MODEL_VERSION = "v3.1-20260211"   # smart_low_poly needs v3.0-20250812 or newer
 RIG_VERSION = "v3.0-20260909"     # recommended for humanoids
 MAX_FACES = 6000
 MAX_TEXTURE = 1024
+LIGHTNESS_WEIGHT = 0.4   # how much brightness counts when matching paint to the palette (chroma counts 1.0)
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 OUT_DIR = os.path.join(ROOT, "assets", "models")
 SOURCE_DIR = os.path.join(OUT_DIR, "_source")
@@ -90,7 +91,7 @@ def model_options(a, key, extra):
 
 
 def generate(a, key, painted):
-    path, options = model_options(a, key, {"smart_low_poly": True, "texture": painted})
+    path, options = model_options(a, key, {"smart_low_poly": True, "texture": painted, **({"delight": True} if painted else {})})
     task_id = start(key, path, options)
     task = wait(key, task_id, a.timeout, "model")
     return download(task["output"]["model_url"]), task_id, task.get("credits_consumed")
@@ -301,7 +302,7 @@ def bake_sections(glb, palette_hex):
     gltf, view, accessor = read_glb(glb)
     worlds = node_matrices(gltf)
     images = {}
-    tris, colours = [], []
+    prims = []   # (triangle positions Tx3x3, triangle uvs Tx3x2 or None, image or None, colour factor)
     for mi, mesh in enumerate(gltf["meshes"]):
         world = worlds.get(mi, np.eye(4))
         for prim in mesh["primitives"]:
@@ -319,33 +320,55 @@ def bake_sections(glb, palette_hex):
                 if img_i not in images:
                     images[img_i] = np.asarray(Image.open(io.BytesIO(view(gltf["images"][img_i]["bufferView"]))).convert("RGB"),
                                                dtype=np.float64) / 255.0
-                img = images[img_i]
-                h, w = img.shape[:2]
-                uv = accessor(prim["attributes"][uv_key])
-                # 4 samples per triangle (3 inset corners + centre), averaged: robust to seams.
-                c = uv[faces]
-                centre = c.mean(1, keepdims=True)
-                samples = np.concatenate([centre + 0.6 * (c - centre), centre], 1)
-                px = np.clip((samples[..., 0] % 1.0) * w, 0, w - 1).astype(int)
-                py = np.clip((samples[..., 1] % 1.0) * h, 0, h - 1).astype(int)
-                rgb = img[py, px].mean(1) * factor   # sRGB-ish 0..1
+                prims.append((pos[faces], accessor(prim["attributes"][uv_key])[faces], images[img_i], factor))
             else:
-                rgb = np.tile(factor, (len(faces), 1))
-            tris.append(pos[faces])
-            colours.append(rgb)
-    tris = np.concatenate(tris)
-    colours = np.concatenate(colours)
+                prims.append((pos[faces], None, None, factor))
+
+    # Sample points inside each triangle: a barycentric grid (15 points), pulled slightly inward
+    # so samples near UV seams don't pick up the neighbouring island.
+    g = [(i, j) for i in range(5) for j in range(5 - i)]
+    bary = np.array([[i, j, 4 - i - j] for i, j in g], dtype=np.float64) / 4
+    bary = 0.85 * bary + 0.15 / 3
+
+    def sample_rgb(uvs, img, factor):
+        h, w = img.shape[:2]
+        pts = np.einsum("sk,tkd->tsd", bary, uvs)
+        px = np.clip((pts[..., 0] % 1.0) * w, 0, w - 1).astype(int)
+        py = np.clip((pts[..., 1] % 1.0) * h, 0, h - 1).astype(int)
+        return img[py, px] * factor   # T x S x 3, sRGB-ish 0..1
 
     if palette_hex:
         pal = np.array([[int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)] for h in palette_hex])
         names = palette_hex
-    else:   # no palette: let Pillow pick 6 representative colours
-        sample = Image.fromarray((colours.reshape(-1, 1, 3) * 255).astype(np.uint8)).quantize(6)
+    else:   # no palette: let Pillow pick 6 representative colours from all the samples
+        allrgb = np.concatenate([sample_rgb(u, im, f).reshape(-1, 3) if im is not None else f[None]
+                                 for _, u, im, f in prims])
+        sample = Image.fromarray((allrgb.reshape(-1, 1, 3) * 255).astype(np.uint8)).quantize(6)
         pal = np.array(sample.getpalette()[:18]).reshape(6, 3) / 255
         names = ["#%02X%02X%02X" % tuple((p * 255).round().astype(int)) for p in pal]
-    # nearest palette colour, weighted RGB distance (closer to perceived difference than plain RGB)
-    weights = np.array([0.3, 0.59, 0.11]) ** 0.5
-    choice = (((colours[:, None, :] - pal[None]) * weights) ** 2).sum(-1).argmin(1)
+    # Nearest palette colour, judged mostly by hue/saturation and only partly by brightness:
+    # Tripo's paint can carry shading (darker corners, shaded sides), which must stay with its material.
+    to_ycc = np.array([[0.299, 0.587, 0.114], [-0.169, -0.331, 0.5], [0.5, -0.419, -0.081]])
+    weights = np.array([LIGHTNESS_WEIGHT, 1.0, 1.0])
+    pal_ycc = pal @ to_ycc.T
+
+    def nearest(rgb):
+        return ((((rgb @ to_ycc.T)[..., None, :] - pal_ycc) * weights) ** 2).sum(-1).argmin(-1)
+
+    # Each triangle takes the palette colour most of its samples snap to: a vote, not an average,
+    # so a pale wall with a dark beam across it stays pale.
+    out_tris, out_choice = [], []
+    for tri, uvs, img, factor in prims:
+        if img is None:
+            out_tris.append(tri)
+            out_choice.append(np.full(len(tri), nearest(factor)))
+            continue
+        votes = nearest(sample_rgb(uvs, img, factor))                     # T x S
+        counts = np.stack([(votes == k).sum(1) for k in range(len(pal))], 1)
+        out_tris.append(tri)
+        out_choice.append(counts.argmax(1))
+    tris = np.concatenate(out_tris)
+    choice = np.concatenate(out_choice)
 
     sections = []
     for k, name in enumerate(names):
