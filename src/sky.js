@@ -1,13 +1,13 @@
 // One night, sunset to sunrise: the sky, sun, moon, stars, fog and lights follow the round timer.
 // Sunset (first ~8 s) -> night purple with stars -> dawn and sunrise (last ~10 s).
 import * as THREE from 'three';
-import { GLOW_MATERIALS } from './town.js';
+import { GLOW_MATERIALS, NIGHT_GLOW_MATERIALS, NIGHT_KEY_POSITION } from './town.js';
 
 const SUNSET_SECONDS = 8;
 const SUNRISE_SECONDS = 10;
 
 // Colour sets: top of sky, middle, horizon, fog, glow around the sun, light tint.
-const NIGHT = { top: '#22104F', mid: '#4B2A8C', low: '#7A4FB8', fog: '#5E3A9E', hemi: '#B9A0FF', key: '#FFE7C4' };
+const NIGHT = { top: '#22104F', mid: '#4B2A8C', low: '#7A4FB8', fog: '#70509A', hemi: '#D4C5F1', key: '#FFE0AF' };
 const DUSK = { top: '#4A2F8F', mid: '#D9668A', low: '#FFA65C', fog: '#B9668E', hemi: '#FFB8A8', key: '#FFB070' };
 const DAWN = { top: '#5E4AB0', mid: '#F08CA6', low: '#FFC46E', fog: '#D88A9E', hemi: '#FFD2B8', key: '#FFC98A' };
 
@@ -114,12 +114,14 @@ export function createSky(scene, { stars, moon, hemi, keyLight }) {
     // Lights click on once it gets dark enough, and off again as the sun comes up.
     const lightsOn = 1 - THREE.MathUtils.smoothstep(day, 0.2, 0.65);
     for (const m of GLOW_MATERIALS) m.color.copy(LIGHT_OFF).lerp(LIGHT_ON, lightsOn);
+    for (const m of NIGHT_GLOW_MATERIALS) m.opacity = m.userData.nightOpacity * lightsOn;
     if (timeLeft !== null) {
       const f = THREE.MathUtils.clamp((roundSeconds - timeLeft) / roundSeconds, 0, 1);
       const ang = THREE.MathUtils.lerp(deg(25), deg(155), f);
       moon.position.set(Math.cos(ang) * 230, 60 + Math.sin(ang) * 140, -200);
-      keyLight.position.copy(moon.position).multiplyScalar(0.3);
     }
+    // The warm side light stays put at night and swings toward the low sun at sunset and sunrise.
+    keyLight.position.copy(NIGHT_KEY_POSITION);
     if (s > 0) keyLight.position.lerp(sunDir.clone().multiplyScalar(100).setY(Math.max(sunDir.y * 100, 30)), s);
   }
 

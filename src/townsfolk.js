@@ -1,4 +1,5 @@
-// Little townsfolk waving for help on chimney tops. Fly close to rescue them!
+// Little townsfolk stuck INSIDE chimneys: they stand in the chimney, visible from the waist up,
+// arms over the rim, waving for help. New ones pop up like a jack-in-the-box. Fly close to rescue them!
 import * as THREE from 'three';
 
 const SHIRTS = ['#FF8C42', '#5BC0EB', '#9BC53D', '#FDE74C', '#E55934', '#C08DFF', '#FF6FA5'];
@@ -7,6 +8,15 @@ const HATS = ['#3D5A80', '#8E4A2B', '#2A9D8F', '#E76F51', '#6D597A'];
 const THANKS = ['THANK YOU!', 'THANK YOU!', 'MY HERO!', 'THANK YOU SO MUCH!', 'YAY! THANK YOU!'];
 const WANTED = 7;           // how many people wait for help at once
 const RESCUE_RADIUS = 4.5;  // how close (sideways) the hero must fly
+const SINK = 0.4;           // how far below the chimney rim a waiting person stands (waist at the rim)
+const POP_SECONDS = 0.7;    // the springy pop up out of the chimney
+const STAGGER = 0.25;       // at the start of a round, people pop up one after another
+
+// Springy overshoot: 0 -> 1, wobbling past 1 a few times before settling.
+function springOut(t) {
+  if (t >= 1) return 1;
+  return 1 - Math.exp(-6 * t) * Math.cos(t * 13);
+}
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const lit = (color) => new THREE.MeshLambertMaterial({ color, flatShading: true });
@@ -67,15 +77,19 @@ export function createTownsfolk(scene, chimneys, effects) {
   const people = [];
   let respawnTimers = [];
 
-  function spawn(awayFrom) {
+  function spawn(awayFrom, delay = 0) {
     const options = chimneys.filter((c) => !c.person && c.pos.distanceTo(awayFrom) > 25);
     if (!options.length) return;
     const chimney = pick(options);
     const p = buildPerson();
     p.group.position.copy(chimney.pos);
+    p.group.position.y -= 3; // hidden down inside the chimney until the pop
+    p.group.visible = false;
+    p.group.rotation.order = 'YXZ'; // turn to face the hero, then lean toward her
     p.chimney = chimney;
-    p.state = 'waiting';
-    p.timer = Math.random() * 10;
+    p.state = 'popping';
+    p.timer = -delay;
+    p.wave = Math.random() * 10;
     chimney.person = p;
     scene.add(p.group);
     people.push(p);
@@ -85,7 +99,7 @@ export function createTownsfolk(scene, chimneys, effects) {
     for (const p of people) { scene.remove(p.group); p.chimney.person = null; }
     people.length = 0;
     respawnTimers = [];
-    for (let i = 0; i < WANTED; i++) spawn(heroPos);
+    for (let i = 0; i < WANTED; i++) spawn(heroPos, i * STAGGER);
   }
 
   // Returns how many people were rescued this frame.
@@ -95,30 +109,49 @@ export function createTownsfolk(scene, chimneys, effects) {
       const p = people[i];
       const g = p.group;
       p.timer += dt;
+      p.wave += dt;
       g.rotation.y = Math.atan2(heroPos.x - g.position.x, heroPos.z - g.position.z); // look at the hero
+      const rim = p.chimney.pos.y;
 
-      if (p.state === 'waiting') {
-        p.arms[0].rotation.z = -0.2;
-        p.arms[1].rotation.z = 2.6 + Math.sin(p.timer * 9) * 0.5; // big wave
-        g.position.y = p.chimney.pos.y + Math.abs(Math.sin(p.timer * 4)) * 0.25;
-        p.help.position.y = 2.4 + Math.sin(p.timer * 3) * 0.1;
+      if (p.state === 'popping') {
+        if (p.timer < 0) continue; // still waiting for their turn to pop up
+        if (!g.visible) {
+          // Boing! A little puff of sparkles out of the chimney.
+          g.visible = true;
+          effects.burst(p.chimney.pos.clone().add(new THREE.Vector3(0, 0.6, 0)), ['dust', 'dust', 'sparkle', 'star', 'dust'], 16, 4);
+        }
+        const t = p.timer / POP_SECONDS;
+        g.position.y = rim - SINK - 2.6 * (1 - springOut(t));
+        g.scale.set(1.5 * (1 + 0.15 * (1 - springOut(t))), 1.5, 1.5 * (1 + 0.15 * (1 - springOut(t))));
+        p.arms[0].rotation.set(0, 0, -2.8); // arms up as they spring out
+        p.arms[1].rotation.set(0, 0, 2.8);
+        p.help.visible = false;
+        if (t >= 1) { p.state = 'waiting'; g.scale.setScalar(1.5); p.help.visible = true; }
+      } else if (p.state === 'waiting') {
+        // One arm resting over the rim in front, the other waving big above the cap.
+        g.rotation.x = 0.12;
+        p.arms[0].rotation.set(-0.65, 0, -0.3);
+        p.arms[1].rotation.set(0, 0, 2.6 + Math.sin(p.wave * 9) * 0.5);
+        g.position.y = rim - SINK + Math.abs(Math.sin(p.wave * 4)) * 0.08;
+        p.help.position.y = 2.4 + Math.sin(p.wave * 3) * 0.1;
 
         const dx = heroPos.x - g.position.x, dz = heroPos.z - g.position.z;
-        const dy = heroPos.y - g.position.y;
+        const dy = heroPos.y - rim;
         if (playing && dx * dx + dz * dz < RESCUE_RADIUS * RESCUE_RADIUS && dy > -3 && dy < 8) {
           p.state = 'cheering';
           p.timer = 0;
           p.help.visible = false;
           rescued++;
-          const top = g.position.clone().add(new THREE.Vector3(0, 3, 0));
+          const top = p.chimney.pos.clone().add(new THREE.Vector3(0, 3, 0));
           effects.say(pick(THANKS), top);
           effects.burst(top, ['heart', 'star', 'heart', 'star', 'sparkle'], 26, 8);
         }
       } else {
-        // Cheering: both arms up, happy jumps, then poof!
-        p.arms[0].rotation.z = -2.7 - Math.sin(p.timer * 14) * 0.3;
-        p.arms[1].rotation.z = 2.7 + Math.sin(p.timer * 14) * 0.3;
-        g.position.y = p.chimney.pos.y + Math.abs(Math.sin(p.timer * 8)) * 0.9;
+        // Cheering: they spring up out of the chimney, both arms up in a V, happy hops, then poof!
+        g.rotation.x = 0;
+        p.arms[0].rotation.set(0, 0, -2.6 - Math.sin(p.timer * 14) * 0.3);
+        p.arms[1].rotation.set(0, 0, 2.6 + Math.sin(p.timer * 14) * 0.3);
+        g.position.y = rim - SINK + 1.0 * springOut(Math.min(p.timer / 0.5, 1)) + Math.abs(Math.sin(p.timer * 8)) * 0.5;
         if (p.timer > 1.3) {
           effects.burst(g.position.clone().add(new THREE.Vector3(0, 1.5, 0)), ['sparkle', 'cyanSparkle', 'star'], 20, 5);
           scene.remove(g);
