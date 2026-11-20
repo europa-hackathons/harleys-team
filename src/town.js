@@ -21,6 +21,9 @@ export const PALETTE = {
 
 export const TOWN_HALF = 66; // the town spans -66..66 on x and z
 
+// The glowing window and lamp materials, so the sky can switch them on at night.
+export const GLOW_MATERIALS = [];
+
 // Collects transformed geometries by material, then merges them.
 class Batcher {
   constructor() { this.buckets = new Map(); }
@@ -38,6 +41,7 @@ class Batcher {
       const material = glow
         ? new THREE.MeshBasicMaterial({ color })
         : new THREE.MeshLambertMaterial({ color, flatShading: true });
+      if (glow) GLOW_MATERIALS.push(material);
       const mesh = new THREE.Mesh(merged, material);
       parent.add(mesh);
       list.forEach((g) => g.dispose());
@@ -91,7 +95,7 @@ function addHouse(b, x, z, chimneys, roofs) {
   b.add(GEO.box, PALETTE.chimneyCap, mat(house, cx, top + 0.15, cz, 1.6, 0.3, 1.6));
   const worldTop = new THREE.Vector3(cx, top + 0.3, cz).applyMatrix4(house);
   chimneys.push({ pos: worldTop, person: null });
-  roofs.push({ x, z, half: Math.max(w, d) * 0.56, top: h + apex });
+  roofs.push({ x, z, half: Math.max(w, d) * 0.56, top: h + apex, ry, w, d, h, apex, cx, cz, chimneyTop: top + 0.3 });
 
   // Glowing windows on all four sides, and a door at the front.
   const ww = 0.9, wh = 1.0, wy = h * 0.55;
@@ -202,5 +206,23 @@ export function buildTown(scene) {
     }
     return floor;
   }
-  return { chimneys, floorAt, skyParts: { stars, moon, hemi, keyLight: moonLight } };
+
+  // The height of whatever she would stand on at a spot: the ground (0), a sloping roof, a wall top
+  // or a chimney top. Used for landing and walking.
+  function surfaceAt(px, pz) {
+    let top = 0;
+    for (const r of roofs) {
+      const dx = px - r.x, dz = pz - r.z;
+      if (Math.abs(dx) > r.half + 1 || Math.abs(dz) > r.half + 1) continue;
+      // Into the house's own directions (it is turned by ry around y).
+      const c = Math.cos(r.ry), s = Math.sin(r.ry);
+      const lx = c * dx - s * dz, lz = s * dx + c * dz;
+      const eave = r.w * 1.12 / 2;
+      if (Math.abs(lx) < eave && Math.abs(lz) < r.d * 1.12 / 2) top = Math.max(top, r.h + r.apex * (1 - Math.abs(lx) / eave));
+      else if (Math.abs(lx) < r.w / 2 && Math.abs(lz) < r.d / 2) top = Math.max(top, r.h);
+      if (Math.abs(lx - r.cx) < 0.8 && Math.abs(lz - r.cz) < 0.8) top = Math.max(top, r.chimneyTop);
+    }
+    return top;
+  }
+  return { chimneys, floorAt, surfaceAt, skyParts: { stars, moon, hemi, keyLight: moonLight } };
 }

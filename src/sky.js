@@ -1,6 +1,7 @@
 // One night, sunset to sunrise: the sky, sun, moon, stars, fog and lights follow the round timer.
 // Sunset (first ~8 s) -> night purple with stars -> dawn and sunrise (last ~10 s).
 import * as THREE from 'three';
+import { GLOW_MATERIALS } from './town.js';
 
 const SUNSET_SECONDS = 8;
 const SUNRISE_SECONDS = 10;
@@ -14,6 +15,10 @@ const SUNSET_DIR = new THREE.Vector3(0.35, 0, 1).normalize(); // the sun goes do
 const SUNRISE_DIR = new THREE.Vector3(-0.35, 0, -1).normalize(); // ...and comes up on the opposite side
 const SUN_DISTANCE = 300;
 const deg = THREE.MathUtils.degToRad;
+
+// Window and lamp lights: a plain dim glass colour by day, warm yellow glow at night.
+const LIGHT_OFF = new THREE.Color('#5C5784');
+const LIGHT_ON = new THREE.Color('#FFD45C');
 
 const vertexShader = `
   varying vec3 vWorld;
@@ -105,6 +110,10 @@ export function createSky(scene, { stars, moon, hemi, keyLight }) {
     // Stars fade with the daylight; the moon arcs across the sky during the round.
     stars.material.opacity = 1 - s;
     moon.material.opacity = 1 - s * 0.7;
+
+    // Lights click on once it gets dark enough, and off again as the sun comes up.
+    const lightsOn = 1 - THREE.MathUtils.smoothstep(day, 0.2, 0.65);
+    for (const m of GLOW_MATERIALS) m.color.copy(LIGHT_OFF).lerp(LIGHT_ON, lightsOn);
     if (timeLeft !== null) {
       const f = THREE.MathUtils.clamp((roundSeconds - timeLeft) / roundSeconds, 0, 1);
       const ang = THREE.MathUtils.lerp(deg(25), deg(155), f);

@@ -30,10 +30,12 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
-const { chimneys, floorAt, skyParts } = buildTown(scene);
+const { chimneys, floorAt, surfaceAt, skyParts } = buildTown(scene);
 const sky = createSky(scene, skyParts);
-const hero = createHero(scene, floorAt);
 const effects = createEffects(scene, camera, document.getElementById('fx-layer'));
+// Touchdown: a little puff of dust and sparkles round her boots.
+const onLand = (feet) => effects.burst(feet.add(new THREE.Vector3(0, 0.3, 0)), ['dust', 'dust', 'dust', 'sparkle'], 14, 3);
+const hero = createHero(scene, floorAt, { surfaceAt, onLand });
 const townsfolk = createTownsfolk(scene, chimneys, effects);
 
 // A yellow arrow above the hero that points to the nearest person who needs help.
@@ -53,8 +55,9 @@ addEventListener('keyup', (e) => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 
 // Space: web to the best chimney in front. People waiting for help count extra.
+// On the ground it zips her up to a chimney too; with no chimney in front she just takes off.
 function shootWeb() {
-  if (hero.zipping) return;
+  if (hero.zipping || hero.mode === 'landing') return;
   const pos = hero.root.position, fwd = hero.forward;
   let best = null, bestScore = Infinity;
   const to = new THREE.Vector3();
@@ -71,7 +74,7 @@ function shootWeb() {
   if (best) {
     hero.shootWeb(best.pos);
     effects.burst(best.pos, ['cyanSparkle'], 6, 3);
-  }
+  } else if (hero.onGround) hero.takeOff();
 }
 
 // --- Game flow ---
@@ -108,13 +111,19 @@ document.getElementById('play-again').addEventListener('click', startRound);
 // --- Camera ---
 const camTarget = new THREE.Vector3();
 const camLook = new THREE.Vector3();
-function desiredCamera() {
+let walkCam = 0; // 0 = flying camera, 1 = walking camera (closer and lower), blended smoothly
+function desiredCamera(dt = 1) {
   const p = hero.root.position, f = hero.forward;
+  walkCam += ((hero.mode === 'walk' ? 1 : 0) - walkCam) * (1 - Math.exp(-dt * 2.5));
   // Higher up, the camera pulls back and looks down a bit more so the town stays easy to read.
-  const high = THREE.MathUtils.clamp((p.y - CRUISE_HEIGHT) / (MAX_HEIGHT - CRUISE_HEIGHT), 0, 1);
-  const back = 8 + 6 * high, up = 4 + 4 * high;
+  const high = THREE.MathUtils.clamp((p.y - CRUISE_HEIGHT) / (MAX_HEIGHT - CRUISE_HEIGHT), 0, 1) * (1 - walkCam);
+  const lerp = THREE.MathUtils.lerp;
+  const back = lerp(8 + 6 * high, 6.5, walkCam), up = lerp(4 + 4 * high, 2.2, walkCam);
+  const ahead = lerp(8, 6, walkCam), down = lerp(1 + 4 * high, -0.6, walkCam);
   camTarget.set(p.x - f.x * back, p.y + up, p.z - f.z * back);
-  camLook.set(p.x + f.x * 8, p.y - 1 - 4 * high, p.z + f.z * 8);
+  // Don't let the walking camera dip inside a house behind her.
+  camTarget.y = Math.max(camTarget.y, surfaceAt(camTarget.x, camTarget.z) + 1.5);
+  camLook.set(p.x + f.x * ahead, p.y - down, p.z + f.z * ahead);
 }
 function snapCamera() {
   desiredCamera();
@@ -157,7 +166,7 @@ function frame() {
       townsfolk.update(dt, hero.root.position, false);
     }
 
-    desiredCamera();
+    desiredCamera(dt);
     const k = 1 - Math.exp(-dt * 4);
     camera.position.lerp(camTarget, k);
     smoothLook.lerp(camLook, k);
@@ -167,7 +176,7 @@ function frame() {
     const target = townsfolk.nearestWaiting(hero.root.position);
     arrow.visible = state === 'playing' && !!target;
     if (target) {
-      arrow.position.copy(hero.root.position).add(new THREE.Vector3(0, 2.6, 0));
+      arrow.position.copy(hero.root.position).add(new THREE.Vector3(0, hero.onGround ? 3.4 : 2.6, 0)); // above her head
       const t = target.group.position;
       arrow.lookAt(t.x, arrow.position.y, t.z);
       arrow.scale.setScalar(1 + Math.sin(clock.elapsedTime * 6) * 0.15);
@@ -180,4 +189,6 @@ function frame() {
   requestAnimationFrame(frame);
 }
 smoothLook.set(0, 4, 0);
+// For building Friends' headless checks: open the game with ?debug to reach these from the console.
+if (location.search.includes('debug')) window.game = { hero, camera, townsfolk, keys, surfaceAt, renderer, scene };
 requestAnimationFrame(frame);

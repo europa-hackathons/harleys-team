@@ -40,6 +40,14 @@ const TEXTURES = {
     starPath(ctx, 32, 32, 30, 5, 4);
     ctx.fill();
   }),
+  dust: canvasTexture((ctx) => {
+    // A soft round puff, for landing.
+    const g = ctx.createRadialGradient(32, 32, 4, 32, 32, 30);
+    g.addColorStop(0, 'rgba(236, 226, 255, 0.95)');
+    g.addColorStop(1, 'rgba(236, 226, 255, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 64, 64);
+  }),
   cyanSparkle: canvasTexture((ctx) => {
     ctx.fillStyle = '#4FE3E0';
     starPath(ctx, 32, 32, 30, 6, 4);

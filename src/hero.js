@@ -13,6 +13,10 @@ export const MAX_HEIGHT = CRUISE_HEIGHT * 3;
 const CLIMB_SPEED = 11;     // units per second going up (W) or down (S)
 const TURN_SPEED = 2.4;     // radians per second
 const FAST = 17, BACK = -6, DRIFT = 3;
+// On the ground: walking is much slower than flying.
+const WALK = 4.5, WALK_BACK = -2.5, WALK_TURN = 2.2;
+const FEET = 1.3 * 1.6;  // from her middle (root) down to her boot soles when standing up
+const STEP = 0.7;        // she can step up onto things this high; taller things block her
 
 const lit = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, flatShading: true, ...extra });
 
@@ -62,11 +66,20 @@ const BACK_X = 0.06;
 const CAPE_PIVOT = new THREE.Vector3(-0.03, 0.13, 0); // top of her back, where the cape hangs from
 const EYES = { x: 0.135, y: 0.25, z: 0.05, r: 0.02 };  // her eyes are too small for the sculpt: simple shapes behind the goggles
 // Her right arm (sleeve + glove) swings from the shoulder to reach out in front while flying forward.
+// The left arm is the mirror image; both swing a little when she walks.
 const SHOULDER = new THREE.Vector3(0.04, 0.04, 0.11);
+const LEFT_SHOULDER = new THREE.Vector3(0.04, 0.04, -0.11);
 const isRightArm = (x, y, z) => z > 0.12 && y > -0.2 && y < 0.075;
+const isLeftArm = (x, y, z) => isRightArm(x, y, -z);
 const SHOULDER_CAP = 0.045; // arm triangles this close to the shoulder also stay put, so no hole opens
 const FIST = new THREE.Vector3(0.07, -0.13, 0.25); // middle of her glove, where the web shoots from
 const REACH = { up: 1.85, forward: 0.3 };          // how far her arm swings (radians) when reaching
+// Her legs swing from hip pivots when she walks. Below HIP_Y and between her hands, triangles on her
+// right side (+z) are her right leg, the rest her left leg. Bits close to the hip stay put (no holes).
+const HIP_Y = -0.19;
+const HIPS = [new THREE.Vector3(0.04, -0.17, -0.065), new THREE.Vector3(0.04, -0.17, 0.065)]; // left, right
+const isLeg = (x, y, z) => y < HIP_Y && Math.abs(z) < 0.2;
+const HIP_CAP = 0.035;
 
 // Splits a mesh's triangles in two by a test on each triangle's middle point (x, y, z).
 function splitMesh(mesh, keepTest) {
@@ -109,8 +122,28 @@ function mergeTriangles(a, b) {
   return g;
 }
 
-// Fixes the rosy face, hangs the cape from a pivot so it can flap, and puts her right arm on a
-// shoulder pivot so it can reach forward. Returns { cape, arm, fist } (empty if something is missing).
+// Moves the triangles that pass `test` (from every section but the cape) onto a new pivot at `point`.
+// Those within `cap` of the pivot also stay behind, so no hole opens when the part swings.
+function splitOntoPivot(sections, skip, inner, point, test, cap) {
+  const pivot = new THREE.Group();
+  pivot.position.copy(point);
+  inner.add(pivot);
+  for (const [color, meshes] of Object.entries(sections)) {
+    if (color === skip) continue;
+    for (const mesh of meshes) {
+      const [body, moved] = splitMesh(mesh, (x, y, z) => !test(x, y, z));
+      if (!moved.attributes.position.count) continue;
+      const [stay] = splitMesh({ geometry: moved }, (x, y, z) => Math.hypot(x - point.x, y - point.y, z - point.z) < cap);
+      mesh.geometry = mergeTriangles(body, stay);
+      twin(moved, mesh.material, mesh, pivot, point);
+    }
+  }
+  return pivot;
+}
+
+// Fixes the rosy face, hangs the cape from a pivot so it can flap, puts her arms on shoulder pivots
+// (the right one reaches forward) and her legs on hip pivots so she can walk.
+// Returns { cape, arm, leftArm, legs, fist } (empty if something is missing).
 function setUpSculptedHero(model) {
   const sections = model.userData.sections;
   const coral = COLORS.cape.toUpperCase();
@@ -120,23 +153,12 @@ function setUpSculptedHero(model) {
   const inner = (capes[0] || skin)?.parent;
   if (!inner) return {};
   const pivotAt = (point) => { const g = new THREE.Group(); g.position.copy(point); inner.add(g); return g; };
+  const suitMat = suit ? suit.material : lit(COLORS.suit);
 
-  // Her right arm: sleeve and glove triangles from every section except the cape move onto a
-  // shoulder pivot. The ones right at the shoulder stay behind too, plus a round teal shoulder.
-  const arm = pivotAt(SHOULDER);
-  for (const [color, meshes] of Object.entries(sections)) {
-    if (color === coral) continue;
-    for (const mesh of meshes) {
-      const [body, armPart] = splitMesh(mesh, (x, y, z) => !isRightArm(x, y, z));
-      if (!armPart.attributes.position.count) continue;
-      const [cap] = splitMesh({ geometry: armPart }, (x, y, z) =>
-        Math.hypot(x - SHOULDER.x, y - SHOULDER.y, z - SHOULDER.z) < SHOULDER_CAP);
-      mesh.geometry = mergeTriangles(body, cap);
-      twin(armPart, mesh.material, mesh, arm, SHOULDER);
-    }
-  }
-  const shoulderBall = part(ball(0.042), COLORS.suit, 0, 0, 0, arm);
-  if (suit) shoulderBall.material = suit.material;
+  // Her arms: sleeve and glove triangles move onto shoulder pivots, each with a round teal shoulder.
+  const arm = splitOntoPivot(sections, coral, inner, SHOULDER, isRightArm, SHOULDER_CAP);
+  const leftArm = splitOntoPivot(sections, coral, inner, LEFT_SHOULDER, isLeftArm, SHOULDER_CAP);
+  for (const a of [arm, leftArm]) part(ball(0.042), COLORS.suit, 0, 0, 0, a).material = suitMat;
   const fist = new THREE.Object3D();
   fist.position.copy(FIST).sub(SHOULDER);
   arm.add(fist);
@@ -155,13 +177,23 @@ function setUpSculptedHero(model) {
     capes.push(twin(back.clone(), mesh.material, mesh, cape, CAPE_PIVOT));
   }
 
+  // Her legs (after the cape, so the teal back patch below her hips walks along with them).
+  // The new back patch is not in `sections` yet, so look at every mesh straight inside `inner`.
+  const legSections = { all: inner.children.filter((o) => o.isMesh) };
+  const legs = HIPS.map((hip) => {
+    const side = Math.sign(hip.z);
+    const leg = splitOntoPivot(legSections, null, inner, hip, (x, y, z) => isLeg(x, y, z) && Math.sign(z || 1) === side, HIP_CAP);
+    part(ball(0.05), COLORS.suit, 0, -0.01, 0, leg).material = suitMat; // round hip, hides the cut
+    return leg;
+  });
+
   // Two big brown eyes with a white sparkle, like the concept picture.
   for (const side of [-1, 1]) {
     const eye = part(ball(EYES.r), '#3B2A2A', EYES.x, EYES.y, side * EYES.z, inner);
     eye.scale.set(0.6, 1.3, 1);
     part(ball(EYES.r * 0.35, 6, 4), '#FFFFFF', EYES.x + EYES.r * 0.5, EYES.y + EYES.r * 0.5, side * EYES.z + EYES.r * 0.3, inner);
   }
-  return { cape, arm, fist };
+  return { cape, arm, leftArm, legs, fist };
 }
 
 // Builds the figure standing up (face toward +z), then tips it forward to fly.
@@ -243,7 +275,9 @@ function buildFigure() {
 }
 
 // floorAt(x, z) tells her the lowest safe height at a spot (just above roofs and chimneys).
-export function createHero(scene, floorAt = () => 7) {
+// surfaceAt(x, z) tells her what she would stand on there (ground 0, a roof, a chimney top).
+// onLand(feetPosition) is called when she touches down, e.g. for a dust puff.
+export function createHero(scene, floorAt = () => 7, { surfaceAt = () => 0, onLand = () => {} } = {}) {
   const root = new THREE.Group();
   const bank = new THREE.Group();
   const { body, hand, capePivot } = buildFigure();
@@ -286,20 +320,48 @@ export function createHero(scene, floorAt = () => 7) {
     webTimer: 0,
     time: 0,
     reach: 0,       // 0 = right arm down, 1 = reaching out in front
+    armSwing: 0,
+    mode: 'fly',    // 'fly', 'landing' (gently dropping) or 'walk' (on her feet)
+    fall: 0,        // falling speed after walking off a roof
+    liftoff: 0,     // seconds of soft take-off left (she rises smoothly instead of snapping up)
+    stride: 0,      // walk cycle
     forward: new THREE.Vector3(0, 0, 1),
 
     reset() {
       root.position.set(0, CRUISE_HEIGHT, -TOWN_HALF + 4);
       this.yaw = 0; this.speed = 0; this.climb = 0; this.zip = null; this.webTimer = 0;
+      this.mode = 'fly'; this.fall = 0; this.liftoff = 0; this.stride = 0;
       web.visible = webEnd.visible = false;
     },
 
     get zipping() { return !!this.zip; },
+    // True while landing or walking.
+    get onGround() { return this.mode !== 'fly'; },
+
+    // W on the ground (or Space with no chimney in front): a little hop back up into the sky.
+    takeOff() {
+      if (this.mode === 'fly') return;
+      this.mode = 'fly';
+      this.climb = CLIMB_SPEED * 1.3;
+      this.speed = Math.max(this.speed, 2);
+      this.liftoff = 0.8;
+      this.fall = 0;
+    },
+
+    // Steps along the ground; walls and anything taller than a step stop her (she slides along them).
+    walkStep(dx, dz) {
+      const p = root.position, feet = p.y - FEET;
+      const ok = (x, z) => surfaceAt(x, z) <= feet + STEP;
+      if (ok(p.x + dx, p.z + dz)) { p.x += dx; p.z += dz; }
+      else if (ok(p.x + dx, p.z)) p.x += dx;
+      else if (ok(p.x, p.z + dz)) p.z += dz;
+    },
 
     // Start a web-zip toward a point (a chimney top).
     shootWeb(target) {
       const to = target.clone().add(new THREE.Vector3(0, 2.2, 0));
       const dist = root.position.distanceTo(to);
+      this.mode = 'fly'; this.fall = 0; this.liftoff = 0; // also zips her up from the ground
       this.zip = { from: root.position.clone(), to, t: 0, duration: THREE.MathUtils.clamp(dist / 32, 0.35, 1.2), target: target.clone() };
       this.webTimer = 0;
     },
@@ -309,7 +371,42 @@ export function createHero(scene, floorAt = () => 7) {
       const turn = (keys.ArrowLeft ? 1 : 0) - (keys.ArrowRight ? 1 : 0);
       const upDown = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
 
-      if (this.zip) {
+      if (this.mode === 'fly' && keys.KeyS && !this.zip && this.liftoff <= 0) {
+        // Holding S at her lowest flying height: time to land.
+        const p = root.position;
+        const floor = Math.max(floorAt(p.x, p.z), floorAt(p.x + this.forward.x * 4, p.z + this.forward.z * 4));
+        if (p.y < floor + 0.3) { this.mode = 'landing'; this.climb = 0; }
+      }
+      if (this.mode !== 'fly' && keys.KeyW) this.takeOff();
+
+      if (this.mode !== 'fly') {
+        const walking = this.mode === 'walk';
+        this.yaw += turn * (walking ? WALK_TURN : TURN_SPEED) * dt;
+        const want = !walking ? 0 : keys.ArrowUp ? WALK : keys.ArrowDown ? WALK_BACK : 0;
+        this.speed += (want - this.speed) * (1 - Math.exp(-dt * (walking ? 8 : 2.5)));
+        this.forward.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
+        this.walkStep(this.forward.x * this.speed * dt, this.forward.z * this.speed * dt);
+        const p = root.position;
+        const ground = surfaceAt(p.x, p.z) + FEET;
+        if (!walking) {
+          // Gently float down onto whatever is under her.
+          const drop = THREE.MathUtils.clamp((p.y - ground) * 2.2, 1.5, 9) * dt;
+          p.y = Math.max(ground, p.y - drop);
+          if (p.y < ground + 0.02) {
+            p.y = ground; this.mode = 'walk'; this.fall = 0;
+            onLand(new THREE.Vector3(p.x, p.y - FEET, p.z));
+          }
+        } else if (p.y > ground + 0.01) {
+          // Walked off a roof: fall down, with a soft plop at the bottom.
+          this.fall += 25 * dt;
+          p.y = Math.max(ground, p.y - this.fall * dt);
+          if (p.y === ground) { if (this.fall > 8) onLand(new THREE.Vector3(p.x, p.y - FEET, p.z)); this.fall = 0; }
+        } else {
+          p.y += (ground - p.y) * (1 - Math.exp(-dt * 20)); // stepping up
+          this.fall = 0;
+        }
+        this.stride += this.speed * dt * 2.3;
+      } else if (this.zip) {
         const z = this.zip;
         z.t = Math.min(1, z.t + dt / z.duration);
         const e = 1 - (1 - z.t) * (1 - z.t); // ease out
@@ -331,7 +428,12 @@ export function createHero(scene, floorAt = () => 7) {
         // Look a little ahead too, so she rises over a house before she reaches it.
         const p = root.position;
         const floor = Math.max(floorAt(p.x, p.z), floorAt(p.x + this.forward.x * 4, p.z + this.forward.z * 4));
-        if (p.y < floor) {
+        if (this.liftoff > 0) {
+          // Just took off from the ground: rise smoothly, but never into a wall or roof.
+          this.liftoff -= dt;
+          p.y = Math.max(p.y, surfaceAt(p.x, p.z) + FEET);
+          if (p.y < floor) this.climb = Math.max(this.climb, CLIMB_SPEED);
+        } else if (p.y < floor) {
           p.y += (floor - p.y) * (1 - Math.exp(-dt * 12));
           if (p.y < floor - 1) p.y = floor - 1; // never sink into a roof
           this.climb = Math.max(this.climb, 0);
@@ -346,21 +448,39 @@ export function createHero(scene, floorAt = () => 7) {
       }
 
       root.rotation.y = this.yaw;
-      bank.rotation.z += (-turn * 0.5 - bank.rotation.z) * (1 - Math.exp(-dt * 6));
-      body.position.y = Math.sin(this.time * 3) * 0.15;
-      // Nose up while climbing, nose down while diving.
+      const standing = this.mode !== 'fly';
+      const ease = (rate) => 1 - Math.exp(-dt * rate);
+      // Walking: legs and arms swing, she bobs and waddles a little.
+      const walkAmount = this.mode === 'walk' ? Math.min(1, Math.abs(this.speed) / WALK) : 0;
+      const swing = Math.sin(this.stride) * 0.6 * walkAmount;
+      const waddle = Math.sin(this.stride) * 0.06 * walkAmount;
+      bank.rotation.z += ((standing ? waddle : -turn * 0.5) - bank.rotation.z) * ease(standing ? 12 : 6);
+      const bob = standing ? Math.abs(Math.cos(this.stride)) * 0.1 * walkAmount : Math.sin(this.time * 3) * 0.15;
+      body.position.y += (bob - body.position.y) * ease(15);
+      // Nose up while climbing, nose down while diving; upright on her feet.
       const pitch = this.zip ? 0 : -this.climb / CLIMB_SPEED * 0.4;
-      body.rotation.x += (1.3 + pitch - body.rotation.x) * (1 - Math.exp(-dt * 6));
-      const flap = 0.2 + Math.min(this.speed, 15) * 0.015 + Math.sin(this.time * 12) * 0.12;
+      body.rotation.x += ((standing ? 0 : 1.3 + pitch) - body.rotation.x) * ease(standing ? 5 : 6);
+      const flap = standing
+        ? 0.08 + Math.abs(this.speed) * 0.03 + Math.sin(this.time * 5) * 0.04
+        : 0.2 + Math.min(this.speed, 15) * 0.015 + Math.sin(this.time * 12) * 0.12;
       capePivot.rotation.x = flap;
       if (sculpted.cape) sculpted.cape.rotation.z = -flap; // her model's back is -x, so it swings round z
-      // Hold forward: her right arm eases out in front of her, like a flying superhero.
-      this.reach += ((keys.ArrowUp && !this.zip ? 1 : 0) - this.reach) * (1 - Math.exp(-dt * 7));
+      // Hold forward while flying: her right arm eases out in front of her, like a flying superhero.
+      this.reach += ((keys.ArrowUp && !this.zip && !standing ? 1 : 0) - this.reach) * ease(7);
+      this.armSwing += (swing * 0.6 - this.armSwing) * ease(15);
       if (sculpted.arm) {
         const r = this.reach * this.reach * (3 - 2 * this.reach); // smooth start and stop
         sculpted.arm.rotation.set(0, 0, 0);
         sculpted.arm.rotateX(-REACH.up * r);     // swing up past her head
-        sculpted.arm.rotateZ(REACH.forward * r); // and a little toward her front
+        sculpted.arm.rotateZ(REACH.forward * r + this.armSwing); // a little toward her front (and walk swing)
+      }
+      // Her model's front is +x, so turning round z swings a leg or arm forward and back,
+      // each arm opposite its leg.
+      if (sculpted.leftArm) sculpted.leftArm.rotation.z = -this.armSwing;
+      if (sculpted.legs) {
+        const [left, right] = sculpted.legs;
+        left.rotation.z += (swing - left.rotation.z) * ease(15);
+        right.rotation.z += (-swing - right.rotation.z) * ease(15);
       }
 
       // Web line from her hand to the target while zipping (and a blink after).
