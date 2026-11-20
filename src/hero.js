@@ -15,7 +15,8 @@ const TURN_SPEED = 2.4;     // radians per second
 const FAST = 17, BACK = -6, DRIFT = 3;
 // On the ground: walking is much slower than flying.
 const WALK = 4.5, WALK_BACK = -2.5, WALK_TURN = 2.2;
-const FEET = 1.3 * 1.6;  // from her middle (root) down to her boot soles when standing up
+const HERO_SCALE = 0.75; // about door-and-a-bit tall (doors are 1.6)
+const FEET = 1.3 * HERO_SCALE;  // from her middle (root) down to her boot soles when standing up
 const STEP = 0.7;        // she can step up onto things this high; taller things block her
 
 const lit = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, flatShading: true, ...extra });
@@ -282,7 +283,7 @@ export function createHero(scene, floorAt = () => 7, { surfaceAt = () => 0, onLa
   const bank = new THREE.Group();
   const { body, hand, capePivot } = buildFigure();
   body.rotation.x = 1.3; // tip forward: head points where she flies
-  body.scale.setScalar(1.6);
+  body.scale.setScalar(HERO_SCALE);
   bank.add(body);
   root.add(bank);
   scene.add(root);

@@ -6,6 +6,8 @@ import { createHero, CRUISE_HEIGHT, MAX_HEIGHT } from './hero.js';
 import { createTownsfolk } from './townsfolk.js';
 import { createEffects } from './effects.js';
 import { createSky } from './sky.js';
+import { createClouds } from './clouds.js';
+import { createTraffic } from './traffic.js';
 
 const ROUND_SECONDS = 60;
 
@@ -37,6 +39,8 @@ const effects = createEffects(scene, camera, document.getElementById('fx-layer')
 const onLand = (feet) => effects.burst(feet.add(new THREE.Vector3(0, 0.3, 0)), ['dust', 'dust', 'dust', 'sparkle'], 14, 3);
 const hero = createHero(scene, floorAt, { surfaceAt, onLand });
 const townsfolk = createTownsfolk(scene, chimneys, effects);
+const clouds = createClouds(scene, effects);
+const traffic = createTraffic(scene);
 
 // A yellow arrow above the hero that points to the nearest person who needs help.
 const arrowGeo = new THREE.ConeGeometry(0.45, 1.3, 4);
@@ -87,6 +91,7 @@ function startRound() {
   timeLeft = ROUND_SECONDS;
   hero.reset();
   effects.clear();
+  clouds.clear();
   townsfolk.reset(hero.root.position);
   snapCamera();
   rescuedText.textContent = '0';
@@ -184,11 +189,13 @@ function frame() {
   }
 
   sky.update(state === 'title' ? null : timeLeft, ROUND_SECONDS, camera);
+  clouds.update(dt, state === 'playing' ? hero.root.position : null, camera);
+  traffic.update(dt);
   effects.update(dt);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 smoothLook.set(0, 4, 0);
 // For building Friends' headless checks: open the game with ?debug to reach these from the console.
-if (location.search.includes('debug')) window.game = { hero, camera, townsfolk, keys, surfaceAt, renderer, scene };
+if (location.search.includes('debug')) window.game = { hero, camera, townsfolk, keys, surfaceAt, renderer, scene, clouds, traffic };
 requestAnimationFrame(frame);
