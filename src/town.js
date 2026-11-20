@@ -14,8 +14,9 @@ export const PALETTE = {
   window: '#FFD45C',
   windowFrame: '#6B4636',
   door: '#6B4A3A',
-  ground: '#5B4C7E',
-  grass: '#4F6E57',
+  ground: '#806C91', // the streets: dusty mauve
+  grass: '#56684F', // muted sage lawns
+  paving: ['#94809F', '#897592'], // flat paving stones along the curbs
   tree: ['#667B51', '#5E7349', '#728A5A'],
   trunk: '#7A5238',
   lampPost: '#2E2A3A',
@@ -127,9 +128,17 @@ const HOUSE_VARIANTS = [
 ];
 // The models' painted shade colours fold back into their base colour (walls, roof, chimney).
 const HOUSE_COLORS = {
-  walls: '#E9A989', roof: '#B8405E', chimney: '#C495B0', window: '#FFD45C', door: '#A8443F', frame: '#E08A3A',
+  walls: '#E9A989', roof: '#B8405E', chimney: '#C495B0', window: '#FFD45C', door: '#A8443F', frame: '#7A5038',
 };
-const HOUSE_RECOLOR = { '#B9765E': HOUSE_COLORS.walls, '#8A2E48': HOUSE_COLORS.roof, '#8E6A86': HOUSE_COLORS.chimney };
+const HOUSE_RECOLOR = {
+  '#B9765E': HOUSE_COLORS.walls, '#8A2E48': HOUSE_COLORS.roof, '#8E6A86': HOUSE_COLORS.chimney,
+  '#E08A3A': HOUSE_COLORS.frame, // the orange window frames become wood brown
+};
+// The Team's wish "mix some colours": each house gets one of these soft wall colours
+// (peach, cream, light blue, mint), never the same as the house to the left or behind it.
+const WALL_COLORS = ['#E9A989', '#F2E3C6', '#BFD3E6', '#C6E3CF'];
+// The soft amber halo around each glowing window at night: colour, size (times the window), strength.
+const HALO = { color: '#FFA24D', size: 1.8, opacity: 0.3 };
 
 // Unpack the height maps and work out each variant's centre (the model is centred on it when loaded),
 // rim height and highest roof point (not counting the chimney).
@@ -159,7 +168,7 @@ function houseHeight(v, lx, lz) {
 // Simple-shape stand-in for a variant: walls, gable, two roof slabs, a chimney with a rim and a dark
 // opening, four-pane golden windows and a door. `house` is the house matrix (already scaled by s).
 const ROOF_THICK = 0.3, EAVE = 0.55, GABLE_OVERHANG = 0.35;
-function addSimpleHouse(b, house, v, s) {
+function addSimpleHouse(b, house, v, s, wallColor) {
   // Work in world-sized units, in a frame where the ridge runs along z.
   const turn = v.ridgeAlongX ? Math.PI / 2 : 0;
   const frame = house.clone().multiply(new THREE.Matrix4().makeScale(1 / s, 1 / s, 1 / s)).multiply(new THREE.Matrix4().makeRotationY(turn));
@@ -170,7 +179,7 @@ function addSimpleHouse(b, house, v, s) {
   const [bx0, bz0] = toFrame(v.body[0], v.body[2]), [bx1, bz1] = toFrame(v.body[1], v.body[3]);
   const m = frame.clone().multiply(new THREE.Matrix4().makeTranslation((bx0 + bx1) / 2, 0, (bz0 + bz1) / 2));
   const w = Math.abs(bx1 - bx0), d = Math.abs(bz1 - bz0), h = v.eave * s, apex = (v.ridge - v.eave) * s;
-  const wall = HOUSE_COLORS.walls, roof = HOUSE_COLORS.roof;
+  const wall = wallColor, roof = HOUSE_COLORS.roof;
 
   b.add(GEO.box, wall, mat(m, 0, h / 2, 0, w, h, d));
   const r = w / 1.732, sy = apex / (1.5 * r);
@@ -211,6 +220,14 @@ function lotVariant(i, j) {
   lotVariants.set(`${i},${j}`, v);
   return v;
 }
+const lotWalls = new Map();
+function lotWall(i, j) {
+  const taken = [lotWalls.get(`${i - 1},${j}`), lotWalls.get(`${i},${j - 1}`)];
+  const options = WALL_COLORS.filter((c) => !taken.includes(c));
+  const c = options[Math.floor(hash(i, j, 4) * options.length)];
+  lotWalls.set(`${i},${j}`, c);
+  return c;
+}
 
 // Places a house on a lot: its stand-in shapes, its chimney (where townsfolk stand) and its shape
 // for landing and walking.
@@ -219,11 +236,100 @@ function addHouse(b, i, j, x, z, chimneys, houses) {
   const ry = Math.floor(hash(i, j, 2) * 4) * Math.PI / 2;
   const s = v.scale * (0.94 + hash(i, j, 3) * 0.1);
   const matrix = mat(null, x, 0, z, s, s, s, 0, ry, 0);
-  addSimpleHouse(b, matrix, v, s);
+  const wall = lotWall(i, j);
+  addSimpleHouse(b, matrix, v, s, wall);
   const pos = new THREE.Vector3(v.chim[0] - v.cx, v.rimH, v.chim[1] - v.cz).applyMatrix4(matrix);
   chimneys.push({ pos, person: null });
   const reach = Math.max(v.max[0] - v.min[0], v.max[2] - v.min[2]) * s * 0.75;
-  houses.push({ v: vi, x, z, s, ry, cos: Math.cos(ry), sin: Math.sin(ry), matrix, half: reach, top: v.roofTop * s });
+  houses.push({ v: vi, wall: new THREE.Color(wall), x, z, s, ry, cos: Math.cos(ry), sin: Math.sin(ry), matrix, half: reach, top: v.roofTop * s });
+}
+
+// Finds the separate windows in a model's window section (triangles that touch belong to one window)
+// and returns, for each, a halo placement just in front of it: a matrix in model units that turns a
+// 1x1 plane to face out of the window, HALO.size times the window's size.
+const HALO_DIRS = [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]].map((d) => new THREE.Vector3(...d));
+function windowHalos(geo) {
+  const pos = geo.attributes.position.array, tris = pos.length / 9;
+  const parent = Int32Array.from({ length: tris }, (_, t) => t);
+  const find = (t) => { while (parent[t] !== t) t = parent[t] = parent[parent[t]]; return t; };
+  const seen = new Map();
+  for (let t = 0; t < tris; t++) {
+    for (let k = 0; k < 3; k++) {
+      const o = t * 9 + k * 3;
+      const key = Math.round(pos[o] * 2e3) + ',' + Math.round(pos[o + 1] * 2e3) + ',' + Math.round(pos[o + 2] * 2e3);
+      if (seen.has(key)) parent[find(t)] = find(seen.get(key)); else seen.set(key, t);
+    }
+  }
+  const groups = new Map(), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  for (let t = 0; t < tris; t++) {
+    const r = find(t);
+    if (!groups.has(r)) groups.set(r, { box: new THREE.Box3(), facing: [0, 0, 0, 0, 0] });
+    const g = groups.get(r);
+    a.fromArray(pos, t * 9); b.fromArray(pos, t * 9 + 3); c.fromArray(pos, t * 9 + 6);
+    g.box.expandByPoint(a).expandByPoint(b).expandByPoint(c);
+    const n = b.sub(a).cross(c.sub(a)); // points out of the face, as long as twice its area
+    HALO_DIRS.forEach((d, k) => { g.facing[k] += Math.max(0, n.dot(d)); });
+  }
+  const out = [], size = new THREE.Vector3(), centre = new THREE.Vector3(), forward = new THREE.Vector3(0, 0, 1);
+  for (const g of groups.values()) {
+    const k = g.facing.indexOf(Math.max(...g.facing)), d = HALO_DIRS[k];
+    g.box.getSize(size); g.box.getCenter(centre);
+    const across = k < 2 ? Math.max(size.y, size.z) : k < 4 ? Math.max(size.x, size.y) : Math.max(size.x, size.z);
+    if (across < 0.02) continue; // a stray speck, not a window
+    centre.addScaledVector(d, Math.abs(size.dot(d)) / 2 + 0.004);
+    const q = new THREE.Quaternion().setFromUnitVectors(forward, d);
+    out.push(new THREE.Matrix4().compose(centre.clone(), q, new THREE.Vector3().setScalar(across * HALO.size)));
+  }
+  return out;
+}
+
+function haloTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  g.addColorStop(0.4, 'rgba(255, 255, 255, 0.6)');
+  g.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// One soft amber card per window per house (all in one instanced mesh), glowing on the wall around
+// the window at night; the sky fades it out by day, like the lamp pools.
+function buildHalos(halos) {
+  const material = new THREE.MeshBasicMaterial({
+    color: HALO.color, map: haloTexture(), transparent: true, opacity: HALO.opacity,
+    depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  material.userData.nightOpacity = HALO.opacity;
+  NIGHT_GLOW_MATERIALS.push(material);
+  const count = halos.reduce((n, h) => n + h.list.length, 0);
+  const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), material, count);
+  const m = new THREE.Matrix4();
+  let k = 0;
+  for (const { w, list } of halos) for (const h of list) mesh.setMatrixAt(k++, m.multiplyMatrices(h.matrix, w));
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 1;
+  return mesh;
+}
+
+// Flat paving stones in two soft mauves, staggered in a row along each edge of a lawn (centre x, z, size).
+function addPaving(b, x, z, size) {
+  const W = 0.55, L = 0.95, GAP = 0.12, edge = size / 2 + W / 2 + 0.05;
+  for (let side = 0; side < 4; side++) {
+    const alongX = side < 2, sign = side % 2 ? 1 : -1;
+    const n = Math.floor((alongX ? size + W * 2 : size) / (L + GAP)); // the x rows cover the corners
+    for (let k = 0; k < n; k++) {
+      const t = (k - (n - 1) / 2) * (L + GAP);
+      const out = edge + (k % 2 ? 0.08 : -0.08), y = 0.03 + (k % 2) * 0.004;
+      const px = alongX ? x + t : x + sign * out, pz = alongX ? z + sign * out : z + t;
+      b.add(GEO.plane, PALETTE.paving[(k + side) % 2], mat(null, px, y, pz, alongX ? L : W, alongX ? W : L, 1, -Math.PI / 2, 0, 0));
+    }
+  }
 }
 
 // Swaps the stand-in houses for the sculpted ones once all three models have loaded.
@@ -237,6 +343,8 @@ async function buildSculptedHouses(scene, houses, standIn, standInGlows) {
     if (glow) GLOW_MATERIALS.push(m); // the sky lights the windows up at night
     return (materials[color] = m);
   };
+  const wallMaterial = new THREE.MeshLambertMaterial({ color: '#FFFFFF', flatShading: true });
+  const halos = []; // { w: one window's halo placement in model units, list: the houses that have it }
   const group = new THREE.Group();
   HOUSE_VARIANTS.forEach((v, vi) => {
     const list = houses.filter((h) => h.v === vi);
@@ -261,8 +369,14 @@ async function buildSculptedHouses(scene, houses, standIn, standInGlows) {
       const geo = mergeGeometries(parts);
       parts.forEach((g) => g.dispose());
       geo.computeVertexNormals();
-      const mesh = new THREE.InstancedMesh(geo, materialFor(color), list.length);
-      list.forEach((h, k) => mesh.setMatrixAt(k, h.matrix));
+      const isWall = color === HOUSE_COLORS.walls;
+      // The walls are white, tinted per house with its own wall colour.
+      const mesh = new THREE.InstancedMesh(geo, isWall ? wallMaterial : materialFor(color), list.length);
+      list.forEach((h, k) => {
+        mesh.setMatrixAt(k, h.matrix);
+        if (isWall) mesh.setColorAt(k, h.wall);
+      });
+      if (color === HOUSE_COLORS.window) for (const w of windowHalos(geo)) halos.push({ w, list });
       mesh.castShadow = mesh.receiveShadow = true;
       mesh.frustumCulled = false; // the instances spread over the whole town
       group.add(mesh);
@@ -278,6 +392,7 @@ async function buildSculptedHouses(scene, houses, standIn, standInGlows) {
   holes.frustumCulled = false;
   holes.receiveShadow = true;
   group.add(holes);
+  group.add(buildHalos(halos));
 
   scene.add(group);
   scene.remove(standIn);
@@ -327,9 +442,9 @@ function poolTexture() {
   c.width = c.height = 64;
   const ctx = c.getContext('2d');
   const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-  g.addColorStop(0, 'rgba(255, 200, 110, 1)');
-  g.addColorStop(0.5, 'rgba(255, 190, 100, 0.45)');
-  g.addColorStop(1, 'rgba(255, 180, 90, 0)');
+  g.addColorStop(0, 'rgba(255, 183, 121, 1)'); // peach #FFB779
+  g.addColorStop(0.5, 'rgba(255, 183, 121, 0.45)');
+  g.addColorStop(1, 'rgba(255, 183, 121, 0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 64, 64);
   const tex = new THREE.CanvasTexture(c);
@@ -424,6 +539,7 @@ export function buildTown(scene) {
     for (let j = -5; j <= 5; j++) {
       const x = i * spacing + rand(-1, 1), z = j * spacing + rand(-1, 1);
       b.add(GEO.plane, PALETTE.grass, mat(null, x, 0.02, z, 9, 9, 1, -Math.PI / 2, 0, 0));
+      addPaving(b, x, z, 9);
       if (Math.random() < 0.82) addHouse(hb, i, j, x, z, chimneys, houses);
       else { addTree(b, x - 2, z - 1); addTree(b, x + 2, z + 1.5); }
       if (Math.random() < 0.3) addTree(b, x + 4, z - 4.1, rand(0.8, 1.1));
