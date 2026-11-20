@@ -1,13 +1,11 @@
 <!doctype html>
-<html lang="en">
+<html lang="sv">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Unicorn Candy Race</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦄</text></svg>">
+  <title>Our Game</title>
   <link rel="stylesheet" href="src/style.css">
-  <!-- three.js is available to any module via `import * as THREE from 'three'`. Pinned version, no build step (see docs/adr/0002).
-       The race itself is drawn with plain 2D canvas and does not load it. -->
+  <!-- three.js is available to any module via `import * as THREE from 'three'`. Pinned version, no build step (see docs/adr/0002). -->
   <script type="importmap">
     {
       "imports": {
@@ -19,35 +17,19 @@
 </head>
 <body>
   <canvas id="stage"></canvas>
-  <div class="zoom-frame"></div>
-
-  <div id="hud" class="hidden">
-    <div class="pill you">🦄 You <b id="you-count">0</b></div>
-    <div class="pill timer">⏱ <b id="time-left">60</b></div>
-    <div class="pill rival">💚 Rival <b id="rival-count">0</b></div>
-  </div>
-
-  <div id="callout" class="callout"></div>
 
   <main id="title-screen" class="screen">
-    <div class="card">
-      <h1 class="title">Unicorn<br>Candy Race</h1>
-      <p class="subtitle">Grab more candy than the rival unicorn!</p>
-      <p class="hint">↑ to jump · ← → to run back and forward</p>
-      <p class="hint small">🍬 Jump to grab floating candy · Hop over the jelly!<br>🌈 Rainbows make you ZOOM</p>
-      <button id="play" class="big-button">▶ PLAY</button>
-    </div>
+    <h1 class="title">? ? ?</h1>
+    <p class="subtitle">Ett nytt spel är på väg… <span class="en">A new game is on its way…</span></p>
+    <button id="play" class="big-button">▶ SPELA · PLAY</button>
   </main>
 
-  <main id="end-screen" class="screen hidden">
-    <div class="card">
-      <h2 id="result" class="title">You win!</h2>
-      <div class="final">
-        <div class="pill you">🦄 You <b id="final-you">0</b></div>
-        <div class="pill rival">💚 Rival <b id="final-rival">0</b></div>
-      </div>
-      <button id="again" class="big-button">↻ PLAY AGAIN</button>
-    </div>
+  <main id="design-screen" class="screen hidden">
+    <div class="pencil">✏️</div>
+    <h2>Dags att designa!</h2>
+    <p>Berätta för din hjälpare vad spelet ska handla om.</p>
+    <p class="en">Time to design! Tell your helper what the game should be about.</p>
+    <button id="back" class="small-button">⏪</button>
   </main>
 
   <script type="module" src="src/main.js"></script>
