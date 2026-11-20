@@ -1,6 +1,6 @@
 # Game plan
 
-_Not designed yet. The Helper fills this in during Design (14:20–14:35) from the Team's answers, and keeps it up to date as wishes change the game. Only the Helper edits this file. English only; no names or personal details._
+_Not designed yet. The Helper fills this in during Design from the Team's answers, and keeps it up to date as wishes change the game. Only the Helper edits this file. English only; no names or personal details._
 
 ## The game
 - **What is it about?**

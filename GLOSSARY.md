@@ -63,7 +63,7 @@ _Avoid_: context reset, new thread, handoff (when speaking to the Team)
 ## The day
 
 **Phase**:
-One block of the organisers' timetable: Design (14:20–14:35), First Prototype (14:35–15:15), Play-test (15:15–16:15), Demo Prep (16:15–16:30) and Demos (16:30–17:00).
+One block of the session's timetable: Warm-up, Design, First Prototype, Play-test, Demo Prep and Demos. Times are in `docs/agents/environment.md`.
 _Avoid_: sprint, stage, step
 
 **Game Plan**:

@@ -398,6 +398,9 @@ def main():
     ap.add_argument("--faces", type=int, help="face budget, 500-6000 (default 2000; 6000 with --character)")
     ap.add_argument("--timeout", type=int, default=600, help="seconds to wait for Tripo (default 600)")
     a = ap.parse_args()
+    if not os.path.isfile(os.path.join(ROOT, ".team-machine")):
+        sys.exit("3D models are only available on the original team's machine (see docs/agents/environment.md). "
+                 "Build models from simple shapes instead.")
     if a.faces is None:
         a.faces = MAX_FACES if a.character else 2000
 

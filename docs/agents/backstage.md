@@ -4,14 +4,11 @@ Everything the Team never sees: preview, saving, publishing, Wish Records, Time 
 
 ## Preview
 
-The Team watches the game in T3's preview pane. Port 8000 belongs to the Helper's one server.
+How the Team sees the game depends on the setup: **Show the game** in `docs/agents/environment.md` (and **Preview on the team machine** there). Everywhere:
 
-1. **Start the server once**, from the repo root, as a background command with the maximum time limit (`timeout: 7200000`, 2 hours): `python -m http.server 8000`. A default background command is stopped after 30 minutes, and the Team's game disappears. Restart it the same way if it stops.
-2. **Show the game**: `preview_open` on `http://localhost:8000/`, visible. After a change lands, reload the same tab.
-3. **When the game window is gone** (closed, or "it went away"): open a fresh tab with `reuseExistingTab: false`, then close the old one with `t3_preview_close`. Reusing the old tab doesn't bring it back.
-4. **Hold the reload** while a Friend is mid-edit on files the game loads, so the Team never plays a half-built game; reload when the change lands.
-5. **Checking things yourself**: use `python tools/shot.py` (headless screenshot, WebGL included), never the Team's tab. Hidden preview tabs draw 3D scenes blank.
-6. Fallback when the preview can't be seen: the published page, https://europa-hackathons.github.io/harleys-team/, updates about a minute after each save.
+- **Hold the reload** while a Friend is mid-edit on files the game loads, so the Team never plays a half-built game; reload when the change lands.
+- **Checking things yourself**: use `python tools/shot.py` (headless screenshot, WebGL included), never the Team's view.
+- Saved changes also reach the published page (**Publishing** in `environment.md`) about a minute later.
 
 ## Record keeper
 
@@ -21,10 +18,11 @@ The brief includes: the **exact list of files** the finished Friend reported, a 
 
 1. Stage **only the listed files**: `git add -- <files>`. Other Friends may be mid-edit in the same folder, so never `git add -A` or `git add .`. Leave anything unlisted alone and mention it in the report.
 2. `git commit` with an English message: `<Wish summary> (#<issue>)`, one wish per commit, ending with the attribution line the system gives you. For a new wish, create the issue first (step 4) so the commit can name it.
-3. `git pull --rebase`, then `git push` to `main`. GitHub Pages publishes from `main` automatically.
-4. Write the **Wish Record**:
+3. `git pull --rebase`, then `git push` to `main` (on setups without a remote of your own, commit locally and skip the push).
+4. Write the **Wish Record** where **Wish Records** in `docs/agents/environment.md` says. With GitHub issues:
    - New wish: `gh issue create --label wish --title "<Wish summary>"` with the body below. During a rehearsal, also add `--label test-run`.
    - Chained wish: `gh issue comment <n>` with the same body sections for the new step.
+   - Without GitHub: one file per wish, `.scratch/wishes/<n>-<short-name>.md`, with the same body; append chained steps to it and mark it `Closed` at the top when done.
    - When the Team moves on from a feature, the Helper says so in the next brief: `gh issue close <n>` after a final comment naming the commits. A feature is never left open once the Team has moved on.
 5. Report back to the Helper in one line: commit hash, issue number, published or not, and any unlisted changed files you saw.
 
@@ -46,5 +44,5 @@ To undo the latest wish: `git revert --no-edit <commit(s) for that wish>`, push,
 
 1. Write `docs/session/handover.md` in English: the Helper's name, current phase, the wish list, open Wish Records, what's half-built, and anything the Grown-up flagged. No personal details.
 2. Have the record keeper save it.
-3. Start a new chat in this project with `t3_thread_launch`, prompting: "You are the Helper. Read AGENTS.md, then docs/session/handover.md, then greet the Team as <name> and carry on."
-4. Put the new chat's link in the Grown-up Note so the Grown-up can click across.
+3. Start a new chat as **Handover** in `docs/agents/environment.md` says, prompting: "You are the Helper. Read AGENTS.md, then docs/session/handover.md, then greet the Team as <name> and carry on."
+4. Put the new chat's link (or what to do) in the Grown-up Note so the Grown-up can switch across.

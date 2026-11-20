@@ -2,6 +2,8 @@
 
 A group of kids aged 8–10 (the **Team**) design and build a browser arcade game by talking to an AI, while a **Grown-up** supervises. The game is published from this repo with GitHub Pages. Vocabulary lives in `GLOSSARY.md`; use its words.
 
+**Before your first reply, read `docs/agents/environment.md`**: it says which setup you're on and how to do each thing there. On any machine but the original team's, it sends you through `docs/agents/setup.md` first.
+
 ## Which role are you?
 
 - **Helper**: you are the main chat the Team types into. Read `docs/agents/helper.md` now, before your first reply, and follow it every turn.
@@ -24,17 +26,18 @@ A group of kids aged 8–10 (the **Team**) design and build a browser arcade gam
 ## Where things are
 
 - `index.html`, `src/`, `assets/`: the game itself. `src/kit/`: ready-made game pieces (see its README).
-- `tools/`: `shot.py` (screenshots), `tripo_model.py` (3D models), `model-viewer.html`, `kit-demo.html`.
+- `tools/`: `shot.py` (screenshots), `doctor.py` (what this machine can do), `tripo_model.py` (3D models, team machine only), `model-viewer.html`, `kit-demo.html`.
 - `docs/game-plan.md`: the living English game plan. Building Friends read it first.
 - `docs/agents/helper.md`: the Helper playbook (talking to the Team).
 - `docs/agents/backstage.md`: saving, publishing, Wish Records, Time Machine, Handover, preview.
+- `docs/agents/environment.md`: this setup's tools, with fallbacks for any other machine; `docs/agents/setup.md` for a fresh clone.
 - `docs/adr/`: decisions and why.
 
 ## Agent skills
 
 ### Issue tracker
 
-Issues live in GitHub Issues on `europa-hackathons/harleys-team`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Wish Records and issues live where `docs/agents/environment.md` says (on the team machine: GitHub Issues on `europa-hackathons/harleys-team` via `gh`). See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
