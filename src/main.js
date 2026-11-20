@@ -1,24 +1,29 @@
-// Unicorn Candy Race: race a rival unicorn through candy land for 60 seconds. Most candy wins!
-// Left/Right switch lanes, Up jumps. Rainbows make you ZOOM. Jelly blobs slow you down.
-import * as THREE from 'three';
+// Unicorn Candy Race: a side-view race through candy land at night, 60 seconds. Most candy wins!
+// Up jumps (to grab floating candy and hop over jelly). Left/Right move your unicorn back and forward.
+// Rainbows make you ZOOM. Jelly blobs go "Boing!" and slow you down.
 import {
-  LANES, COLORS, RAINBOW, CANDY_COLORS,
-  makeUnicorn, animateUnicorn, makeCandy, makeJelly, makeRainbow, makeTrack, makeSparkles,
+  layout, drawSky, drawScenery, drawTrack, drawForeground, drawCandy, drawJelly, drawRainbowPickup,
+  particles, rainbowSparkles, randomCandyLook, JELLY_COLORS, RAINBOW, pick, rand,
 } from './world.js';
+import { drawUnicorn, PLAYER_LOOK, RIVAL_LOOK } from './unicorn.js';
 
 const RACE_SECONDS = 60;
-const START_SPEED = 18;
-const END_SPEED = 24; // the race slowly speeds up
-const BOOST_SPEED = 36;
-const SLOW_SPEED = 8;
+const START_SPEED = 300; // units per second the world scrolls by
+const END_SPEED = 370; // the race slowly speeds up
+const BOOST_SPEED = 640;
+const SLOW_SPEED = 130;
+const IDLE_SPEED = 170; // gentle running behind the title and end screens
 const BOOST_TIME = 3;
-const SLOW_TIME = 1;
-const SPAWN_Z = -95;
-const GONE_Z = 10;
-const ROW_GAP = 13;
-const GRAVITY = 26;
-const JUMP_SPEED = 9.5;
-const IDLE_SPEED = 7; // gentle scrolling behind the title and end screens
+const SLOW_TIME = 0.8;
+const GRAVITY = 1650;
+const JUMP_SPEED = 620; // jumps about 116 units high and lasts 0.75 s
+const MOVE_SPEED = 260; // how fast Left/Right move your unicorn along the track
+const RIVAL_MOVE = 170;
+const PLAYER_SIZE = 1.1;
+const RIVAL_SIZE = 0.95;
+// How good the rival is (0 to 1).
+const RIVAL_JELLY_SKILL = 0.8;
+const RIVAL_CANDY_SKILL = 0.75;
 
 // ---------- Page bits ----------
 
@@ -47,47 +52,49 @@ function bump(el) {
   el.classList.add('bump');
 }
 
-// ---------- 3D world ----------
+// ---------- Screen ----------
 
 const canvas = $('stage');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-
-const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0xffd6ec, 45, 105);
-
-const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
-let baseFov = 60;
-
-scene.add(new THREE.HemisphereLight(0xffffff, 0xffb3d9, 1.8));
-const sun = new THREE.DirectionalLight(0xffffff, 1.8);
-sun.position.set(4, 10, 6);
-scene.add(sun);
+const ctx = canvas.getContext('2d');
+let W = 800;
+let H = 600;
+let pxScale = 1;
+let L = layout(W, H);
+let minX = 90;
+let maxX = 480;
 
 function resize() {
-  renderer.setSize(innerWidth, innerHeight, false);
-  camera.aspect = innerWidth / innerHeight;
-  baseFov = camera.aspect < 1 ? 85 : 60; // tall screens need a wider view to see all lanes
-  camera.updateProjectionMatrix();
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  canvas.width = Math.round(innerWidth * dpr);
+  canvas.height = Math.round(innerHeight * dpr);
+  const scale = Math.min(innerHeight / 600, innerWidth / 760);
+  W = innerWidth / scale;
+  H = innerHeight / scale;
+  pxScale = scale * dpr;
+  L = layout(W, H);
+  minX = 90;
+  maxX = Math.min(W * 0.62, W - 230);
 }
 addEventListener('resize', resize);
 resize();
 
-const track = makeTrack();
-scene.add(track.group);
-const sparkles = makeSparkles(scene);
+// ---------- Runners ----------
 
-function makeRunner(look, lane) {
-  const u = makeUnicorn(look);
-  scene.add(u.root);
-  return { u, lane, x: LANES[lane], y: 0, vy: 0, z: 0, slow: 0, boost: 0, candy: 0, think: 0 };
+function makeRunner(look, size) {
+  return { look, size, x: 0, y: 0, vy: 0, slow: 0, boost: 0, candy: 0, phase: 0, goal: 0, think: 0 };
 }
+const player = makeRunner(PLAYER_LOOK, PLAYER_SIZE);
+const rival = makeRunner(RIVAL_LOOK, RIVAL_SIZE);
 
-const player = makeRunner({ body: COLORS.white, mane: RAINBOW }, 1);
-const rival = makeRunner(
-  { body: COLORS.lilac, mane: [COLORS.mint, COLORS.sky, COLORS.white], muzzle: '#e3d1ff', horn: COLORS.mint, hooves: COLORS.sky },
-  2,
-);
+function placeRunners() {
+  player.x = W * 0.3;
+  rival.x = W * 0.5;
+}
+placeRunners();
+
+function resetRunner(r, x) {
+  Object.assign(r, { x, y: 0, vy: 0, slow: 0, boost: 0, candy: 0, goal: x, think: 1 });
+}
 
 // ---------- Race state ----------
 
@@ -95,77 +102,85 @@ let state = 'title'; // title | countdown | race | end
 let timeLeft = RACE_SECONDS;
 let countdown = 0;
 let speed = IDLE_SPEED;
-let distance = 0;
-let nextRow = 0;
-let lastRainbowRow = -99;
-let rowCount = 0;
+let scroll = 0;
+let nextPattern = 0;
+let patternsSinceRainbow = 0;
 let items = [];
+let trail = [];
 let t = 0;
+const keys = { left: false, right: false };
+const speedLines = Array.from({ length: 22 }, () => ({ x: rand(0, 1200), y: rand(0, 1), len: rand(60, 160) }));
 
-function addItem(kind, lane, z, y) {
-  const mesh = kind === 'candy'
-    ? makeCandy(CANDY_COLORS[Math.floor(Math.random() * CANDY_COLORS.length)])
-    : kind === 'jelly' ? makeJelly() : makeRainbow();
-  mesh.position.set(LANES[lane], y, z);
-  scene.add(mesh);
-  items.push({ kind, lane, z, y, mesh, taken: false, bumped: new Set(), rivalDecided: false, spin: Math.random() * 6 });
+function addItem(kind, x, h) {
+  items.push({
+    kind, x, h, taken: false, bumped: new Set(), rivalDecided: false, squish: 0, spin: Math.random() * 6,
+    look: kind === 'candy' ? randomCandyLook() : kind === 'jelly' ? pick(JELLY_COLORS) : null,
+  });
 }
 
-function candyLine(lane, z, count) {
-  for (let i = 0; i < count; i++) addItem('candy', lane, z - i * 2.2, 0.8);
-}
+// Each pattern is placed starting at x and returns how wide it is.
+const PATTERNS = {
+  lowLine(x) {
+    for (let i = 0; i < 5; i++) addItem('candy', x + i * 50, 55);
+    return 200;
+  },
+  highArc(x) {
+    [60, 150, 180, 150, 60].forEach((h, i) => addItem('candy', x + i * 46, h));
+    return 184;
+  },
+  jellyHop(x) {
+    addItem('candy', x, 55);
+    addItem('candy', x + 50, 55);
+    addItem('jelly', x + 190, 0);
+    [140, 180, 140].forEach((h, i) => addItem('candy', x + 140 + i * 50, h));
+    return 240;
+  },
+  doubleJelly(x) {
+    addItem('jelly', x, 0);
+    addItem('candy', x, 160);
+    addItem('candy', x + 140, 55);
+    addItem('jelly', x + 280, 0);
+    addItem('candy', x + 280, 160);
+    return 280;
+  },
+  mixed(x) {
+    for (let i = 0; i < 3; i++) addItem('candy', x + i * 50, 55);
+    [150, 175, 150].forEach((h, i) => addItem('candy', x + 230 + i * 46, h));
+    return 322;
+  },
+  rainbow(x) {
+    addItem('rainbow', x, 165);
+    for (let i = 0; i < 4; i++) addItem('candy', x + 200 + i * 50, 55);
+    return 350;
+  },
+};
 
-function otherLane(lane) {
-  return (lane + 1 + Math.floor(Math.random() * 2)) % 3;
-}
-
-function spawnRow(z) {
-  rowCount++;
-  const lane = Math.floor(Math.random() * 3);
-  const r = Math.random();
-  if (r < 0.12 && rowCount - lastRainbowRow > 8) {
-    lastRainbowRow = rowCount;
-    addItem('rainbow', lane, z, 0.6);
-    candyLine(otherLane(lane), z, 3);
-  } else if (r < 0.4) {
-    // A jelly blob, with bonus candy floating above it for brave jumpers.
-    addItem('jelly', lane, z, 0);
-    addItem('candy', lane, z + 1.4, 2.3);
-    addItem('candy', lane, z, 2.7);
-    addItem('candy', lane, z - 1.4, 2.3);
-    if (Math.random() < 0.6) candyLine(otherLane(lane), z, 3);
-  } else if (r < 0.75) {
-    candyLine(lane, z, 5);
+function spawnPattern(x) {
+  patternsSinceRainbow++;
+  let name;
+  if (patternsSinceRainbow > 6 && Math.random() < 0.35) {
+    name = 'rainbow';
+    patternsSinceRainbow = 0;
   } else {
-    const second = otherLane(lane);
-    candyLine(lane, z, 3);
-    candyLine(second, z - 4, 3);
+    name = pick(['lowLine', 'highArc', 'jellyHop', 'jellyHop', 'doubleJelly', 'mixed', 'highArc']);
   }
-}
-
-function clearItems() {
-  for (const item of items) scene.remove(item.mesh);
-  items = [];
-}
-
-function resetRunner(r, lane) {
-  r.lane = lane;
-  r.x = LANES[lane];
-  r.y = 0; r.vy = 0; r.z = 0; r.slow = 0; r.boost = 0; r.candy = 0; r.think = 0.5;
+  return PATTERNS[name](x);
 }
 
 function startRace() {
-  clearItems();
-  resetRunner(player, 1);
-  resetRunner(rival, 0);
+  items = [];
+  trail = [];
+  particles.list.length = 0;
+  resetRunner(player, W * 0.3);
+  resetRunner(rival, W * 0.42);
   timeLeft = RACE_SECONDS;
   countdown = 3;
   speed = 0;
-  distance = 0;
-  rowCount = 0;
-  lastRainbowRow = -99;
-  for (let z = -22; z >= SPAWN_Z; z -= ROW_GAP) spawnRow(z);
-  nextRow = ROW_GAP; // the next row arrives one gap after the last pre-placed one
+  patternsSinceRainbow = 0;
+  // Fill the track ahead of the runners, then keep adding more as it scrolls.
+  let x = W * 0.75;
+  while (x < W + 200) x += spawnPattern(x) + rand(240, 340);
+  nextPattern = x;
   state = 'countdown';
   hide(titleScreen);
   hide(endScreen);
@@ -176,7 +191,8 @@ function startRace() {
 
 function endRace() {
   state = 'end';
-  clearItems();
+  items = [];
+  keys.left = keys.right = false;
   document.body.classList.remove('zoom');
   const you = player.candy;
   const them = rival.candy;
@@ -186,7 +202,7 @@ function endRace() {
   hide(hud);
   show(endScreen);
   if (you >= them) {
-    for (let i = 0; i < 4; i++) sparkles.emit(player.x, 2, 0, { count: 25, spread: 8, up: 6, life: 1.4, scale: 1.4 });
+    for (let i = 0; i < 6; i++) particles.emit(rand(W * 0.1, W * 0.9), rand(80, 300), { count: 24, spread: 220, up: 60, life: 1.6, size: 10 });
   }
 }
 
@@ -211,11 +227,6 @@ function updateHud(force = false) {
 
 // ---------- Controls ----------
 
-function steer(dir) {
-  if (state !== 'race') return;
-  player.lane = Math.max(0, Math.min(2, player.lane + dir));
-}
-
 function jump(r) {
   if (r.y > 0.001) return;
   r.vy = JUMP_SPEED;
@@ -228,13 +239,17 @@ addEventListener('keydown', (e) => {
     if (key === 'Enter' || key === ' ') startRace();
     return;
   }
-  if (e.repeat) return;
-  if (key === 'ArrowLeft' || key === 'a' || key === 'A') steer(-1);
-  if (key === 'ArrowRight' || key === 'd' || key === 'D') steer(1);
-  if ((key === 'ArrowUp' || key === ' ' || key === 'w' || key === 'W') && state === 'race') jump(player);
+  if (key === 'ArrowLeft') keys.left = true;
+  if (key === 'ArrowRight') keys.right = true;
+  if (key === 'ArrowUp' && !e.repeat && state === 'race') jump(player);
 });
+addEventListener('keyup', (e) => {
+  if (e.key === 'ArrowLeft') keys.left = false;
+  if (e.key === 'ArrowRight') keys.right = false;
+});
+addEventListener('blur', () => { keys.left = keys.right = false; });
 
-// Swipe or tap on touch screens: swipe left/right to steer, swipe up or tap to jump.
+// Touch screens: tap to jump, swipe left or right to move.
 let touchStart = null;
 canvas.addEventListener('pointerdown', (e) => { touchStart = { x: e.clientX, y: e.clientY }; });
 canvas.addEventListener('pointerup', (e) => {
@@ -242,7 +257,7 @@ canvas.addEventListener('pointerup', (e) => {
   const dx = e.clientX - touchStart.x;
   const dy = e.clientY - touchStart.y;
   touchStart = null;
-  if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) steer(Math.sign(dx));
+  if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) player.x += Math.sign(dx) * 100;
   else jump(player);
 });
 
@@ -254,59 +269,62 @@ $('again').addEventListener('click', (e) => { e.currentTarget.blur(); startRace(
 function rivalThink(dt) {
   rival.think -= dt;
   if (rival.think <= 0) {
-    rival.think = 0.35 + Math.random() * 0.3;
-    if (Math.random() < 0.8) {
-      const scores = [0, 0, 0];
-      for (const it of items) {
-        if (it.taken || it.z > rival.z || it.z < rival.z - 28) continue;
-        const near = 1 - (rival.z - it.z) / 28;
-        if (it.kind === 'candy') scores[it.lane] += near * (it.y > 1.5 ? 0.3 : 1);
-        if (it.kind === 'jelly' && it.z > rival.z - 10) scores[it.lane] -= 2;
-      }
-      if (Math.abs(rival.z - player.z) < 1.5) scores[player.lane] -= 1.5; // try not to bump into the player
-      scores[rival.lane] += 0.2; // a little lazy about changing lanes
-      const best = scores.indexOf(Math.max(...scores));
-      rival.lane += Math.sign(best - rival.lane);
-    }
+    rival.think = rand(1.2, 2.4);
+    const lead = rival.candy - player.candy;
+    if (lead <= -3 && Math.random() < 0.6) rival.goal = maxX + 30; // dash ahead to catch up
+    else if (lead >= 5) rival.goal = rand(minX + 40, W * 0.4); // feeling lazy
+    else if (Math.random() < 0.3) rival.goal = maxX + 30;
+    else rival.goal = rand(W * 0.3, maxX);
   }
-  // Jump over jelly blobs (most of the time).
+  // Jump over jelly and up to high candy (most of the time).
+  const cx = rival.x + 6;
   for (const it of items) {
-    if (it.kind !== 'jelly' || it.rivalDecided || it.lane !== rival.lane) continue;
-    if (it.z > rival.z - 3.5 && it.z < rival.z - 1.2) {
+    if (it.rivalDecided || it.taken || it.kind === 'rainbow') continue;
+    const d = it.x - cx;
+    if (d < 0) continue;
+    if (it.kind === 'jelly' && d <= speed * 0.36 + 10) {
       it.rivalDecided = true;
-      if (Math.random() < 0.75) jump(rival);
+      if (Math.random() < RIVAL_JELLY_SKILL) jump(rival);
+    } else if (it.kind === 'candy' && it.h > 125 && d <= speed * 0.28 + 20) {
+      it.rivalDecided = true;
+      if (Math.random() < RIVAL_CANDY_SKILL) jump(rival);
     }
   }
 }
 
 // ---------- Hits ----------
 
-function touch(item, r, prevZ, isPlayer) {
-  if (Math.abs(LANES[item.lane] - r.x) > 0.9) return;
-  if (!(item.z >= r.z - 0.7 && prevZ <= r.z + 0.7)) return;
+function itemY(h) { return L.itemRow - h; }
+
+function touch(item, r, isPlayer) {
+  const dx = Math.abs(item.x - (r.x + 6));
   if (item.kind === 'candy') {
-    if (!isPlayer && rival.z > 2.5) return; // rival is left behind while you zoom
-    if (Math.abs(r.y + 0.9 - item.y) > 1.2) return;
+    if (dx > 46 || item.h < r.y - 14 || item.h > r.y + 128) return;
+    if (!isPlayer && r.x < -20) return; // the rival is off screen
     item.taken = true;
     r.candy++;
-    sparkles.emit(item.mesh.position.x, item.y, r.z, {
-      count: isPlayer ? 10 : 5, colors: isPlayer ? [COLORS.lemon, COLORS.pink, COLORS.white] : [COLORS.lilac, COLORS.white],
-    });
+    const y = itemY(item.h);
+    particles.emit(item.x, y, isPlayer
+      ? { count: 12, colors: ['#ffffff', '#fff6a8', '#ff8fc8'], spread: 140, up: 60, life: 0.7 }
+      : { count: 6, colors: ['#ffffff', '#9ff0c8'], spread: 90, up: 40, life: 0.5, size: 4 });
+    if (isPlayer) particles.text(item.x, y - 18, '+1', '#fff6a8');
   } else if (item.kind === 'jelly') {
-    if (r.y > 0.7 || item.bumped.has(r)) return;
+    if (dx > 50 || r.y > 34 || item.bumped.has(r)) return;
     item.bumped.add(r);
     item.squish = 1;
     r.slow = SLOW_TIME;
     if (isPlayer) {
       r.boost = 0;
+      r.x -= 40;
       shout('Boing!');
     }
   } else if (item.kind === 'rainbow' && isPlayer) {
+    if (dx > 56 || item.h < r.y - 20 || item.h > r.y + 140) return;
     item.taken = true;
     r.boost = BOOST_TIME;
     r.slow = 0;
     shout('ZOOM!');
-    sparkles.emit(r.x, 1.5, 0, { count: 30, spread: 7, up: 5, life: 1, scale: 1.3 });
+    particles.emit(item.x, itemY(item.h), { count: 50, spread: 320, up: 60, life: 1.1, size: 9 });
   }
 }
 
@@ -327,95 +345,89 @@ function update(dt) {
     }
   }
 
+  const racing = state === 'race';
+  const ramp = START_SPEED + (END_SPEED - START_SPEED) * (1 - timeLeft / RACE_SECONDS);
   let target = IDLE_SPEED;
   if (state === 'countdown') target = 0;
-  if (state === 'race') {
+  if (racing) {
     timeLeft -= dt;
-    const ramp = START_SPEED + (END_SPEED - START_SPEED) * (1 - timeLeft / RACE_SECONDS);
     target = player.slow > 0 ? SLOW_SPEED : player.boost > 0 ? BOOST_SPEED : ramp;
   }
   speed += (target - speed) * Math.min(1, dt * (player.slow > 0 ? 8 : 3));
-  const dz = speed * dt;
+  const dx = speed * dt;
+  scroll += dx;
 
-  track.update(dz);
-  sparkles.update(dt, dz);
-
-  if (state === 'race') {
-    distance += dz;
-    while (distance >= nextRow) {
-      spawnRow(SPAWN_Z - (distance - nextRow));
-      nextRow += ROW_GAP;
-    }
+  // New candy patterns arrive from the right.
+  if (racing) {
+    nextPattern -= dx;
+    while (nextPattern < W + 120) nextPattern += spawnPattern(nextPattern) + rand(240, 340);
     rivalThink(dt);
   }
 
-  // Runners: slide between lanes, jump, recover.
+  // Player: move along the track, ZOOM pushes you forward.
+  if (racing) {
+    const dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+    player.x += dir * MOVE_SPEED * dt;
+    if (player.boost > 0) player.x += 120 * dt;
+    player.x = Math.max(minX, Math.min(maxX, player.x));
+  } else if (state !== 'countdown') {
+    player.x += (W * 0.3 - player.x) * Math.min(1, dt * 2);
+  }
+
+  // Rival: runs at its own speed, so it drifts back while you zoom and pulls ahead while you're slowed.
+  if (racing) {
+    const rivalSpeed = rival.slow > 0 ? SLOW_SPEED : ramp;
+    const steer = Math.max(-RIVAL_MOVE * dt, Math.min(RIVAL_MOVE * dt, rival.goal - rival.x));
+    rival.x += steer + (rivalSpeed - speed) * 0.35 * dt;
+    rival.x = Math.max(-120, Math.min(maxX + 30, rival.x));
+  } else if (state !== 'countdown') {
+    rival.x += (W * 0.5 - rival.x) * Math.min(1, dt * 2);
+  }
+
   for (const r of [player, rival]) {
-    r.x += (LANES[r.lane] - r.x) * Math.min(1, dt * 12);
     r.vy -= GRAVITY * dt;
     r.y = Math.max(0, r.y + r.vy * dt);
     if (r.y === 0) r.vy = 0;
     r.slow = Math.max(0, r.slow - dt);
     r.boost = Math.max(0, r.boost - dt);
+    if (state !== 'countdown') r.phase += dt * (8 + speed * 0.02);
   }
 
-  // The rival drifts back while you zoom and pulls ahead while you're slowed.
-  let rivalTarget = 0;
-  if (state === 'race') {
-    if (player.boost > 0) rivalTarget += 3.5;
-    if (player.slow > 0) rivalTarget -= 4;
-    if (rival.slow > 0) rivalTarget += 3;
-  }
-  rival.z += (Math.max(-6, Math.min(3.5, rivalTarget)) - rival.z) * Math.min(1, dt * 1.5);
-
-  // Move pickups and check for touches.
+  // Move candy, jelly and rainbows; check for touches.
   for (const item of items) {
-    const prevZ = item.z;
-    item.z += dz;
-    item.mesh.position.z = item.z;
+    item.x -= dx;
     item.spin += dt;
-    if (item.kind === 'candy') {
-      item.mesh.rotation.y = item.spin * 3;
-      item.mesh.position.y = item.y + Math.sin(item.spin * 4) * 0.1;
-    } else if (item.kind === 'rainbow') {
-      item.mesh.rotation.y = Math.sin(item.spin * 2) * 0.4;
-      item.mesh.position.y = item.y + Math.sin(item.spin * 3) * 0.15;
-    } else if (item.kind === 'jelly') {
-      item.squish = Math.max(0, (item.squish || 0) - dt * 2);
-      const wob = Math.sin(item.spin * 6) * 0.06 + item.squish * Math.sin(item.spin * 30) * 0.25;
-      item.mesh.userData.blob.scale.set(1 + wob, 1 - wob, 1 + wob);
-    }
-    if (state === 'race' && !item.taken) {
-      touch(item, player, prevZ, true);
-      if (!item.taken) touch(item, rival, prevZ, false);
+    item.squish = Math.max(0, item.squish - dt * 2);
+    if (racing && !item.taken) {
+      touch(item, player, true);
+      if (!item.taken) touch(item, rival, false);
     }
   }
-  items = items.filter((item) => {
-    const keep = !item.taken && item.z < GONE_Z;
-    if (!keep) scene.remove(item.mesh);
-    return keep;
-  });
+  items = items.filter((item) => !item.taken && item.x > -120);
 
-  // Draw the unicorns.
-  const running = state === 'countdown' ? 0 : speed * 0.6;
-  for (const r of [player, rival]) {
-    r.u.root.position.set(r.x, r.y, r.z);
-    r.u.root.rotation.z = r.slow > 0 ? Math.sin(t * 30) * 0.12 * r.slow : 0;
-    r.u.root.rotation.y = (r.x - LANES[r.lane]) * 0.25;
-    animateUnicorn(r.u, t, running, r.y > 0.05);
-  }
-
-  // Rainbow ZOOM: sparkly trail, wider view, rainbow frame.
-  const zooming = state === 'race' && player.boost > 0;
+  // ZOOM: rainbow trail, speed lines and extra sparkles.
+  const zooming = racing && player.boost > 0;
   document.body.classList.toggle('zoom', zooming);
-  if (zooming) sparkles.emit(player.x, player.y + 1.1, 1, { count: 2, spread: 1.5, up: 1, life: 0.5 });
+  for (const p of trail) p.x -= dx * 0.9;
+  if (zooming) {
+    trail.push({ x: player.x - 30, y: L.frontRow - player.y - 62 });
+    particles.emit(player.x - 20, L.frontRow - player.y - 60, { count: 2, spread: 60, up: 20, life: 0.6, size: 7, drift: 0.5 });
+  } else if (trail.length) {
+    trail.shift();
+  }
+  trail = trail.filter((p) => p.x > -60).slice(-40);
+  for (const s of speedLines) {
+    s.x -= dt * 1800;
+    if (s.x + s.len < 0) {
+      s.x = W + rand(0, 400);
+      s.y = rand(0, 1);
+    }
+  }
 
-  camera.fov += ((zooming ? baseFov + 14 : baseFov) - camera.fov) * Math.min(1, dt * 4);
-  camera.updateProjectionMatrix();
-  camera.position.set(player.x * 0.35, 4.2, 7.5);
-  camera.lookAt(player.x * 0.5, 1.2, -8);
+  rainbowSparkles(L, dt, zooming ? 70 : 24);
+  particles.update(dt, speed);
 
-  if (state === 'race') {
+  if (racing) {
     updateHud();
     if (timeLeft <= 0) {
       timeLeft = 0;
@@ -425,16 +437,109 @@ function update(dt) {
   }
 }
 
+// ---------- Drawing ----------
+
+function drawRunner(r, rowY) {
+  if (r.x < -100) return;
+  ctx.save();
+  // Shadow on the track.
+  ctx.fillStyle = 'rgba(40, 10, 60, 0.35)';
+  ctx.beginPath();
+  ctx.ellipse(r.x + 4, rowY + 2, 40 * r.size * (1 - Math.min(0.5, r.y / 260)), 7 * r.size, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // A soft glow while zooming.
+  if (r === player && r.boost > 0) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(r.x, rowY - r.y - 70, 10, r.x, rowY - r.y - 70, 110);
+    g.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
+    g.addColorStop(1, 'rgba(255, 150, 240, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(r.x - 110, rowY - r.y - 180, 220, 220);
+    ctx.restore();
+  }
+  ctx.translate(r.x, rowY - r.y);
+  ctx.scale(r.size, r.size);
+  drawUnicorn(ctx, r.look, {
+    phase: r.phase, t, moving: state !== 'countdown', air: r.y > 4,
+    wobble: r.slow > 0 ? Math.sin(t * 30) * 0.08 * (r.slow / SLOW_TIME) : 0,
+    wind: r.boost > 0 ? 1.6 : undefined,
+  });
+  ctx.restore();
+}
+
+function drawTrail() {
+  if (trail.length < 2) return;
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.shadowBlur = 16 * pxScale;
+  RAINBOW.forEach((c, i) => {
+    ctx.strokeStyle = c;
+    ctx.shadowColor = c;
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    trail.forEach((p, j) => {
+      const y = p.y + (i - 2.5) * 6 + Math.sin(t * 12 + j * 0.5) * 2;
+      if (j === 0) ctx.moveTo(p.x, y);
+      else ctx.lineTo(p.x, y);
+    });
+    ctx.stroke();
+  });
+  ctx.restore();
+}
+
+function drawSpeedLines() {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 3;
+  speedLines.forEach((s, i) => {
+    ctx.strokeStyle = i % 3 ? 'rgba(255, 255, 255, 0.5)' : RAINBOW[i % RAINBOW.length];
+    const y = 20 + s.y * (L.trackBottom - 40);
+    ctx.beginPath();
+    ctx.moveTo(s.x, y);
+    ctx.lineTo(s.x + s.len, y);
+    ctx.stroke();
+  });
+  ctx.restore();
+}
+
+function draw(dt) {
+  ctx.setTransform(pxScale, 0, 0, pxScale, 0, 0);
+  const zooming = state === 'race' && player.boost > 0;
+  drawSky(ctx, L, t, dt, scroll);
+  drawScenery(ctx, L, scroll);
+  drawTrack(ctx, L, scroll, t, pxScale, zooming ? 1 : 0);
+
+  drawRunner(rival, L.backRow);
+  for (const item of items) {
+    if (item.x < -80 || item.x > W + 80) continue;
+    const y = L.itemRow - item.h;
+    if (item.kind === 'candy') drawCandy(ctx, item.x, y + Math.sin(item.spin * 4) * 3, item.look, item.spin);
+    else if (item.kind === 'jelly') drawJelly(ctx, item.x, L.itemRow, t + item.spin, item.squish, item.look);
+    else drawRainbowPickup(ctx, item.x, y + Math.sin(item.spin * 3) * 5, t);
+  }
+  drawTrail();
+  drawRunner(player, L.frontRow);
+  if (zooming) drawSpeedLines();
+  particles.draw(ctx);
+  drawForeground(ctx, L, scroll);
+}
+
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   update(dt);
-  renderer.render(scene, camera);
+  draw(dt);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Handy for testing from the browser console.
-window.game = { get state() { return state; }, player, rival, startRace, get items() { return items; },
-  get timeLeft() { return timeLeft; }, set timeLeft(v) { timeLeft = v; } };
+window.game = {
+  get state() { return state; }, player, rival, startRace, keys, jump: () => jump(player), tick: update,
+  get items() { return items; }, get speed() { return speed; },
+  get timeLeft() { return timeLeft; }, set timeLeft(v) { timeLeft = v; },
+};

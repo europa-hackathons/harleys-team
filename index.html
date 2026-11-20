@@ -4,8 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Unicorn Candy Race</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦄</text></svg>">
   <link rel="stylesheet" href="src/style.css">
-  <!-- three.js is available to any module via `import * as THREE from 'three'`. Pinned version, no build step (see docs/adr/0002). -->
+  <!-- three.js is available to any module via `import * as THREE from 'three'`. Pinned version, no build step (see docs/adr/0002).
+       The race itself is drawn with plain 2D canvas and does not load it. -->
   <script type="importmap">
     {
       "imports": {
@@ -22,7 +24,7 @@
   <div id="hud" class="hidden">
     <div class="pill you">🦄 You <b id="you-count">0</b></div>
     <div class="pill timer">⏱ <b id="time-left">60</b></div>
-    <div class="pill rival">💜 Rival <b id="rival-count">0</b></div>
+    <div class="pill rival">💚 Rival <b id="rival-count">0</b></div>
   </div>
 
   <div id="callout" class="callout"></div>
@@ -31,8 +33,8 @@
     <div class="card">
       <h1 class="title">Unicorn<br>Candy Race</h1>
       <p class="subtitle">Grab more candy than the rival unicorn!</p>
-      <p class="hint">← → to steer, ↑ to jump</p>
-      <p class="hint small">🌈 Rainbows make you ZOOM · Jump over the jelly!</p>
+      <p class="hint">↑ to jump · ← → to run back and forward</p>
+      <p class="hint small">🍬 Jump to grab floating candy · Hop over the jelly!<br>🌈 Rainbows make you ZOOM</p>
       <button id="play" class="big-button">▶ PLAY</button>
     </div>
   </main>
@@ -42,7 +44,7 @@
       <h2 id="result" class="title">You win!</h2>
       <div class="final">
         <div class="pill you">🦄 You <b id="final-you">0</b></div>
-        <div class="pill rival">💜 Rival <b id="final-rival">0</b></div>
+        <div class="pill rival">💚 Rival <b id="final-rival">0</b></div>
       </div>
       <button id="again" class="big-button">↻ PLAY AGAIN</button>
     </div>
