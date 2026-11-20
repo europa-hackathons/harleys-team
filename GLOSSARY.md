@@ -73,3 +73,7 @@ _Avoid_: iteration, sprint, QA
 **Swap**:
 The Helper's nudge to pass the keyboard to the next builder.
 _Avoid_: rotation, turn change
+
+**Style Lock**:
+The look the Team chose from the concept pictures (2D or 3D, palette, shapes), written into the Game Plan so every picture and change matches it.
+_Avoid_: art bible, design system, theme
