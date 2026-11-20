@@ -1,6 +1,6 @@
-# Harley's Team Game Jam
+# Kids' Game Jam
 
-A live, three-hour session where a group of kids aged about 8–10 design an arcade game by talking to an AI helper. A grown-up supervises. The finished game is published as a web page.
+A live, few-hour session where a group of kids aged about 8–10 design an arcade game by talking to an AI helper. A grown-up supervises. The finished game is published as a web page.
 
 ## People
 
@@ -37,7 +37,7 @@ Anything the Team asks the game to do or become, however vague.
 _Avoid_: request, ticket, feature request, issue (when speaking to the Team)
 
 **Wish Record**:
-The English GitHub issue that tells the Grown-up what was wished for, how it was understood, and what was decided. Wishes that chain onto the same feature share one Wish Record.
+The record (a GitHub issue, or a file in `.scratch/wishes/` where there's no GitHub) that tells the Grown-up what was wished for, how it was understood, and what was decided. Wishes that chain onto the same feature share one Wish Record.
 _Avoid_: ticket, bug report
 
 **Idea Jar**:
@@ -49,7 +49,7 @@ A Wish that would throw away or replace most of what the Team has built, e.g. tu
 _Avoid_: breaking change, pivot
 
 **Picture Choice**:
-A question to the Team shown as 2–3 pictures or emoji options instead of words.
+A question to the Team shown as 2–4 pictures or emoji options instead of words.
 _Avoid_: poll, prompt, multiple choice
 
 **Time Machine**:
@@ -63,7 +63,7 @@ _Avoid_: context reset, new thread, handoff (when speaking to the Team)
 ## The day
 
 **Phase**:
-One block of the session's timetable: Warm-up, Design, First Prototype, Play-test, Demo Prep and Demos. Times are in `docs/agents/environment.md`.
+One block of the session's timetable: Warm-up, Design, First Prototype, Play-test, Demo Prep and Demos. Times are under **Timetable** in `docs/agents/environment.md`, or in the game plan's Session notes on other setups.
 _Avoid_: sprint, stage, step
 
 **Game Plan**:

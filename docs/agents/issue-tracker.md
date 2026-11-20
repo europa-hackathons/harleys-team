@@ -1,5 +1,7 @@
 # Issue tracker: GitHub
 
+_Reference for the record keeper and for after-session clean-up. Which repo, if any, comes from **Wish Records** in `docs/agents/environment.md`; nobody ever asks the kids about it. The Wayfinding and PR sections below are general-purpose and unused during a session._
+
 Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
 
 ## Conventions

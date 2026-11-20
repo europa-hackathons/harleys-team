@@ -48,8 +48,11 @@ def main():
     code, remote = run(["git", "remote", "get-url", "origin"])
     remote = remote if code == 0 else "(no remote)"
     line(code == 0, "Git remote", remote)
-    if TEAM_REPO in remote and not team:
-        print(f"       ! This remote is the original team's repo. Don't push or file issues there; use your own repo or work locally.")
+    if not team and code == 0:
+        if TEAM_REPO in remote:
+            print("       ! This remote is the original team's repo. Don't push or file issues there; use your own repo or work locally.")
+        elif "://" not in remote and "@" not in remote:
+            print("       ! This remote is a folder on this computer, not an online repo. Commit locally; don't push to it.")
 
     gh = shutil.which("gh")
     if gh:
@@ -58,9 +61,16 @@ def main():
     else:
         line(False, "GitHub CLI", "missing: keep Wish Records as files in .scratch/wishes/")
 
-    with socket.socket() as s:
-        free = s.connect_ex(("127.0.0.1", 8000)) != 0
-    line(True, "Port 8000", "free" if free else "already serving (maybe the game server)")
+    def free(port):
+        with socket.socket() as sock:
+            return sock.connect_ex(("127.0.0.1", port)) != 0
+    if free(8000):
+        line(True, "Game port", "8000 is free: serve the game there")
+    elif team:
+        line(True, "Game port", "8000 already serving (the Helper's game server, if you started it)")
+    else:
+        spare = next(p for p in range(8001, 8100) if free(p))
+        line(False, "Game port", f"8000 is taken by something else: serve the game on {spare} and use tools/shot.py --port {spare}")
 
     tripo = team and bool(os.environ.get("TRIPO_API_KEY"))
     line(tripo, "3D models (Tripo)", "on" if tripo else "off: build models from simple shapes")
