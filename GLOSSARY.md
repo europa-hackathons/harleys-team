@@ -40,6 +40,10 @@ _Avoid_: request, ticket, feature request, issue (when speaking to the Team)
 The English GitHub issue that tells the Grown-up what was wished for, how it was understood, and what was decided. Wishes that chain onto the same feature share one Wish Record.
 _Avoid_: ticket, bug report
 
+**Idea Jar**:
+Where new wishes go when the wish list already holds 10: kept under "Ideas for later" in the Game Plan, so no idea is lost.
+_Avoid_: backlog, parking lot
+
 **Big Change**:
 A Wish that would throw away or replace most of what the Team has built, e.g. turning a racing game into a horse game. It pauses until the Grown-up says yes.
 _Avoid_: breaking change, pivot

@@ -1,2 +1,4 @@
 assets/models/_source/
 tools/__pycache__/
+*.tmp
+*.b64

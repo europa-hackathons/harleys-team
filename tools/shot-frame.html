@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>shot frame</title>
+  <!-- Used by tools/shot.py: loads a page of this site in a full-size frame, optionally runs setup code inside it. -->
+  <style>html,body{margin:0;height:100%;overflow:hidden;background:#000}iframe{border:0;width:100%;height:100%;display:block}</style>
+</head>
+<body>
+  <iframe id="f"></iframe>
+  <script>
+    const q = new URLSearchParams(location.search);
+    const f = document.getElementById('f');
+    f.addEventListener('load', () => {
+      const js = q.get('js');
+      if (!js) return;
+      setTimeout(() => {
+        try { f.contentWindow.eval(js); } catch (e) { document.title = 'setup failed: ' + e.message; }
+      }, Number(q.get('delay') || 800));
+    });
+    f.src = q.get('page') || '/';
+  </script>
+</body>
+</html>

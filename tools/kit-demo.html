@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kit demo</title>
+  <!-- Working example of every src/kit module. 3D by default; ?mode=2d for the canvas version.
+       Arrows/WASD move, collect the stars before the timer runs out. window.demo exposes state for checks. -->
+  <script type="importmap">
+    { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    } }
+  </script>
+  <style>html,body{margin:0;height:100%;overflow:hidden;background:#120a2e}canvas{display:block}</style>
+</head>
+<body>
+  <script type="module">
+    import { keys } from '../src/kit/input.js';
+    import { startLoop } from '../src/kit/loop.js';
+    import { hud } from '../src/kit/hud.js';
+    import { roundTimer } from '../src/kit/timer.js';
+    import { touching } from '../src/kit/touch.js';
+
+    const mode = new URLSearchParams(location.search).get('mode') === '2d' ? '2d' : '3d';
+    const demo = window.demo = { mode, score: 0, stars: 0, over: false };
+    const timer = roundTimer(30, {
+      onTick: (s) => hud.set('time', `⏱ ${s}`, 'top-right'),
+      onEnd: () => { demo.over = true; hud.banner(`TIME! ⭐ ${demo.score}`, 0); },
+    });
+    const scored = () => { demo.score++; hud.set('score', `⭐ ${demo.score}`); if (demo.score % 5 === 0) hud.banner('SUPER! 🎉'); };
+    hud.set('score', '⭐ 0');
+    hud.banner('Collect the stars!', 1500);
+
+    if (mode === '3d') {
+      const THREE = await import('three');
+      const { poof3d, updatePoofs } = await import('../src/kit/poof3d.js');
+      const { followCamera } = await import('../src/kit/follow-camera.js');
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(innerWidth, innerHeight);
+      document.body.append(renderer.domElement);
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color('#4B2A8C');
+      scene.add(new THREE.HemisphereLight('#B9A0FF', '#3A2A5C', 1.6));
+      const sun = new THREE.DirectionalLight('#FFE7C4', 1.4); sun.position.set(5, 10, 4); scene.add(sun);
+      const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshLambertMaterial({ color: '#3E7A4E' }));
+      ground.rotation.x = -Math.PI / 2; scene.add(ground);
+      const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 200);
+      addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+
+      const player = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.5, 0.8, 4, 10), new THREE.MeshLambertMaterial({ color: '#1FA39A', flatShading: true }));
+      body.position.y = 0.9; player.add(body);
+      const nose = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.5, 8), new THREE.MeshLambertMaterial({ color: '#FFD45C' }));
+      nose.rotation.x = Math.PI / 2; nose.position.set(0, 1.1, 0.6); player.add(nose);   // faces +Z
+      scene.add(player);
+      const cam = followCamera(camera, player, { distance: 7, height: 4 });
+
+      const stars = [];
+      const starGeo = new THREE.OctahedronGeometry(0.45, 0);
+      const starMat = new THREE.MeshLambertMaterial({ color: '#FFD93B', emissive: '#7a5a00', flatShading: true });
+      for (let i = 0; i < 12; i++) {
+        const s = new THREE.Mesh(starGeo, starMat);
+        s.position.set((Math.random() - 0.5) * 30, 0.9, (Math.random() - 0.5) * 30);
+        scene.add(s); stars.push(s);
+      }
+      Object.assign(demo, { stars: stars.length, player, list: stars });
+      if (new URLSearchParams(location.search).has('autotest')) {   // for tools/shot.py: grab a star, then turn
+        setTimeout(() => {
+          player.position.set(stars[0].position.x, 0, stars[0].position.z - 0.4);
+          dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowLeft' }));
+        }, 1200);
+      }
+
+      startLoop((dt, t) => {
+        if (!demo.over) {
+          const { x, y } = keys.axis();
+          player.rotation.y -= x * 2.5 * dt;
+          player.translateZ(-y * 6 * dt);
+          timer.update(dt);
+        }
+        for (const s of stars) {
+          if (!s.visible) continue;
+          s.rotation.y += dt * 2; s.position.y = 0.9 + Math.sin(t * 3 + s.position.x) * 0.15;
+          if (touching(player, s, 1.1)) { s.visible = false; poof3d(scene, s.position); scored(); }
+        }
+        updatePoofs(dt);
+        cam.update(dt);
+        renderer.render(scene, camera);
+      });
+    } else {
+      const { poof2d, drawPoofs } = await import('../src/kit/poof2d.js');
+      const canvas = document.createElement('canvas');
+      document.body.append(canvas);
+      const ctx = canvas.getContext('2d');
+      const resize = () => { canvas.width = innerWidth; canvas.height = innerHeight; };
+      addEventListener('resize', resize); resize();
+      const player = { x: innerWidth / 2, y: innerHeight / 2 };
+      const stars = Array.from({ length: 12 }, () => ({ x: 40 + Math.random() * (innerWidth - 80), y: 80 + Math.random() * (innerHeight - 120), on: true }));
+      Object.assign(demo, { stars: stars.length, player, list: stars });
+      startLoop((dt, t) => {
+        if (!demo.over) {
+          const { x, y } = keys.axis();
+          player.x = Math.min(innerWidth - 20, Math.max(20, player.x + x * 320 * dt));
+          player.y = Math.min(innerHeight - 20, Math.max(20, player.y + y * 320 * dt));
+          timer.update(dt);
+        }
+        ctx.fillStyle = '#4B2A8C'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.font = '34px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        for (const s of stars) {
+          if (!s.on) continue;
+          if (touching(player, s, 34)) { s.on = false; poof2d(s.x, s.y); scored(); continue; }
+          ctx.fillText('⭐', s.x, s.y + Math.sin(t * 3 + s.x) * 4);
+        }
+        ctx.fillStyle = '#1FA39A'; ctx.beginPath(); ctx.arc(player.x, player.y, 20, 0, Math.PI * 2); ctx.fill();
+        drawPoofs(ctx, dt);
+      });
+    }
+  </script>
+</body>
+</html>
