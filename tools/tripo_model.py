@@ -21,6 +21,9 @@ import argparse, io, json, mimetypes, os, re, struct, sys, time, urllib.error, u
 
 API = "https://openapi.tripo3d.ai/v3"
 MODEL_VERSION = "v3.1-20260211"   # smart_low_poly needs v3.0-20250812 or newer
+RIG_VERSION = "v3.0-20260909"     # recommended for humanoids
+MAX_FACES = 6000
+MAX_TEXTURE = 1024
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 OUT_DIR = os.path.join(ROOT, "assets", "models")
 SOURCE_DIR = os.path.join(OUT_DIR, "_source")
@@ -51,31 +54,71 @@ def upload(path, key):
     return call("POST", "/files", key, body, {"Content-Type": f"multipart/form-data; boundary={boundary}"})["file_token"]
 
 
-def generate(a, key, painted):
-    options = {"model": MODEL_VERSION, "smart_low_poly": True, "pbr": False, "texture": painted,
-               "face_limit": max(500, min(20000, a.faces)), "export_uv": True}
-    if a.image:
-        options["input"] = upload(a.image, key)
-        path = "/generation/image-to-model"
-    else:
-        options["prompt"] = a.prompt
-        path = "/generation/text-to-model"
-    task_id = call("POST", path, key, json.dumps(options).encode(), {"Content-Type": "application/json"})["task_id"]
-    print(f"task {task_id} started", file=sys.stderr)
-    deadline = time.time() + a.timeout
+def start(key, path, body):
+    return call("POST", path, key, json.dumps(body).encode(), {"Content-Type": "application/json"})["task_id"]
+
+
+def wait(key, task_id, timeout, label):
+    print(f"{label}: task {task_id} started", file=sys.stderr)
+    deadline = time.time() + timeout
     while True:
         task = call("GET", f"/tasks/{task_id}", key)
         status = task.get("status")
         if status == "success":
-            break
+            return task
         if status in ("failed", "cancelled", "banned", "expired"):
-            sys.exit(f"task {task_id} {status}: {task.get('error_code')} {task.get('error_message')}")
+            sys.exit(f"{label}: task {task_id} {status}: {task.get('error_code')} {task.get('error_message')}")
         if time.time() > deadline:
-            sys.exit(f"task {task_id} still {status} after {a.timeout}s")
-        print(f"  {status} {task.get('progress', 0)}%", file=sys.stderr)
+            sys.exit(f"{label}: task {task_id} still {status} after {timeout}s")
+        print(f"  {label} {status} {task.get('progress', 0)}%", file=sys.stderr)
         time.sleep(5)
-    with urllib.request.urlopen(task["output"]["model_url"], timeout=120) as r:
-        return r.read(), task_id, task.get("credits_consumed")
+
+
+def download(url):
+    with urllib.request.urlopen(url, timeout=180) as r:
+        return r.read()
+
+
+def model_options(a, key, extra):
+    options = {"model": MODEL_VERSION, "pbr": False, "export_uv": True,
+               "face_limit": max(500, min(MAX_FACES, a.faces)), **extra}
+    if a.image:
+        options["input"] = upload(a.image, key)
+        return "/generation/image-to-model", options
+    options["prompt"] = a.prompt
+    return "/generation/text-to-model", options
+
+
+def generate(a, key, painted):
+    path, options = model_options(a, key, {"smart_low_poly": True, "texture": painted})
+    task_id = start(key, path, options)
+    task = wait(key, task_id, a.timeout, "model")
+    return download(task["output"]["model_url"]), task_id, task.get("credits_consumed")
+
+
+def character(a, key):
+    """Textured mesh -> rig check -> auto rig -> preset animations. Returns (glb bytes, info)."""
+    path, options = model_options(a, key, {"texture": True, "smart_low_poly": False})
+    gen_id = start(key, path, options)
+    gen = wait(key, gen_id, a.timeout, "model")
+    credits = gen.get("credits_consumed") or 0
+    check = wait(key, start(key, "/animations/rig-check", {"input": gen_id}), a.timeout, "rig-check")["output"]
+    if not check.get("riggable"):
+        sys.exit(f"Tripo says this model can't be rigged ({check}); use the model without --character instead")
+    rig_id = start(key, "/animations/rig", {"input": gen_id, "model": RIG_VERSION, "rig_type": check["rig_type"],
+                                            "spec": "tripo", "out_format": "glb"})
+    rig = wait(key, rig_id, a.timeout, "rig")
+    credits += rig.get("credits_consumed") or 0
+    result = rig
+    anims = [n.strip() for n in (a.animations or "").split(",") if n.strip()]
+    if anims:
+        anims = [n if n.startswith("preset:") else f"preset:{n}" for n in anims][:5]
+        body = {"input": rig_id, "out_format": "glb", "animate_in_place": True}
+        body.update({"animation": anims[0]} if len(anims) == 1 else {"animations": anims})
+        result = wait(key, start(key, "/animations/retarget", body), a.timeout, "animate")
+        credits += result.get("credits_consumed") or 0
+    return download(result["output"]["model_url"]), {"task_id": gen_id, "rig_task_id": rig_id,
+                                                     "rig_type": check["rig_type"], "credits": credits}
 
 
 # ---------- GLB read/write ----------
@@ -167,16 +210,70 @@ def write_glb(sections):
         meshes.append({"name": name, "primitives": [{"attributes": {"POSITION": 2 * i, "NORMAL": 2 * i + 1}, "material": i}]})
         nodes.append({"name": name, "mesh": i})
     blob = b"".join(bin_parts)
-    gltf = {"asset": {"version": "2.0", "generator": "harleys-team tripo_model.py"}, "scene": 0,
+    return pack_glb({"asset": {"version": "2.0", "generator": "harleys-team tripo_model.py"}, "scene": 0,
             "scenes": [{"nodes": list(range(len(nodes)))}], "nodes": nodes, "meshes": meshes,
             "materials": materials, "accessors": accessors, "bufferViews": views,
-            "buffers": [{"byteLength": len(blob)}]}
+            "buffers": [{"byteLength": len(blob)}]}, blob)
+
+
+def shrink_textures(glb, max_px):
+    """Rewrite every embedded image to at most max_px on its longest side (JPEG, or PNG if it has alpha)."""
+    from PIL import Image
+    json_len = struct.unpack("<I", glb[12:16])[0]
+    gltf = json.loads(glb[20:20 + json_len])
+    rest = glb[20 + json_len:]
+    blob = rest[8:8 + struct.unpack("<I", rest[:4])[0]] if rest else b""
+    replace, sizes = {}, []
+    for img in gltf.get("images", []):
+        if "bufferView" not in img:
+            continue
+        bv = gltf["bufferViews"][img["bufferView"]]
+        data = blob[bv.get("byteOffset", 0):bv.get("byteOffset", 0) + bv["byteLength"]]
+        pic = Image.open(io.BytesIO(data))
+        if max(pic.size) > max_px:
+            pic.thumbnail((max_px, max_px), Image.LANCZOS)
+            out = io.BytesIO()
+            if pic.mode in ("RGBA", "LA") or "transparency" in pic.info:
+                pic.save(out, "PNG", optimize=True)
+                img["mimeType"] = "image/png"
+            else:
+                pic.convert("RGB").save(out, "JPEG", quality=88)
+                img["mimeType"] = "image/jpeg"
+            replace[img["bufferView"]] = out.getvalue()
+        sizes.append(list(pic.size))
+    if not replace:
+        return glb, sizes
+    parts, offset = [], 0
+    for i, bv in sorted(enumerate(gltf["bufferViews"]), key=lambda x: x[1].get("byteOffset", 0)):
+        data = replace.get(i) or blob[bv.get("byteOffset", 0):bv.get("byteOffset", 0) + bv["byteLength"]]
+        pad = -offset % 4
+        parts.append(b"\0" * pad)
+        offset += pad
+        bv["byteOffset"], bv["byteLength"] = offset, len(data)
+        parts.append(data)
+        offset += len(data)
+    new_blob = b"".join(parts)
+    gltf["buffers"][0]["byteLength"] = len(new_blob)
+    return pack_glb(gltf, new_blob), sizes
+
+
+def pack_glb(gltf, blob):
     js = json.dumps(gltf, separators=(",", ":")).encode()
     js += b" " * (-len(js) % 4)
     blob += b"\0" * (-len(blob) % 4)
     total = 12 + 8 + len(js) + 8 + len(blob)
     return (struct.pack("<III", 0x46546C67, 2, total) + struct.pack("<II", len(js), 0x4E4F534A) + js
             + struct.pack("<II", len(blob), 0x004E4942) + blob)
+
+
+def describe(glb):
+    json_len = struct.unpack("<I", glb[12:16])[0]
+    gltf = json.loads(glb[20:20 + json_len])
+    tris = sum(gltf["accessors"][p["indices"]]["count"] // 3 if "indices" in p else
+               gltf["accessors"][p["attributes"]["POSITION"]]["count"] // 3
+               for m in gltf["meshes"] for p in m["primitives"])
+    return {"triangles": tris, "joints": sum(len(s["joints"]) for s in gltf.get("skins", [])),
+            "animations": [an.get("name") for an in gltf.get("animations", [])]}
 
 
 # ---------- palette sections ----------
@@ -272,14 +369,33 @@ def main():
     ap.add_argument("--name", required=True, help="file name for assets/models/<name>.glb (lowercase, dashes)")
     ap.add_argument("--palette", help='comma-separated hex colours; default: the Style section of docs/game-plan.md')
     ap.add_argument("--one-color", action="store_true", help="no paint, no sections: one plain mesh")
-    ap.add_argument("--faces", type=int, default=2000, help="face budget, 500-20000 (default 2000)")
+    ap.add_argument("--character", action="store_true",
+                    help="textured, rigged character (T-pose concept works best); add --animations")
+    ap.add_argument("--animations", help="with --character: up to 5 presets, e.g. idle,walk,run,jump,climb")
+    ap.add_argument("--faces", type=int, help="face budget, 500-6000 (default 2000; 6000 with --character)")
     ap.add_argument("--timeout", type=int, default=600, help="seconds to wait for Tripo (default 600)")
     a = ap.parse_args()
+    if a.faces is None:
+        a.faces = MAX_FACES if a.character else 2000
 
     os.makedirs(SOURCE_DIR, exist_ok=True)
     out = os.path.join(OUT_DIR, f"{a.name}.glb")
     source = os.path.join(SOURCE_DIR, f"{a.name}.glb")
     task_id = credits = None
+
+    if a.character:
+        if a.rebake:
+            sys.exit("--rebake only works for colour-section models")
+        key = os.environ.get("TRIPO_API_KEY") or sys.exit("TRIPO_API_KEY is not set")
+        raw, info = character(a, key)
+        with open(source, "wb") as f:
+            f.write(raw)
+        small, sizes = shrink_textures(raw, MAX_TEXTURE)
+        with open(out, "wb") as f:
+            f.write(small)
+        print(json.dumps({"file": f"assets/models/{a.name}.glb", **info, **describe(small),
+                          "textures": sizes, "bytes": len(small)}))
+        return
 
     if a.rebake:
         with open(source, "rb") as f:

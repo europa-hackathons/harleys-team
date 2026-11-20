@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <title>Model viewer</title>
-  <!-- Grown-up / Friend tool: open /tools/model-viewer.html?name=<model>&color=%23hex to check a Tripo mesh with game shading. -->
+  <!-- Grown-up / Friend tool: open /tools/model-viewer.html?name=<model>[&color=%23hex][&anim=walk] to check a Tripo mesh with game shading. -->
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
@@ -27,13 +27,16 @@
     const sun = new THREE.DirectionalLight('#FFE7C4', 1.4); sun.position.set(3, 5, 4); scene.add(sun);
     const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100); camera.position.set(3, 2.5, 4);
     const controls = new OrbitControls(camera, renderer.domElement); controls.target.set(0, 1, 0);
+    let model = null;
     try {
-      const model = await loadModel(name, { color: q.get('color') || undefined, height: 2 });
+      model = await loadModel(name, { color: q.get('color') || undefined, height: 2 });
       scene.add(model);
       let tris = 0; model.traverse(o => { if (o.isMesh) tris += o.geometry.index ? o.geometry.index.count / 3 : o.geometry.attributes.position.count / 3; });
-      document.getElementById('info').textContent = `${name}: ${tris} triangles, sections: ${Object.entries(model.userData.sections).map(([c, m]) => c + ' x' + m.length).join(', ')}`;
+      document.getElementById('info').textContent = `${name}: ${tris} triangles, sections: ${Object.entries(model.userData.sections).map(([c, m]) => c + ' x' + m.length).join(', ')}${model.userData.clips ? ', clips: ' + model.userData.clips.join(', ') : ''}`;
+      if (q.get('anim')) model.userData.play(q.get('anim'));
     } catch (e) { document.getElementById('info').textContent = `failed: ${e.message}`; console.error(e); }
-    renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+    const clock = new THREE.Clock();
+    renderer.setAnimationLoop(() => { model?.userData.mixer?.update(clock.getDelta()); controls.update(); renderer.render(scene, camera); });
   </script>
 </body>
 </html>

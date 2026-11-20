@@ -71,14 +71,23 @@ If the Team hasn't picked 2D or 3D yet, offer one picture of each so the choice 
 
 ## Fancier 3D models
 
-Only in a 3D game, only once the first prototype is playable, and only when the Team wants something to look more detailed than our simple-shape version ("can the dragon look more real?"). The new model must still fit the Style Lock: the same toy look with more shape, never photo-real.
+Only in a 3D game, only once the first prototype is playable, and only when the Team wants something to look more detailed than our simple-shape version ("can the dragon look more real?"). It must still fit the Style Lock: the same toy look with more shape, never photo-real. There are two kinds, made by `tools/tripo_model.py` (it reads the Tripo key itself):
 
-1. **Concept it**: the drawing Friend draws ONE object in the Style Lock: a low-poly toy figure in flat palette colours, three-quarter view, centred, whole object visible, plain white background, no scenery, no text. Show it to the Team as a Picture Choice ("Like this? ✨"). Save the chosen picture as `assets/concepts/<name>-model.png`.
-2. **Sculpt it** (a building Friend, in the background): `python tools/tripo_model.py --image assets/concepts/<name>-model.png --name <name> --palette "<every colour the object needs>"`. It takes about 1–2 minutes and makes `assets/models/<name>.glb`: a smart low-poly mesh split into **colour sections**, one per palette colour (suit, cape, skin, hair…), with no textures. List every colour the object needs, including ones missing from the Style section (skin, hair); leave out `--palette` to use the Style section. Use the wait for question time ("My sculpting friend is making it in 3D! 🗿").
-3. **Drop it in**: load it with `loadModel()` from `src/models.js`, which shades every section with flat palette-coloured triangles like the rest of the game. `recolor` swaps a section's colour ("make her cape purple!") without asking Tripo again; `userData.sections` gives each section's meshes (e.g. to flap the cape). Keep the simple-shape version as the fallback when loading fails. Check it in `tools/model-viewer.html?name=<name>` first if the size, direction or colours look off.
-4. **Look check** with the drawing Friend, as in **Art direction**. If a colour landed on the wrong part, re-run with `--rebake` and a better `--palette`: it recolours the saved original for free.
+| | **Characters** (hero, people, animals that move) | **Props** (houses, trees, chimneys, things that stand still) |
+|---|---|---|
+| Concept picture | ONE character in a **T-pose** (arms straight out sideways, legs apart), facing the viewer, full body, plain white background | ONE object, three-quarter view, whole object visible, plain white background |
+| Command | `--character --animations idle,walk,...` | `--palette "<every colour it needs>"` |
+| Result | Textured (max 1024 px), up to 6k faces, rigged, with up to 5 animations | Flat palette-coloured sections, about 2k faces, no texture |
+| Time / cost | about 2 min, about 40 credits + 25 rig + 10 per animation | about 1.5 min, about 40 credits |
 
-Tiny painted details (eyes, mouths, star logos) are smaller than one triangle and disappear; add them as simple shapes on top when they matter.
+Animations available for two-legged characters: `idle`, `walk`, `run`, `jump`, `fall`, `dive`, `climb`, `turn`, `hurt`, `slash`, `shoot`. There is no flying animation; build flying from a held `dive` or `fall` pose plus the game's own movement. Animals and other shapes get only a walk.
+
+1. **Concept it**: the drawing Friend draws it as in the table, in the Style Lock: low-poly toy look, flat palette colours, no scenery, no text. For a character, tell the Team it's "standing like a starfish so my sculpting friend can see all of them! ⭐". Show it as a Picture Choice ("Like this? ✨") and save the chosen one as `assets/concepts/<name>-model.png`.
+2. **Sculpt it** (a building Friend, in the background), e.g. `python tools/tripo_model.py --character --image assets/concepts/hero-model.png --name hero --animations idle,walk,run,jump,fall` or `python tools/tripo_model.py --image assets/concepts/house-model.png --name house --palette "#C9B8B0,#B8405E,#FFD45C"`. For props, list every colour the object needs (leave out `--palette` to use the Style section). Use the wait for question time ("My sculpting friend is making it in 3D! 🗿").
+3. **Drop it in** with `loadModel()` from `src/models.js` (the usage is in its header comment). Props: `recolor` swaps a section's colour for free. Characters: `userData.play('walk')` switches clips, and the game calls `userData.mixer.update(dt)` every frame and moves the character itself (clips stay in place). Models usually face sideways: set `rotationY` so they face the way they move. Keep the simple-shape version as the fallback when loading fails. Check new models in `tools/model-viewer.html?name=<name>&anim=walk`.
+4. **Look check** with the drawing Friend, as in **Art direction**. For a prop whose colour landed on the wrong part, re-run with `--rebake` and a better `--palette`: it recolours the saved original for free.
+
+On props, tiny painted details (eyes, logos) are smaller than one triangle and disappear; add them as simple shapes on top when they matter. Characters keep them in their texture.
 
 ## While a big build runs: question time
 
