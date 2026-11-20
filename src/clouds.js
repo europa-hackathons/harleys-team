@@ -58,6 +58,7 @@ export function createClouds(scene, effects) {
     mesh.scale.set(s, s, s);
     mesh.rotation.y = rand(0, Math.PI);
     mesh.position.set(rand(-WRAP, WRAP), rand(CRUISE_HEIGHT + 6, MAX_HEIGHT - 4), rand(-WRAP, WRAP));
+    mesh.castShadow = true; // a cloud shadow drifting over the roofs
     scene.add(mesh);
     // Touch zone: an ellipsoid around the cloud's middle.
     clouds.push({ mesh, rx: 4.5 * s, ry: 2.2 * s, cooldown: 0, rainbow: null });

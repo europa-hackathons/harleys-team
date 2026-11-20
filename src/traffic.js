@@ -33,6 +33,7 @@ function part(group, geo, mat, x, y, z, sx, sy, sz) {
   const m = new THREE.Mesh(geo, mat);
   m.position.set(x, y, z);
   m.scale.set(sx, sy, sz);
+  m.castShadow = m.receiveShadow = !m.material.isMeshBasicMaterial; // glowing lights don't need shadows
   group.add(m);
   return m;
 }

@@ -69,6 +69,7 @@ function buildPerson() {
   help.position.y = 2.4;
   g.add(help);
 
+  g.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
   g.scale.setScalar(1.5);
   return { group: g, arms, help };
 }

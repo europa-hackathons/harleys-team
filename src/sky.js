@@ -1,7 +1,7 @@
 // One night, sunset to sunrise: the sky, sun, moon, stars, fog and lights follow the round timer.
 // Sunset (first ~8 s) -> night purple with stars -> dawn and sunrise (last ~10 s).
 import * as THREE from 'three';
-import { GLOW_MATERIALS, NIGHT_GLOW_MATERIALS, NIGHT_KEY_POSITION } from './town.js';
+import { GLOW_MATERIALS, NIGHT_GLOW_MATERIALS } from './town.js';
 
 const SUNSET_SECONDS = 8;
 const SUNRISE_SECONDS = 10;
@@ -15,6 +15,17 @@ const SUNSET_DIR = new THREE.Vector3(0.35, 0, 1).normalize(); // the sun goes do
 const SUNRISE_DIR = new THREE.Vector3(-0.35, 0, -1).normalize(); // ...and comes up on the opposite side
 const SUN_DISTANCE = 300;
 const deg = THREE.MathUtils.degToRad;
+
+// The one shadow-casting light: the low sun at sunset and sunrise (warm, long, strong shadows),
+// the moon at night (bluish, fainter). Its shadow box follows the hero so the shadows stay crisp.
+// hemi: the soft sky fill light, a bit lower than before so the shadows show.
+const MOON_LIGHT = { color: new THREE.Color('#C4C8FF'), intensity: 2.3, shadow: 0.7, hemi: 1.15 };
+const SUN_LIGHT = { intensity: 3.0, shadow: 0.85, hemi: 1.0 };
+const MIN_SUN_ELEV = 7;      // degrees; lower than this and the whole town would be one big shadow
+const SHADOW_HALF = 34;      // the shadow box is about 68 units wide round the hero...
+const SHADOW_HALF_TITLE = 75; // ...and covers the whole town on the title screen
+const SHADOW_MAP = 2048;
+const LIGHT_DISTANCE = 150;
 
 // Window and lamp lights: a plain dim glass colour by day, warm yellow glow at night.
 const LIGHT_OFF = new THREE.Color('#5C5784');
@@ -44,6 +55,16 @@ const fragmentShader = `
   }`;
 
 export function createSky(scene, { stars, moon, hemi, keyLight }) {
+  keyLight.castShadow = true;
+  keyLight.shadow.mapSize.set(SHADOW_MAP, SHADOW_MAP);
+  Object.assign(keyLight.shadow.camera, { near: 1, far: LIGHT_DISTANCE * 2 });
+  keyLight.shadow.bias = -0.0004;
+  keyLight.shadow.normalBias = 0.05;
+  scene.add(keyLight.target);
+  let shadowHalf = 0;
+  const lightDir = new THREE.Vector3(), moonDir = new THREE.Vector3(), sunLightDir = new THREE.Vector3();
+  const focusPoint = new THREE.Vector3(), basis = new THREE.Matrix4(), axis = new THREE.Vector3();
+
   const uniforms = {
     top: { value: new THREE.Color() }, mid: { value: new THREE.Color() }, low: { value: new THREE.Color() },
     glowColor: { value: new THREE.Color('#FFB35C') }, sunDir: { value: new THREE.Vector3() }, glow: { value: 0 },
@@ -74,7 +95,8 @@ export function createSky(scene, { stars, moon, hemi, keyLight }) {
   const sunDir = new THREE.Vector3();
 
   // timeLeft: seconds left in the round, or null for the title screen (plain night).
-  function update(timeLeft, roundSeconds, camera) {
+  // focus: where the shadows matter most (just ahead of the hero), or null for the whole town.
+  function update(timeLeft, roundSeconds, camera, focus = null) {
     let day = 0, sideDir = SUNSET_DIR, elev = -20, warm = duskC;
     if (timeLeft !== null) {
       const elapsed = roundSeconds - timeLeft;
@@ -97,7 +119,6 @@ export function createSky(scene, { stars, moon, hemi, keyLight }) {
     uniforms.glow.value = s * 1.1;
     scene.fog.color.copy(mixed.fog);
     hemi.color.copy(mixed.hemi);
-    keyLight.color.copy(mixed.key);
 
     // Sun position on its side of the sky.
     sunDir.copy(sideDir).multiplyScalar(Math.cos(deg(elev))).setY(Math.sin(deg(elev)));
@@ -120,9 +141,38 @@ export function createSky(scene, { stars, moon, hemi, keyLight }) {
       const ang = THREE.MathUtils.lerp(deg(25), deg(155), f);
       moon.position.set(Math.cos(ang) * 230, 60 + Math.sin(ang) * 140, -200);
     }
-    // The warm side light stays put at night and swings toward the low sun at sunset and sunrise.
-    keyLight.position.copy(NIGHT_KEY_POSITION);
-    if (s > 0) keyLight.position.lerp(sunDir.clone().multiplyScalar(100).setY(Math.max(sunDir.y * 100, 30)), s);
+
+    // The shadow light shines from the moon at night and swings to the low sun at sunset and sunrise.
+    moonDir.copy(moon.position).normalize();
+    const e = deg(Math.max(elev, MIN_SUN_ELEV));
+    sunLightDir.copy(sideDir).multiplyScalar(Math.cos(e)).setY(Math.sin(e));
+    lightDir.copy(moonDir).lerp(sunLightDir, s).normalize();
+    keyLight.color.copy(MOON_LIGHT.color).lerp(mixed.key, s);
+    keyLight.intensity = THREE.MathUtils.lerp(MOON_LIGHT.intensity, SUN_LIGHT.intensity, s);
+    keyLight.shadow.intensity = THREE.MathUtils.lerp(MOON_LIGHT.shadow, SUN_LIGHT.shadow, s);
+    hemi.intensity = THREE.MathUtils.lerp(MOON_LIGHT.hemi, SUN_LIGHT.hemi, s);
+    placeShadowBox(focus);
+  }
+
+  // Centres the shadow box on the focus point, snapped to whole shadow-map pixels
+  // so the shadow edges don't shimmer as she flies.
+  function placeShadowBox(focus) {
+    const half = focus ? SHADOW_HALF : SHADOW_HALF_TITLE;
+    if (half !== shadowHalf) {
+      shadowHalf = half;
+      Object.assign(keyLight.shadow.camera, { left: -half, right: half, top: half, bottom: -half });
+      keyLight.shadow.camera.updateProjectionMatrix();
+    }
+    focusPoint.set(focus ? focus.x : 0, 3, focus ? focus.z : 0);
+    const texel = (half * 2) / SHADOW_MAP;
+    basis.lookAt(lightDir, axis.set(0, 0, 0), THREE.Object3D.DEFAULT_UP);
+    for (const col of [0, 1]) {
+      axis.setFromMatrixColumn(basis, col);
+      const d = focusPoint.dot(axis);
+      focusPoint.addScaledVector(axis, Math.round(d / texel) * texel - d);
+    }
+    keyLight.target.position.copy(focusPoint);
+    keyLight.position.copy(focusPoint).addScaledVector(lightDir, LIGHT_DISTANCE);
   }
 
   return { update };

@@ -52,6 +52,8 @@ class Batcher {
         : new THREE.MeshLambertMaterial({ color, flatShading: true });
       if (glow) GLOW_MATERIALS.push(material);
       const mesh = new THREE.Mesh(merged, material);
+      // Everything solid casts and catches the sun and moon shadows (glowing glass doesn't need to).
+      mesh.castShadow = mesh.receiveShadow = !glow;
       parent.add(mesh);
       list.forEach((g) => g.dispose());
     }
@@ -154,8 +156,13 @@ function addHouse(b, x, z, chimneys, roofs) {
   b.add(GEO.box, PALETTE.door, mat(house, 0, 0.85, d / 2 + 0.03, 1.0, 1.7, 0.1));
 }
 
+// Small solid things on the ground (lamp posts, tree trunks, crates): x, z, radius, top height,
+// and crown radius/bottom for trees. They block her walking and the walking camera.
+const obstacles = [];
+
 // A round, faceted tree on a short trunk.
 function addTree(b, x, z, s = rand(1.2, 1.9)) {
+  obstacles.push({ x, z, r: 0.3 * s, top: s * 2.9, crown: s, crownBottom: s * 1.0 });
   b.add(GEO.trunk, PALETTE.trunk, mat(null, x, s * 0.6, z, s * 0.8, s * 1.2, s * 0.8));
   b.add(GEO.ball, pick(PALETTE.tree), mat(null, x, s * 1.95, z, s, s * 0.95, s, rand(0, 3), rand(0, 3), 0));
 }
@@ -163,6 +170,7 @@ function addTree(b, x, z, s = rand(1.2, 1.9)) {
 // A wooden crate with lighter edges and a cross on the front.
 function addCrate(b, x, z, ry) {
   const s = 0.75, m = mat(null, x, s / 2, z, 1, 1, 1, 0, ry, 0);
+  obstacles.push({ x, z, r: 0.5, top: s });
   b.add(GEO.box, PALETTE.crate, mat(m, 0, 0, 0, s, s, s));
   for (const k of [-1, 1]) {
     b.add(GEO.box, PALETTE.crateEdge, mat(m, k * (s / 2 - 0.05), 0, s / 2 + 0.01, 0.1, s, 0.06));
@@ -175,6 +183,7 @@ function addCrate(b, x, z, ry) {
 // and a soft amber pool of light on the ground beneath.
 const lampPools = [];
 function addLamp(b, x, z) {
+  obstacles.push({ x, z, r: 0.4, top: 4.9 });
   b.add(GEO.box, PALETTE.lampPost, mat(null, x, 0.15, z, 0.7, 0.3, 0.7));
   b.add(GEO.trunk, PALETTE.lampPost, mat(null, x, 1.8, z, 0.4, 3.2, 0.4));
   b.add(GEO.box, PALETTE.lampPost, mat(null, x, 3.42, z, 0.6, 0.12, 0.6));
@@ -313,15 +322,15 @@ export function buildTown(scene) {
   b.build(scene);
   buildLampPools(scene);
 
-  // The lowest the hero may fly at a spot: 2 above any roof or chimney there, and above the trees.
+  // The lowest the hero may fly at a spot: a little above any roof or chimney there, and above the trees.
   function floorAt(px, pz) {
     let floor = 7;
     for (const r of roofs) {
-      if (Math.abs(px - r.x) < r.half + 1 && Math.abs(pz - r.z) < r.half + 1) floor = Math.max(floor, r.top + 2);
+      if (Math.abs(px - r.x) < r.half + 1 && Math.abs(pz - r.z) < r.half + 1) floor = Math.max(floor, r.top + 1.4);
     }
     for (const c of chimneys) {
       const dx = px - c.pos.x, dz = pz - c.pos.z;
-      if (dx * dx + dz * dz < 4) floor = Math.max(floor, c.pos.y + 1.7);
+      if (dx * dx + dz * dz < 4) floor = Math.max(floor, c.pos.y + 1.3);
     }
     return floor;
   }
@@ -343,5 +352,26 @@ export function buildTown(scene) {
     }
     return top;
   }
-  return { chimneys, floorAt, surfaceAt, skyParts: { stars, moon, hemi, keyLight: moonLight } };
+
+  // Like surfaceAt, but lamp posts, tree trunks and crates count too: for walking into things.
+  function solidAt(px, pz) {
+    let top = surfaceAt(px, pz);
+    for (const o of obstacles) {
+      const dx = px - o.x, dz = pz - o.z;
+      if (dx * dx + dz * dz < o.r * o.r) top = Math.max(top, o.top);
+    }
+    return top;
+  }
+
+  // Would a camera at (x, y, z) be inside something? Houses, lamps, tree trunks and crowns.
+  function blocksCamera(px, py, pz) {
+    if (surfaceAt(px, pz) > py - 0.4) return true;
+    for (const o of obstacles) {
+      const dx = px - o.x, dz = pz - o.z, d2 = dx * dx + dz * dz;
+      if (d2 < (o.r + 0.4) ** 2 && py < o.top + 0.3) return true;
+      if (o.crown && py > o.crownBottom - 0.3 && py < o.top + 0.3 && d2 < (o.crown + 0.3) ** 2) return true;
+    }
+    return false;
+  }
+  return { chimneys, floorAt, surfaceAt, solidAt, blocksCamera, skyParts: { stars, moon, hemi, keyLight: moonLight } };
 }

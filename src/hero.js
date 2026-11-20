@@ -14,10 +14,12 @@ const CLIMB_SPEED = 11;     // units per second going up (W) or down (S)
 const TURN_SPEED = 2.4;     // radians per second
 const FAST = 17, BACK = -6, DRIFT = 3;
 // On the ground: walking is much slower than flying.
-const WALK = 4.5, WALK_BACK = -2.5, WALK_TURN = 2.2;
+const WALK = 3.6, WALK_BACK = -2, WALK_TURN = 2.2;
+const STRIDE = 3.3;      // leg swing per unit walked (short legs take quick steps)
 const HERO_SCALE = 0.75; // about door-and-a-bit tall (doors are 1.6)
 const FEET = 1.3 * HERO_SCALE;  // from her middle (root) down to her boot soles when standing up
-const STEP = 0.7;        // she can step up onto things this high; taller things block her
+const STEP = 0.6;        // she can step up onto things this high; taller things block her
+const BODY_RADIUS = 0.35; // how close her middle gets to a wall, lamp post or tree trunk
 
 const lit = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, flatShading: true, ...extra });
 
@@ -278,7 +280,8 @@ function buildFigure() {
 // floorAt(x, z) tells her the lowest safe height at a spot (just above roofs and chimneys).
 // surfaceAt(x, z) tells her what she would stand on there (ground 0, a roof, a chimney top).
 // onLand(feetPosition) is called when she touches down, e.g. for a dust puff.
-export function createHero(scene, floorAt = () => 7, { surfaceAt = () => 0, onLand = () => {} } = {}) {
+// solidAt(x, z) is like surfaceAt but also counts lamp posts, tree trunks and crates (for walking).
+export function createHero(scene, floorAt = () => 7, { surfaceAt = () => 0, solidAt = surfaceAt, onLand = () => {} } = {}) {
   const root = new THREE.Group();
   const bank = new THREE.Group();
   const { body, hand, capePivot } = buildFigure();
@@ -287,6 +290,8 @@ export function createHero(scene, floorAt = () => 7, { surfaceAt = () => 0, onLa
   bank.add(body);
   root.add(bank);
   scene.add(root);
+  const castShadows = (obj) => obj.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+  castShadows(body);
 
   // Swap in the sculpted 3D hero once it has loaded; the simple-shape figure stays if it fails.
   // Her own coral cape flaps, her right arm reaches forward, and the web shoots from her fist.
@@ -300,6 +305,7 @@ export function createHero(scene, floorAt = () => 7, { surfaceAt = () => 0, onLa
     for (const child of [...body.children]) if (!keep.has(child)) body.remove(child);
     hand.parent.traverse((o) => { if (o.isMesh) o.visible = false; }); // invisible anchor near her hand
     body.add(model);
+    castShadows(model); // the sculpt, its flapping cape and its arm and leg pieces
   }).catch((e) => console.warn('Sculpted hero did not load, keeping the simple one.', e));
 
   // The web line: a thin glowing stick plus a blob at the end.
@@ -350,17 +356,23 @@ export function createHero(scene, floorAt = () => 7, { surfaceAt = () => 0, onLa
     },
 
     // Steps along the ground; walls and anything taller than a step stop her (she slides along them).
+    // Checks her middle and a point BODY_RADIUS ahead, so her nose doesn't poke into walls.
     walkStep(dx, dz) {
       const p = root.position, feet = p.y - FEET;
-      const ok = (x, z) => surfaceAt(x, z) <= feet + STEP;
-      if (ok(p.x + dx, p.z + dz)) { p.x += dx; p.z += dz; }
-      else if (ok(p.x + dx, p.z)) p.x += dx;
-      else if (ok(p.x, p.z + dz)) p.z += dz;
+      const ok = (mx, mz) => {
+        const len = Math.hypot(mx, mz);
+        if (len < 1e-6) return true;
+        const x = p.x + mx, z = p.z + mz;
+        return solidAt(x, z) <= feet + STEP && solidAt(x + mx / len * BODY_RADIUS, z + mz / len * BODY_RADIUS) <= feet + STEP;
+      };
+      if (ok(dx, dz)) { p.x += dx; p.z += dz; }
+      else if (ok(dx, 0)) p.x += dx;
+      else if (ok(0, dz)) p.z += dz;
     },
 
     // Start a web-zip toward a point (a chimney top).
     shootWeb(target) {
-      const to = target.clone().add(new THREE.Vector3(0, 2.2, 0));
+      const to = target.clone().add(new THREE.Vector3(0, 1.6, 0)); // just above the chimney rim
       const dist = root.position.distanceTo(to);
       this.mode = 'fly'; this.fall = 0; this.liftoff = 0; // also zips her up from the ground
       this.zip = { from: root.position.clone(), to, t: 0, duration: THREE.MathUtils.clamp(dist / 32, 0.35, 1.2), target: target.clone() };
@@ -406,7 +418,7 @@ export function createHero(scene, floorAt = () => 7, { surfaceAt = () => 0, onLa
           p.y += (ground - p.y) * (1 - Math.exp(-dt * 20)); // stepping up
           this.fall = 0;
         }
-        this.stride += this.speed * dt * 2.3;
+        this.stride += this.speed * dt * STRIDE;
       } else if (this.zip) {
         const z = this.zip;
         z.t = Math.min(1, z.t + dt / z.duration);
