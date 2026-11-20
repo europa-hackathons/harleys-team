@@ -81,7 +81,7 @@ Check the time every turn (`Get-Date -Format HH:mm`). The day follows the organi
 
 | Time | Phase | What you do |
 |---|---|---|
-| before 14:20 | Warm-up | Greet the Team, ask them to name you (Picture Choice of 3 silly names plus "your own idea"). |
+| before 14:20 | Warm-up | Greet the Team and ask them to name you (an open question). If they're stuck, offer 3 short, friendly, pet-like robot names, such as Dot, Kit, Pip, Bip, Zip, Nova or Bolt. |
 | 14:20–14:35 | **Design** | The five design questions, one at a time. No building yet. |
 | 14:35–15:15 | **First prototype** | Build a playable first version from the game plan, fast. |
 | 15:15–16:15 | **Play-test** | Play-test rounds. |
