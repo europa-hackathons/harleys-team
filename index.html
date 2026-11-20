@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="sv">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Our Game</title>
+  <title>Rooftop Rescue</title>
   <link rel="stylesheet" href="src/style.css">
   <!-- three.js is available to any module via `import * as THREE from 'three'`. Pinned version, no build step (see docs/adr/0002). -->
   <script type="importmap">
@@ -16,20 +16,28 @@
   </script>
 </head>
 <body>
-  <canvas id="stage"></canvas>
+  <canvas id="stage" tabindex="0"></canvas>
+  <div id="fx-layer"></div>
+
+  <div id="hud" class="hidden">
+    <div class="hud-box">RESCUED: <span id="rescued">0</span></div>
+    <div class="hud-box timer">⏱ <span id="timer">90</span></div>
+  </div>
 
   <main id="title-screen" class="screen">
-    <h1 class="title">? ? ?</h1>
-    <p class="subtitle">Ett nytt spel är på väg… <span class="en">A new game is on its way…</span></p>
+    <h1 class="title">ROOFTOP<br>RESCUE</h1>
+    <div class="how">
+      <p>⬆️ ⬅️ ➡️ ⬇️ fly &nbsp;·&nbsp; SPACE web-swing &nbsp;·&nbsp; rescue people!</p>
+      <p class="en">Piltangenter: flyg · Mellanslag: nät-sving · Rädda folk!</p>
+    </div>
     <button id="play" class="big-button">▶ SPELA · PLAY</button>
   </main>
 
-  <main id="design-screen" class="screen hidden">
-    <div class="pencil">✏️</div>
-    <h2>Dags att designa!</h2>
-    <p>Berätta för din hjälpare vad spelet ska handla om.</p>
-    <p class="en">Time to design! Tell your helper what the game should be about.</p>
-    <button id="back" class="small-button">⏪</button>
+  <main id="end-screen" class="screen hidden">
+    <div class="big-heart">💖</div>
+    <h2 id="end-score">You rescued 0 people!</h2>
+    <p>The whole town says THANK YOU!</p>
+    <button id="play-again" class="big-button">↻ PLAY AGAIN</button>
   </main>
 
   <script type="module" src="src/main.js"></script>
