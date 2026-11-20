@@ -145,17 +145,20 @@ function addSky(scene) {
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: '#FFF4D0', size: 2, sizeAttenuation: false, fog: false })));
+  const stars = new THREE.Points(geo, new THREE.PointsMaterial({ color: '#FFF4D0', size: 2, sizeAttenuation: false, fog: false }));
+  scene.add(stars);
 
   const moon = new THREE.Mesh(new THREE.IcosahedronGeometry(14, 2), new THREE.MeshBasicMaterial({ color: '#FFE9A8', fog: false }));
   moon.position.set(-90, 110, -230);
   scene.add(moon);
+  return { stars, moon };
 }
 
 export function buildTown(scene) {
-  addSky(scene);
+  const { stars, moon } = addSky(scene);
 
-  scene.add(new THREE.HemisphereLight('#B9A0FF', '#3A2A5C', 1.6));
+  const hemi = new THREE.HemisphereLight('#B9A0FF', '#3A2A5C', 1.6);
+  scene.add(hemi);
   const moonLight = new THREE.DirectionalLight('#FFE7C4', 1.4);
   moonLight.position.set(-40, 80, -30);
   scene.add(moonLight);
@@ -199,5 +202,5 @@ export function buildTown(scene) {
     }
     return floor;
   }
-  return { chimneys, floorAt };
+  return { chimneys, floorAt, skyParts: { stars, moon, hemi, keyLight: moonLight } };
 }

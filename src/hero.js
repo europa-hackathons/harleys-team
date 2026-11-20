@@ -51,21 +51,33 @@ function capeGeometry() {
 }
 
 // The sculpted hero comes in colour sections (see src/models.js). Her model's own +x is her front
-// (it is turned -90 degrees to face +z in the game), y is up, and she is 1 unit tall, feet at y = -0.5.
+// (it is turned -90 degrees to face +z in the game), y is up, +z is her right side, and she is
+// 1 unit tall, feet at y = -0.5.
 // Tripo's paint is a bit rosy on her face, so a few face triangles land in the coral cape section:
-// coral above NECK_Y goes back to skin. What is left of the coral section is the cape.
+// coral above NECK_Y goes back to skin. The coral at her back is both her cape AND the skin of her
+// back, so it stays in place as a teal back patch while a copy of it flaps as the cape.
+// The coral in front of BACK_X is the cape's ties at her collar; they stay put.
 const NECK_Y = 0.16;
+const BACK_X = 0.06;
 const CAPE_PIVOT = new THREE.Vector3(-0.03, 0.13, 0); // top of her back, where the cape hangs from
 const EYES = { x: 0.135, y: 0.25, z: 0.05, r: 0.02 };  // her eyes are too small for the sculpt: simple shapes behind the goggles
+// Her right arm (sleeve + glove) swings from the shoulder to reach out in front while flying forward.
+const SHOULDER = new THREE.Vector3(0.04, 0.04, 0.11);
+const isRightArm = (x, y, z) => z > 0.12 && y > -0.2 && y < 0.075;
+const SHOULDER_CAP = 0.045; // arm triangles this close to the shoulder also stay put, so no hole opens
+const FIST = new THREE.Vector3(0.07, -0.13, 0.25); // middle of her glove, where the web shoots from
+const REACH = { up: 1.85, forward: 0.3 };          // how far her arm swings (radians) when reaching
 
-// Splits a mesh's triangles in two by a test on each triangle's middle point.
+// Splits a mesh's triangles in two by a test on each triangle's middle point (x, y, z).
 function splitMesh(mesh, keepTest) {
   const geo = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry;
   const p = geo.attributes.position;
   const keep = [], move = [];
   for (let i = 0; i < p.count; i += 3) {
+    const cx = (p.getX(i) + p.getX(i + 1) + p.getX(i + 2)) / 3;
     const cy = (p.getY(i) + p.getY(i + 1) + p.getY(i + 2)) / 3;
-    const out = keepTest(cy) ? keep : move;
+    const cz = (p.getZ(i) + p.getZ(i + 1) + p.getZ(i + 2)) / 3;
+    const out = keepTest(cx, cy, cz) ? keep : move;
     for (let k = 0; k < 3; k++) out.push(p.getX(i + k), p.getY(i + k), p.getZ(i + k));
   }
   const make = (arr) => {
@@ -77,33 +89,79 @@ function splitMesh(mesh, keepTest) {
   return [make(keep), make(move)];
 }
 
-// Fixes the rosy face and hangs the cape from a pivot so it can flap. Returns the cape pivot.
+// A new mesh placed exactly like `like`, added to `parent` (moved by -origin when that is a pivot).
+function twin(geometry, material, like, parent = like.parent, origin = null) {
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.copy(like.position); mesh.quaternion.copy(like.quaternion); mesh.scale.copy(like.scale);
+  if (origin) mesh.position.sub(origin);
+  parent.add(mesh);
+  return mesh;
+}
+
+// Joins the triangles of two non-indexed geometries into one.
+function mergeTriangles(a, b) {
+  const pa = a.attributes.position.array, pb = b.attributes.position.array;
+  const all = new Float32Array(pa.length + pb.length);
+  all.set(pa); all.set(pb, pa.length);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(all, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+// Fixes the rosy face, hangs the cape from a pivot so it can flap, and puts her right arm on a
+// shoulder pivot so it can reach forward. Returns { cape, arm, fist } (empty if something is missing).
 function setUpSculptedHero(model) {
   const sections = model.userData.sections;
-  const capes = sections[COLORS.cape.toUpperCase()] || [];
+  const coral = COLORS.cape.toUpperCase();
+  const capes = sections[coral] || [];
   const skin = (sections[COLORS.skin.toUpperCase()] || [])[0];
-  let pivot = null;
-  for (const cape of capes) {
-    const [low, high] = splitMesh(cape, (y) => y < NECK_Y);
-    cape.geometry = low;
-    if (high.attributes.position.count) {
-      const face = new THREE.Mesh(high, skin ? skin.material : lit(COLORS.skin));
-      face.position.copy(cape.position); face.quaternion.copy(cape.quaternion); face.scale.copy(cape.scale);
-      cape.parent.add(face);
+  const suit = (sections[COLORS.suit.toUpperCase()] || [])[0];
+  const inner = (capes[0] || skin)?.parent;
+  if (!inner) return {};
+  const pivotAt = (point) => { const g = new THREE.Group(); g.position.copy(point); inner.add(g); return g; };
+
+  // Her right arm: sleeve and glove triangles from every section except the cape move onto a
+  // shoulder pivot. The ones right at the shoulder stay behind too, plus a round teal shoulder.
+  const arm = pivotAt(SHOULDER);
+  for (const [color, meshes] of Object.entries(sections)) {
+    if (color === coral) continue;
+    for (const mesh of meshes) {
+      const [body, armPart] = splitMesh(mesh, (x, y, z) => !isRightArm(x, y, z));
+      if (!armPart.attributes.position.count) continue;
+      const [cap] = splitMesh({ geometry: armPart }, (x, y, z) =>
+        Math.hypot(x - SHOULDER.x, y - SHOULDER.y, z - SHOULDER.z) < SHOULDER_CAP);
+      mesh.geometry = mergeTriangles(body, cap);
+      twin(armPart, mesh.material, mesh, arm, SHOULDER);
     }
-    pivot ??= new THREE.Group();
-    if (!pivot.parent) { pivot.position.copy(CAPE_PIVOT); cape.parent.add(pivot); }
-    pivot.add(cape);
-    cape.position.sub(CAPE_PIVOT);
   }
+  const shoulderBall = part(ball(0.042), COLORS.suit, 0, 0, 0, arm);
+  if (suit) shoulderBall.material = suit.material;
+  const fist = new THREE.Object3D();
+  fist.position.copy(FIST).sub(SHOULDER);
+  arm.add(fist);
+
+  // The cape: face bits go back to skin, collar ties stay, her back gets a teal patch,
+  // and a copy of the back coral, a hair bigger, flaps from the pivot.
+  let cape = null;
+  for (const mesh of capes.slice()) {
+    const [low, high] = splitMesh(mesh, (x, y) => y < NECK_Y);
+    if (high.attributes.position.count) twin(high, skin ? skin.material : lit(COLORS.skin), mesh);
+    const [back, ties] = splitMesh({ geometry: low }, (x) => x < BACK_X);
+    mesh.geometry = ties;
+    twin(back, suit ? suit.material : lit(COLORS.suit), mesh);
+    if (!cape) { cape = pivotAt(CAPE_PIVOT); cape.scale.setScalar(1.05); }
+    mesh.material.side = THREE.DoubleSide;
+    capes.push(twin(back.clone(), mesh.material, mesh, cape, CAPE_PIVOT));
+  }
+
   // Two big brown eyes with a white sparkle, like the concept picture.
-  const head = skin?.parent ?? pivot?.parent;
-  if (head) for (const side of [-1, 1]) {
-    const eye = part(ball(EYES.r), '#3B2A2A', EYES.x, EYES.y, side * EYES.z, head);
+  for (const side of [-1, 1]) {
+    const eye = part(ball(EYES.r), '#3B2A2A', EYES.x, EYES.y, side * EYES.z, inner);
     eye.scale.set(0.6, 1.3, 1);
-    part(ball(EYES.r * 0.35, 6, 4), '#FFFFFF', EYES.x + EYES.r * 0.5, EYES.y + EYES.r * 0.5, side * EYES.z + EYES.r * 0.3, head);
+    part(ball(EYES.r * 0.35, 6, 4), '#FFFFFF', EYES.x + EYES.r * 0.5, EYES.y + EYES.r * 0.5, side * EYES.z + EYES.r * 0.3, inner);
   }
-  return pivot;
+  return { cape, arm, fist };
 }
 
 // Builds the figure standing up (face toward +z), then tips it forward to fly.
@@ -196,10 +254,12 @@ export function createHero(scene, floorAt = () => 7) {
   scene.add(root);
 
   // Swap in the sculpted 3D hero once it has loaded; the simple-shape figure stays if it fails.
-  // Her own coral cape section flaps; the web hand anchor stays from the simple figure (invisible).
-  let sculptedCape = null;
+  // Her own coral cape flaps, her right arm reaches forward, and the web shoots from her fist.
+  let sculpted = {};
+  let webHand = hand;
   loadModel('hero', { height: 2.7, rotationY: -Math.PI / 2 }).then((model) => {
-    sculptedCape = setUpSculptedHero(model);
+    sculpted = setUpSculptedHero(model);
+    if (sculpted.fist) webHand = sculpted.fist;
     model.position.y = -1.3;            // feet at the same spot as the simple figure's boots
     const keep = new Set([hand.parent]);
     for (const child of [...body.children]) if (!keep.has(child)) body.remove(child);
@@ -225,6 +285,7 @@ export function createHero(scene, floorAt = () => 7) {
     zip: null,      // { from, to, t, duration }
     webTimer: 0,
     time: 0,
+    reach: 0,       // 0 = right arm down, 1 = reaching out in front
     forward: new THREE.Vector3(0, 0, 1),
 
     reset() {
@@ -292,7 +353,15 @@ export function createHero(scene, floorAt = () => 7) {
       body.rotation.x += (1.3 + pitch - body.rotation.x) * (1 - Math.exp(-dt * 6));
       const flap = 0.2 + Math.min(this.speed, 15) * 0.015 + Math.sin(this.time * 12) * 0.12;
       capePivot.rotation.x = flap;
-      if (sculptedCape) sculptedCape.rotation.z = -flap; // her model's back is -x, so it swings round z
+      if (sculpted.cape) sculpted.cape.rotation.z = -flap; // her model's back is -x, so it swings round z
+      // Hold forward: her right arm eases out in front of her, like a flying superhero.
+      this.reach += ((keys.ArrowUp && !this.zip ? 1 : 0) - this.reach) * (1 - Math.exp(-dt * 7));
+      if (sculpted.arm) {
+        const r = this.reach * this.reach * (3 - 2 * this.reach); // smooth start and stop
+        sculpted.arm.rotation.set(0, 0, 0);
+        sculpted.arm.rotateX(-REACH.up * r);     // swing up past her head
+        sculpted.arm.rotateZ(REACH.forward * r); // and a little toward her front
+      }
 
       // Web line from her hand to the target while zipping (and a blink after).
       const showWeb = this.zip || this.webTimer > 0;
@@ -301,7 +370,7 @@ export function createHero(scene, floorAt = () => 7) {
       if (showWeb && (this.zip || this.lastTarget)) {
         const target = this.zip ? this.zip.target : this.lastTarget;
         this.lastTarget = target;
-        const start = hand.getWorldPosition(new THREE.Vector3());
+        const start = webHand.getWorldPosition(new THREE.Vector3());
         web.position.copy(start);
         web.lookAt(target);
         web.scale.set(1, 1, start.distanceTo(target));

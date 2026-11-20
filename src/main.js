@@ -1,12 +1,13 @@
 // Rooftop Rescue: fly over the night town and rescue the townsfolk waving on chimneys.
-// Title screen -> 90-second round -> happy end screen -> play again.
+// Title screen -> 60-second round (one night, sunset to sunrise) -> happy end screen -> play again.
 import * as THREE from 'three';
 import { buildTown } from './town.js';
 import { createHero, CRUISE_HEIGHT, MAX_HEIGHT } from './hero.js';
 import { createTownsfolk } from './townsfolk.js';
 import { createEffects } from './effects.js';
+import { createSky } from './sky.js';
 
-const ROUND_SECONDS = 90;
+const ROUND_SECONDS = 60;
 
 const canvas = document.getElementById('stage');
 const titleScreen = document.getElementById('title-screen');
@@ -29,7 +30,8 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
-const { chimneys, floorAt } = buildTown(scene);
+const { chimneys, floorAt, skyParts } = buildTown(scene);
+const sky = createSky(scene, skyParts);
 const hero = createHero(scene, floorAt);
 const effects = createEffects(scene, camera, document.getElementById('fx-layer'));
 const townsfolk = createTownsfolk(scene, chimneys, effects);
@@ -95,7 +97,7 @@ function startRound() {
 
 function endRound() {
   state = 'ended';
-  endScore.textContent = `You rescued ${rescued} ${rescued === 1 ? 'person' : 'people'}!`;
+  endScore.textContent = `The sun is up! You rescued ${rescued} ${rescued === 1 ? 'person' : 'people'}!`;
   hud.classList.add('hidden');
   endScreen.classList.remove('hidden');
 }
@@ -172,6 +174,7 @@ function frame() {
     }
   }
 
+  sky.update(state === 'title' ? null : timeLeft, ROUND_SECONDS, camera);
   effects.update(dt);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);

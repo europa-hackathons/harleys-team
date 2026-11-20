@@ -42,8 +42,9 @@ _Open questions about the game for the Helper to ask the Team, most urgent first
   - **Fly up and down:** W flies up, S flies down (smooth speed-up, she tilts nose-up/nose-down). She can go from 2 above the roofs and chimneys (she glides up over houses, never through them) up to 3x the old cruise height. With no key held she keeps her height, also after a web zip. Higher up the camera pulls back and looks down more. The title screen "How to play" mentions W/S.
   - 7 townsfolk wave for help on chimney tops with a "HELP!" bubble. Fly close = rescued: they jump and cheer, a "THANK YOU!" bubble floats up, hearts and stars burst out, then they pop away in sparkles and someone new appears somewhere else.
   - A yellow arrow above the hero points to the nearest person who needs help.
-  - HUD: "RESCUED: N" top-left, 90-second timer top-right. When time runs out: "You rescued N people!" and a PLAY AGAIN button. No way to lose.
-  - Code: `src/main.js` (game flow, camera, web aiming), `src/town.js`, `src/hero.js`, `src/townsfolk.js`, `src/effects.js`.
+  - HUD: "RESCUED: N" top-left, 60-second timer top-right. When time runs out: "The sun is up! You rescued N people!" and a PLAY AGAIN button. No way to lose.
+  - **One night, sunset to sunrise:** each round starts at sunset (orange-pink sky, a big glowing yellow sun sinking behind the mountains in front of her). In about 8 seconds it fades to the purple night with stars; the moon slowly arcs across the sky. In the last 10 seconds the sky turns pink-orange on the opposite side and the sun rises over the mountains as time runs out. Fog and lights follow the sky; windows keep glowing. The title screen stays night.
+  - Code: `src/main.js` (game flow, camera, web aiming), `src/town.js`, `src/hero.js`, `src/townsfolk.js`, `src/effects.js`, `src/sky.js` (sunset/night/sunrise).
 
 ## Wish list
 - (none yet)
