@@ -6,10 +6,22 @@ import { GLOW_MATERIALS, NIGHT_GLOW_MATERIALS } from './town.js';
 const SUNSET_SECONDS = 8;
 const SUNRISE_SECONDS = 10;
 
-// Colour sets: top of sky, middle, horizon, fog, glow around the sun, light tint.
-const NIGHT = { top: '#22104F', mid: '#4B2A8C', low: '#7A4FB8', fog: '#70509A', hemi: '#D4C5F1', key: '#FFE0AF' };
-const DUSK = { top: '#4A2F8F', mid: '#D9668A', low: '#FFA65C', fog: '#B9668E', hemi: '#FFB8A8', key: '#FFB070' };
-const DAWN = { top: '#5E4AB0', mid: '#F08CA6', low: '#FFC46E', fog: '#D88A9E', hemi: '#FFD2B8', key: '#FFC98A' };
+// Colour sets: top of sky, middle, horizon, fog, sky fill (hemi) and its ground colour, light tint.
+// At night the sky runs from deep violet overhead to a lighter violet at the horizon, and the fog is a
+// little darker than the horizon, so the far roofs stand out against the sky as soft layers.
+const NIGHT = { top: '#392568', mid: '#5E3A93', low: '#804BB5', fog: '#715298', hemi: '#D9C9F3', ground: '#61465C', key: '#FFE0AF' };
+const DUSK = { top: '#4A2F8F', mid: '#D9668A', low: '#FFA65C', fog: '#B9668E', hemi: '#FFB8A8', ground: '#735274', key: '#FFB070' };
+const DAWN = { top: '#5E4AB0', mid: '#F08CA6', low: '#FFC46E', fog: '#D88A9E', hemi: '#FFD2B8', ground: '#735274', key: '#FFC98A' };
+
+// Fog distances: in the round it starts about two house rows away and is full about ten rows away
+// (a row is 12 units); a bit clearer by day; the title tour sees the whole town.
+const FOG_NIGHT = { near: 22, far: 130 };
+const FOG_DAY = { near: 30, far: 170 };
+const FOG_TITLE = { near: 60, far: 240 };
+
+// A soft peach fill from above and to the camera's left (no shadows), so faces and the cape read
+// warmly at night. Weaker when the low sun does the work.
+const FILL = { color: '#FFD1AE', night: 1.0, day: 0.35 };
 
 const SUNSET_DIR = new THREE.Vector3(0.35, 0, 1).normalize(); // the sun goes down here, in front of the hero at the start...
 const SUNRISE_DIR = new THREE.Vector3(-0.35, 0, -1).normalize(); // ...and comes up on the opposite side
@@ -19,7 +31,7 @@ const deg = THREE.MathUtils.degToRad;
 // The one shadow-casting light: the low sun at sunset and sunrise (warm, long, strong shadows),
 // the moon at night (bluish, fainter). Its shadow box follows the hero so the shadows stay crisp.
 // hemi: the soft sky fill light, a bit lower than before so the shadows show.
-const MOON_LIGHT = { color: new THREE.Color('#C4C8FF'), intensity: 2.3, shadow: 0.7, hemi: 1.15 };
+const MOON_LIGHT = { color: new THREE.Color('#C4C8FF'), intensity: 2.3, shadow: 0.7, hemi: 0.8 };
 const SUN_LIGHT = { intensity: 3.0, shadow: 0.85, hemi: 1.0 };
 const MIN_SUN_ELEV = 7;      // degrees; lower than this and the whole town would be one big shadow
 const SHADOW_HALF = 34;      // the shadow box is about 68 units wide round the hero...
@@ -89,6 +101,20 @@ export function createSky(scene, { stars, moon, hemi, keyLight }) {
   stars.material.transparent = true;
   moon.material.transparent = true;
 
+  // About one star in six shines twice as big.
+  const sp = stars.geometry.attributes.position, bigPos = [];
+  for (let i = 0; i < sp.count; i += 6) bigPos.push(sp.getX(i), sp.getY(i), sp.getZ(i));
+  const bigGeo = new THREE.BufferGeometry();
+  bigGeo.setAttribute('position', new THREE.Float32BufferAttribute(bigPos, 3));
+  const bigStars = new THREE.Points(bigGeo, stars.material.clone());
+  bigStars.material.size = stars.material.size * 2;
+  stars.add(bigStars);
+
+  const fill = new THREE.DirectionalLight(FILL.color, FILL.night);
+  fill.castShadow = false;
+  scene.add(fill, fill.target);
+  const camRight = new THREE.Vector3(), camFwd = new THREE.Vector3(), fillDir = new THREE.Vector3();
+
   const a = {}, b = {}, mixed = {};
   const toColors = (set, out) => { for (const k in set) out[k] = (out[k] || new THREE.Color()).set(set[k]); return out; };
   const nightC = toColors(NIGHT, {}), duskC = toColors(DUSK, {}), dawnC = toColors(DAWN, {});
@@ -119,6 +145,18 @@ export function createSky(scene, { stars, moon, hemi, keyLight }) {
     uniforms.glow.value = s * 1.1;
     scene.fog.color.copy(mixed.fog);
     hemi.color.copy(mixed.hemi);
+    hemi.groundColor.copy(mixed.ground);
+    const fogSet = timeLeft === null ? FOG_TITLE : FOG_NIGHT;
+    scene.fog.near = THREE.MathUtils.lerp(fogSet.near, FOG_DAY.near, timeLeft === null ? 0 : s);
+    scene.fog.far = THREE.MathUtils.lerp(fogSet.far, FOG_DAY.far, timeLeft === null ? 0 : s);
+
+    // Peach fill: from above, the camera's left and a little behind it, so it lights what she looks at.
+    camRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
+    camFwd.set(0, 0, -1).applyQuaternion(camera.quaternion);
+    fillDir.set(0, 1, 0).multiplyScalar(0.8).addScaledVector(camRight, -0.6).addScaledVector(camFwd, -0.3);
+    fill.target.position.copy(camera.position);
+    fill.position.copy(camera.position).addScaledVector(fillDir, 20);
+    fill.intensity = THREE.MathUtils.lerp(FILL.night, FILL.day, s);
 
     // Sun position on its side of the sky.
     sunDir.copy(sideDir).multiplyScalar(Math.cos(deg(elev))).setY(Math.sin(deg(elev)));
@@ -129,7 +167,7 @@ export function createSky(scene, { stars, moon, hemi, keyLight }) {
     dome.position.copy(camera.position);
 
     // Stars fade with the daylight; the moon arcs across the sky during the round.
-    stars.material.opacity = 1 - s;
+    stars.material.opacity = bigStars.material.opacity = 1 - s;
     moon.material.opacity = 1 - s * 0.7;
 
     // Lights click on once it gets dark enough, and off again as the sun comes up.

@@ -108,6 +108,7 @@ function startRound() {
   clouds.clear();
   partyBlend = 0;
   townsfolk.reset(hero.root.position);
+  frameFirstRescue();
   snapCamera();
   rescuedText.textContent = '0';
   timerText.textContent = String(ROUND_SECONDS);
@@ -116,6 +117,31 @@ function startRound() {
   hud.classList.remove('hidden');
   state = 'playing';
   canvas.focus();
+}
+
+// Start the round with a rescue already in the picture: she hovers over a street, looking diagonally
+// down it toward a nearby chimney where someone is waiting, with the river and bridge beyond.
+const STREET = 12;  // houses sit on a 12-unit grid, so the streets run halfway between them
+const BRIDGE_X = 15;
+function frameFirstRescue() {
+  let best = null, bestScore = Infinity;
+  for (const c of chimneys) {
+    const p = c.person;
+    if (!p) continue;
+    // Early poppers first; on the river side of town (so the river shows) and near the bridge.
+    const score = -p.timer * 20 + Math.abs(c.pos.z - 35) * 0.4 + Math.abs(c.pos.x - BRIDGE_X) * 0.25;
+    if (score < bestScore) { bestScore = score; best = c; }
+  }
+  if (!best) return;
+  const c = best.pos;
+  // The street just to the chimney's +x side, so the chimney sits to her right as she faces the river.
+  let sx = Math.round((c.x - STREET / 2) / STREET) * STREET + STREET / 2;
+  if (sx < c.x + 2) sx += STREET;
+  const pos = hero.root.position;
+  pos.set(sx, pos.y, c.z - 17);
+  // Turn halfway toward the chimney: the street runs off diagonally and the chimney stays right of centre.
+  hero.yaw = 0.55 * Math.atan2(c.x - sx, c.z - pos.z);
+  hero.forward.set(Math.sin(hero.yaw), 0, Math.cos(hero.yaw));
 }
 
 // The sun is up: a sunrise party! Everyone she rescued pops up on the chimneys in front of her
