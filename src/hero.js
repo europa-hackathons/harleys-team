@@ -76,13 +76,42 @@ const isRightArm = (x, y, z) => z > 0.12 && y > -0.2 && y < 0.075;
 const isLeftArm = (x, y, z) => isRightArm(x, y, -z);
 const SHOULDER_CAP = 0.045; // arm triangles this close to the shoulder also stay put, so no hole opens
 const FIST = new THREE.Vector3(0.07, -0.13, 0.25); // middle of her glove, where the web shoots from
-const REACH = { up: 1.85, forward: 0.3 };          // how far her arm swings (radians) when reaching
 // Her legs swing from hip pivots when she walks. Below HIP_Y and between her hands, triangles on her
 // right side (+z) are her right leg, the rest her left leg. Bits close to the hip stay put (no holes).
 const HIP_Y = -0.19;
 const HIPS = [new THREE.Vector3(0.04, -0.17, -0.065), new THREE.Vector3(0.04, -0.17, 0.065)]; // left, right
 const isLeg = (x, y, z) => y < HIP_Y && Math.abs(z) < 0.2;
 const HIP_CAP = 0.035;
+
+// Her flying poses, like the pose sheet assets/concepts/hero-flying-poses.png. Each pose is a set of
+// angles (radians); the game blends them smoothly from how she is flying. t is the time, for waving.
+//   pitch: tip forward (0 upright, 1.57 lying flat, more = head down)   roll: lean into a turn
+//   rUp/lUp: lift an arm out and up past her head (toward the front when flying)   rFwd/lFwd: swing it forward
+//   rLeg/lLeg: swing a leg forward (+) or back (-)   legOut: legs apart (+) or together (-)
+//   flap: cape away from her back   capeSide: cape swings to her right (+)   capeLong: cape stretch
+const POSE_KEYS = ['pitch', 'roll', 'rUp', 'rFwd', 'lUp', 'lFwd', 'rLeg', 'lLeg', 'legOut', 'flap', 'capeSide', 'capeLong'];
+const POSES = {
+  // One fist forward, the other arm along her side, legs together and a little bent, cape streaming.
+  cruise: (t) => ({ pitch: 1.45 + Math.sin(t * 2) * 0.03, rUp: 2.3, rFwd: 0.05, lUp: -0.35, lFwd: -0.1,
+    rLeg: -0.22, lLeg: -0.08, legOut: -0.04, flap: 0.35 + Math.sin(t * 10) * 0.1, capeLong: 1.05 }),
+  // Fully stretched: both fists forward, legs straight, cape flat and long.
+  zoom: (t) => ({ pitch: 1.57, rUp: 2.45, rFwd: -0.05, lUp: 2.45, lFwd: -0.05,
+    rLeg: -0.04, lLeg: -0.04, legOut: -0.05, flap: 0.14 + Math.sin(t * 18) * 0.04, capeLong: 1.25 }),
+  // Pitched steeply up, one fist punching up, cape hanging down behind.
+  climb: (t) => ({ pitch: 0.45, rUp: 2.8, rFwd: -0.15, lUp: -0.2, lFwd: 0.45,
+    rLeg: -0.25, lLeg: 0.1, legOut: 0.02, flap: 0.28 + Math.sin(t * 7) * 0.08, capeLong: 1.05 }),
+  // Head first down, both arms forward, legs up behind, cape flapping up.
+  dive: (t) => ({ pitch: 2.45, rUp: 2.25, rFwd: 0.15, lUp: 2.25, lFwd: 0.15,
+    rLeg: -0.3, lLeg: -0.2, legOut: 0.0, flap: 0.6 + Math.sin(t * 14) * 0.25, capeLong: 1.1 }),
+  // Upright, legs dangling, arms out a little, cape gently waving. She breathes.
+  hover: (t) => ({ pitch: 0.18 + Math.sin(t * 1.3) * 0.03, rUp: 0.1 + Math.sin(t * 2.2) * 0.05, rFwd: 0.2,
+    lUp: 0.1 + Math.sin(t * 2.2) * 0.05, lFwd: 0.2, rLeg: -0.08 + Math.sin(t * 1.7) * 0.06, lLeg: 0.14 + Math.sin(t * 1.7 + 1.5) * 0.06,
+    legOut: 0.06, flap: 0.18 + Math.sin(t * 2.5) * 0.08, capeLong: 1 }),
+};
+// Turning: the outer arm reaches out for balance, the inner one tucks down, knees come up a little.
+const TURN_ARMS = { outUp: 1.35, outFwd: 0.15, inUp: 0.55, inFwd: -0.3 };
+const blank = () => Object.fromEntries(POSE_KEYS.map((k) => [k, 0]));
+const smooth = (a, b, x) => { const t = THREE.MathUtils.clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
 // Splits a mesh's triangles in two by a test on each triangle's middle point (x, y, z).
 function splitMesh(mesh, keepTest) {
@@ -326,8 +355,9 @@ export function createHero(scene, floorAt = () => 7, { surfaceAt = () => 0, soli
     zip: null,      // { from, to, t, duration }
     webTimer: 0,
     time: 0,
-    reach: 0,       // 0 = right arm down, 1 = reaching out in front
     armSwing: 0,
+    turnBlend: 0,   // -1 .. 1, eases in and out with the left/right keys
+    pose: { ...POSES.cruise(0), roll: 0, capeSide: 0 }, // the angles she is in right now
     mode: 'fly',    // 'fly', 'landing' (gently dropping) or 'walk' (on her feet)
     fall: 0,        // falling speed after walking off a roof
     liftoff: 0,     // seconds of soft take-off left (she rises smoothly instead of snapping up)
@@ -467,33 +497,62 @@ export function createHero(scene, floorAt = () => 7, { surfaceAt = () => 0, soli
       const walkAmount = this.mode === 'walk' ? Math.min(1, Math.abs(this.speed) / WALK) : 0;
       const swing = Math.sin(this.stride) * 0.6 * walkAmount;
       const waddle = Math.sin(this.stride) * 0.06 * walkAmount;
-      bank.rotation.z += ((standing ? waddle : -turn * 0.5) - bank.rotation.z) * ease(standing ? 12 : 6);
       const bob = standing ? Math.abs(Math.cos(this.stride)) * 0.1 * walkAmount : Math.sin(this.time * 3) * 0.15;
       body.position.y += (bob - body.position.y) * ease(15);
-      // Nose up while climbing, nose down while diving; upright on her feet.
-      const pitch = this.zip ? 0 : -this.climb / CLIMB_SPEED * 0.4;
-      body.rotation.x += ((standing ? 0 : 1.3 + pitch) - body.rotation.x) * ease(standing ? 5 : 6);
-      const flap = standing
-        ? 0.08 + Math.abs(this.speed) * 0.03 + Math.sin(this.time * 5) * 0.04
-        : 0.2 + Math.min(this.speed, 15) * 0.015 + Math.sin(this.time * 12) * 0.12;
-      capePivot.rotation.x = flap;
-      if (sculpted.cape) sculpted.cape.rotation.z = -flap; // her model's back is -x, so it swings round z
-      // Hold forward while flying: her right arm eases out in front of her, like a flying superhero.
-      this.reach += ((keys.ArrowUp && !this.zip && !standing ? 1 : 0) - this.reach) * ease(7);
       this.armSwing += (swing * 0.6 - this.armSwing) * ease(15);
-      if (sculpted.arm) {
-        const r = this.reach * this.reach * (3 - 2 * this.reach); // smooth start and stop
-        sculpted.arm.rotation.set(0, 0, 0);
-        sculpted.arm.rotateX(-REACH.up * r);     // swing up past her head
-        sculpted.arm.rotateZ(REACH.forward * r + this.armSwing); // a little toward her front (and walk swing)
+      this.turnBlend += ((standing || this.zip ? 0 : turn) - this.turnBlend) * ease(5);
+
+      // Pick her pose: walking, or a blend of the flying poses from how she is flying right now.
+      const want = blank();
+      if (this.mode === 'walk') {
+        Object.assign(want, { roll: waddle, rFwd: this.armSwing, lFwd: -this.armSwing, rLeg: -swing, lLeg: swing,
+          flap: 0.08 + Math.abs(this.speed) * 0.03 + Math.sin(this.time * 5) * 0.04, capeLong: 1 });
+      } else {
+        const t = this.time, mix = (pose, w) => { if (w > 0) for (const k of POSE_KEYS) want[k] += ((pose[k] ?? 0) - want[k]) * w; };
+        // Slow or backing up: hover. Holding forward at speed (or zipping along a web): zoom. In between: cruise.
+        const hoverW = this.mode === 'landing' ? 1 : this.zip ? 0 : 1 - smooth(0.5, 2.8, this.speed);
+        const zoomW = this.zip ? 1 : smooth(9, 16, this.speed) * (1 - hoverW);
+        for (const [name, w] of [['cruise', 1 - hoverW - zoomW], ['zoom', zoomW], ['hover', hoverW]]) {
+          const pose = POSES[name](t);
+          for (const k of POSE_KEYS) want[k] += (pose[k] ?? 0) * w;
+        }
+        if (this.zip) want.pitch -= 0.25;
+        if (this.mode === 'fly' && !this.zip) {
+          const up = this.climb / CLIMB_SPEED;
+          mix(POSES.climb(t), smooth(0.1, 0.7, up));
+          mix(POSES.dive(t), smooth(0.1, 0.7, -up));
+        }
+        // Turning: lean into the turn, the outer arm out for balance, the cape swings out.
+        const tb = this.turnBlend, tw = Math.abs(tb);
+        if (tw > 0.01) {
+          const outer = tb > 0 ? 'r' : 'l', inner = tb > 0 ? 'l' : 'r'; // turning left: her right arm is outside
+          const arms = { [outer + 'Up']: TURN_ARMS.outUp, [outer + 'Fwd']: TURN_ARMS.outFwd, [inner + 'Up']: TURN_ARMS.inUp, [inner + 'Fwd']: TURN_ARMS.inFwd };
+          for (const [k, v] of Object.entries(arms)) want[k] += (v - want[k]) * tw * 0.85;
+          want.rLeg += (0.2 - want.rLeg) * tw * 0.6; want.lLeg += (-0.05 - want.lLeg) * tw * 0.6;
+          want.roll -= tb * 0.75;
+          want.capeSide += tb * 0.45;
+        }
       }
-      // Her model's front is +x, so turning round z swings a leg or arm forward and back,
-      // each arm opposite its leg.
-      if (sculpted.leftArm) sculpted.leftArm.rotation.z = -this.armSwing;
+      // Ease every angle toward the pose (quicker on her feet), so nothing pops.
+      const p = this.pose;
+      for (const k of POSE_KEYS) p[k] += (want[k] - p[k]) * ease(this.mode === 'walk' ? 12 : k === 'pitch' ? 5 : 7);
+
+      bank.rotation.z = p.roll;
+      body.rotation.x = p.pitch;
+      capePivot.rotation.x = p.flap;
+      if (sculpted.cape) {
+        // Her model's back is -x, so the cape swings away from her back round z, and sideways round x.
+        sculpted.cape.rotation.set(-p.capeSide, 0, -p.flap);
+        sculpted.cape.scale.set(1.05, 1.05 * p.capeLong, 1.05);
+      }
+      // Her model's front is +x and her right side +z: turning round x lifts an arm out to the side
+      // (and on up past her head), turning round z swings an arm or leg forward and back.
+      if (sculpted.arm) { sculpted.arm.rotation.set(0, 0, 0); sculpted.arm.rotateX(-p.rUp); sculpted.arm.rotateZ(p.rFwd); }
+      if (sculpted.leftArm) { sculpted.leftArm.rotation.set(0, 0, 0); sculpted.leftArm.rotateX(p.lUp); sculpted.leftArm.rotateZ(p.lFwd); }
       if (sculpted.legs) {
         const [left, right] = sculpted.legs;
-        left.rotation.z += (swing - left.rotation.z) * ease(15);
-        right.rotation.z += (-swing - right.rotation.z) * ease(15);
+        left.rotation.set(p.legOut, 0, p.lLeg);
+        right.rotation.set(-p.legOut, 0, p.rLeg);
       }
 
       // Web line from her hand to the target while zipping (and a blink after).
