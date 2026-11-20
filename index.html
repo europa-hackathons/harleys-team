@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="sv">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Rooftop Rescue</title>
+  <title>Our Game</title>
   <link rel="stylesheet" href="src/style.css">
   <!-- three.js is available to any module via `import * as THREE from 'three'`. Pinned version, no build step (see docs/adr/0002). -->
   <script type="importmap">
@@ -16,30 +16,20 @@
   </script>
 </head>
 <body>
-  <canvas id="stage" tabindex="0"></canvas>
-  <div id="fx-layer"></div>
-
-  <div id="hud" class="hidden">
-    <div class="hud-box">RESCUED: <span id="rescued">0</span></div>
-    <div class="hud-box timer">⏱ <span id="timer">60</span></div>
-  </div>
+  <canvas id="stage"></canvas>
 
   <main id="title-screen" class="screen">
-    <h1 class="title">ROOFTOP<br>RESCUE</h1>
-    <div class="how">
-      <p>⬆️ ⬅️ ➡️ ⬇️ fly &nbsp;·&nbsp; W up · S down &nbsp;·&nbsp; SPACE web-swing &nbsp;·&nbsp; rescue people!</p>
-      <p>Hold S low down to land and walk · W to take off · SPACE zips up to a chimney</p>
-      <p class="en">Piltangenter: flyg · W upp · S ner · Mellanslag: nät-sving · Rädda folk!</p>
-      <p class="en">Håll S lågt nere för att landa och gå · W för att lyfta · Mellanslag: nät upp till en skorsten</p>
-    </div>
+    <h1 class="title">? ? ?</h1>
+    <p class="subtitle">Ett nytt spel är på väg… <span class="en">A new game is on its way…</span></p>
     <button id="play" class="big-button">▶ SPELA · PLAY</button>
   </main>
 
-  <main id="end-screen" class="screen hidden">
-    <div class="big-heart">💖</div>
-    <h2 id="end-score">You rescued 0 people!</h2>
-    <p>The whole town says THANK YOU!</p>
-    <button id="play-again" class="big-button">↻ PLAY AGAIN</button>
+  <main id="design-screen" class="screen hidden">
+    <div class="pencil">✏️</div>
+    <h2>Dags att designa!</h2>
+    <p>Berätta för din hjälpare vad spelet ska handla om.</p>
+    <p class="en">Time to design! Tell your helper what the game should be about.</p>
+    <button id="back" class="small-button">⏪</button>
   </main>
 
   <script type="module" src="src/main.js"></script>
