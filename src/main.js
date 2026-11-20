@@ -2,7 +2,7 @@
 // Title screen -> 90-second round -> happy end screen -> play again.
 import * as THREE from 'three';
 import { buildTown } from './town.js';
-import { createHero } from './hero.js';
+import { createHero, CRUISE_HEIGHT, MAX_HEIGHT } from './hero.js';
 import { createTownsfolk } from './townsfolk.js';
 import { createEffects } from './effects.js';
 
@@ -29,8 +29,8 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
-const { chimneys } = buildTown(scene);
-const hero = createHero(scene);
+const { chimneys, floorAt } = buildTown(scene);
+const hero = createHero(scene, floorAt);
 const effects = createEffects(scene, camera, document.getElementById('fx-layer'));
 const townsfolk = createTownsfolk(scene, chimneys, effects);
 
@@ -108,8 +108,11 @@ const camTarget = new THREE.Vector3();
 const camLook = new THREE.Vector3();
 function desiredCamera() {
   const p = hero.root.position, f = hero.forward;
-  camTarget.set(p.x - f.x * 8, p.y + 4, p.z - f.z * 8);
-  camLook.set(p.x + f.x * 8, p.y - 1, p.z + f.z * 8);
+  // Higher up, the camera pulls back and looks down a bit more so the town stays easy to read.
+  const high = THREE.MathUtils.clamp((p.y - CRUISE_HEIGHT) / (MAX_HEIGHT - CRUISE_HEIGHT), 0, 1);
+  const back = 8 + 6 * high, up = 4 + 4 * high;
+  camTarget.set(p.x - f.x * back, p.y + up, p.z - f.z * back);
+  camLook.set(p.x + f.x * 8, p.y - 1 - 4 * high, p.z + f.z * 8);
 }
 function snapCamera() {
   desiredCamera();

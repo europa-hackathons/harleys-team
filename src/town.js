@@ -68,7 +68,7 @@ function mat(parentMatrix, x, y, z, sx, sy, sz, rx = 0, ry = 0, rz = 0) {
   return parentMatrix ? parentMatrix.clone().multiply(local) : local;
 }
 
-function addHouse(b, x, z, chimneys) {
+function addHouse(b, x, z, chimneys, roofs) {
   const w = rand(5, 7), d = rand(5, 7), h = rand(3, 5.5);
   const ry = Math.floor(Math.random() * 4) * Math.PI / 2;
   const house = mat(null, x, 0, z, 1, 1, 1, 0, ry, 0);
@@ -91,6 +91,7 @@ function addHouse(b, x, z, chimneys) {
   b.add(GEO.box, PALETTE.chimneyCap, mat(house, cx, top + 0.15, cz, 1.6, 0.3, 1.6));
   const worldTop = new THREE.Vector3(cx, top + 0.3, cz).applyMatrix4(house);
   chimneys.push({ pos: worldTop, person: null });
+  roofs.push({ x, z, half: Math.max(w, d) * 0.56, top: h + apex });
 
   // Glowing windows on all four sides, and a door at the front.
   const ww = 0.9, wh = 1.0, wy = h * 0.55;
@@ -161,6 +162,7 @@ export function buildTown(scene) {
 
   const b = new Batcher();
   const chimneys = [];
+  const roofs = []; // { x, z, half, top }: a square around each house and its highest roof point
 
   b.add(GEO.plane, PALETTE.ground, mat(null, 0, 0, 0, 600, 600, 1, -Math.PI / 2, 0, 0));
 
@@ -169,7 +171,7 @@ export function buildTown(scene) {
     for (let j = -5; j <= 5; j++) {
       const x = i * spacing + rand(-1, 1), z = j * spacing + rand(-1, 1);
       b.add(GEO.plane, PALETTE.grass, mat(null, x, 0.02, z, 9, 9, 1, -Math.PI / 2, 0, 0));
-      if (Math.random() < 0.82) addHouse(b, x, z, chimneys);
+      if (Math.random() < 0.82) addHouse(b, x, z, chimneys, roofs);
       else { addTree(b, x - 2, z - 1); addTree(b, x + 2, z + 1.5); }
       if (Math.random() < 0.3) addTree(b, x + 5.5, z + 5.5);
       if ((i + j) % 3 === 0) addLamp(b, x - 6, z + 6);
@@ -184,5 +186,18 @@ export function buildTown(scene) {
   }
 
   b.build(scene);
-  return { chimneys };
+
+  // The lowest the hero may fly at a spot: 2 above any roof or chimney there, and above the trees.
+  function floorAt(px, pz) {
+    let floor = 7;
+    for (const r of roofs) {
+      if (Math.abs(px - r.x) < r.half + 1 && Math.abs(pz - r.z) < r.half + 1) floor = Math.max(floor, r.top + 2);
+    }
+    for (const c of chimneys) {
+      const dx = px - c.pos.x, dz = pz - c.pos.z;
+      if (dx * dx + dz * dz < 4) floor = Math.max(floor, c.pos.y + 1.7);
+    }
+    return floor;
+  }
+  return { chimneys, floorAt };
 }

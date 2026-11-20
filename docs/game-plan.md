@@ -25,8 +25,13 @@ _The living English game plan. The Helper keeps it up to date as wishes change t
 ## Features
 _One short entry per feature, written clearly enough that a building Friend can build it: what it does, how it looks, what happens at the edges (crashes, falling off, running out of time). Grows during question time._
 
+- **Fly up and down:** the Team loves flying and wants to go higher. Arrows still steer as now; **W** flies up and **S** flies down. She can go from just above the rooftops up to well above the town (high enough to see far, not so high the townsfolk are lost; suggested range about roof height + 2 up to ~3x the current cruise height). The camera follows smoothly. Space web-zips still work from any height.
+- **One night, sunset to sunrise (the round timer):** she is a night-time hero. A round lasts **60 seconds** (was 90) and is one whole night. It starts at sunset: the sun is going down behind the mountains and the sky is orange-pink. It quickly fades to the night purple with stars for most of the round. Near the end it brightens to a pink-orange dawn, and the sun comes up when time is up. Goal: rescue as many people as possible before sunrise. There is no fixed win number; the end screen celebrates the count ("The sun is up! You rescued N people!").
+
 ## Still to decide
 _Open questions about the game for the Helper to ask the Team, most urgent first. Move each into Features once answered._
+
+- Belt emblem: is a star right? Goggles over the eyes or pushed up?
 
 ## Built so far
 - **First playable version, "Rooftop Rescue"** (working title; the Team may rename it).
@@ -34,6 +39,7 @@ _Open questions about the game for the Helper to ask the Team, most urgent first
   - 3D night town built from simple shapes: about 100 low-poly houses with red roofs, glowing yellow windows and chimneys, round trees, streetlamps, purple starry sky, moon and mountains.
   - The hero (teal suit, coral cape, lavender gloves/boots, yellow goggles, brown hair bun) flies above the rooftops; the camera follows from behind and above.
   - Controls: hold ⬆️ to fly forward, ⬇️ to slow down/back up, ⬅️ ➡️ to turn. SPACE shoots a cyan web line to a chimney in front and zips her there (it picks chimneys with people waiting first).
+  - **Fly up and down:** W flies up, S flies down (smooth speed-up, she tilts nose-up/nose-down). She can go from 2 above the roofs and chimneys (she glides up over houses, never through them) up to 3x the old cruise height. With no key held she keeps her height, also after a web zip. Higher up the camera pulls back and looks down more. The title screen "How to play" mentions W/S.
   - 7 townsfolk wave for help on chimney tops with a "HELP!" bubble. Fly close = rescued: they jump and cheer, a "THANK YOU!" bubble floats up, hearts and stars burst out, then they pop away in sparkles and someone new appears somewhere else.
   - A yellow arrow above the hero points to the nearest person who needs help.
   - HUD: "RESCUED: N" top-left, 90-second timer top-right. When time runs out: "You rescued N people!" and a PLAY AGAIN button. No way to lose.
