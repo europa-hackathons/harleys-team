@@ -2,44 +2,56 @@
 html, body { margin: 0; height: 100%; overflow: hidden; }
 body {
   font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
-  background: #120a2e;
-  color: #fff;
+  background: #0f2347;
+  color: #f4e4c4;
 }
-#stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
 
 .screen {
-  position: fixed; inset: 0;
+  position: fixed; inset: 0; z-index: 5;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 1rem; padding: 16px; text-align: center;
+  padding: 16px; text-align: center;
 }
 .hidden { display: none; }
 
+.panel {
+  display: flex; flex-direction: column; align-items: center; gap: 0.8rem;
+  padding: 1.4rem 2rem; max-width: 40rem;
+  background: rgba(15, 35, 71, 0.88); border: 4px solid #0b1226; outline: 4px solid #1e5a7a;
+}
+
 .title {
-  font-size: clamp(4rem, 16vw, 10rem); margin: 0; letter-spacing: 0.2em;
-  color: #ffd93b; text-shadow: 0 0.08em 0 #ff6b9a, 0 0 0.4em rgba(255, 217, 59, 0.6);
+  font-size: clamp(2.6rem, 9vw, 5.5rem); margin: 0; letter-spacing: 0.05em;
+  color: #ffd23f; text-shadow: 4px 4px 0 #0b1226, -2px -2px 0 #0b1226, 0 0 0.4em rgba(255, 210, 63, 0.4);
   animation: bob 2.4s ease-in-out infinite;
 }
-.subtitle { font-size: clamp(1.1rem, 3.5vw, 1.6rem); margin: 0; }
-.en { display: block; opacity: 0.65; font-size: 0.85em; margin-top: 0.3em; }
+.title.win { color: #ffd23f; }
+h2 { font-size: clamp(1.6rem, 5vw, 2.6rem); margin: 0; color: #ffd23f; text-shadow: 3px 3px 0 #0b1226; }
+.subtitle, .panel p { font-size: clamp(1.1rem, 3.2vw, 1.5rem); margin: 0; }
+.en { display: block; opacity: 0.7; font-size: 0.85em; margin-top: 0.2em; }
+.keys { opacity: 0.85; font-size: clamp(0.95rem, 2.6vw, 1.2rem) !important; }
+.big-icon { font-size: clamp(3rem, 10vw, 5rem); animation: bob 1.2s ease-in-out infinite; }
 
 .big-button {
-  font: inherit; font-size: clamp(1.6rem, 6vw, 2.6rem); font-weight: bold;
-  padding: 0.5em 1.4em; border: none; border-radius: 999px; cursor: pointer;
-  color: #120a2e; background: #4be3a4; box-shadow: 0 0.2em 0 #1f9e6c;
+  font: inherit; font-size: clamp(1.2rem, 4.5vw, 2.1rem); font-weight: bold;
+  padding: 0.45em 1.2em; border: 4px solid #0b1226; cursor: pointer; white-space: nowrap;
+  color: #0f2347; background: #ffd23f; box-shadow: 0 0.18em 0 #0b1226;
   animation: pulse 1.6s ease-in-out infinite;
 }
-.big-button:hover { background: #6ff5bb; }
-.big-button:active { transform: translateY(0.15em); box-shadow: 0 0.05em 0 #1f9e6c; }
+.big-button:hover { background: #ffe27a; }
+.big-button:active { transform: translateY(0.12em); box-shadow: 0 0.06em 0 #0b1226; }
 
 .small-button {
-  font-size: 1.6rem; padding: 0.3em 0.8em; border-radius: 999px; border: 2px solid #fff4;
-  background: transparent; color: #fff; cursor: pointer;
+  font: inherit; font-size: clamp(1rem, 3vw, 1.3rem); padding: 0.4em 1em; cursor: pointer;
+  border: 3px solid #f4e4c4; background: transparent; color: #f4e4c4;
+}
+.small-button:hover { background: #1e5a7a; }
+
+.hint {
+  position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 4; margin: 0;
+  padding: 6px 16px; font-weight: bold; font-size: clamp(0.9rem, 2.4vw, 1.3rem); white-space: nowrap;
+  background: rgba(11, 18, 38, 0.75); color: #f4e4c4; pointer-events: none;
 }
 
-#design-screen h2 { font-size: clamp(2rem, 8vw, 4rem); margin: 0; color: #ffd93b; }
-#design-screen p { font-size: clamp(1.1rem, 3.5vw, 1.6rem); margin: 0; max-width: 32em; }
-.pencil { font-size: clamp(4rem, 14vw, 7rem); animation: wiggle 1s ease-in-out infinite; }
-
-@keyframes bob { 50% { transform: translateY(-0.1em); } }
-@keyframes pulse { 50% { transform: scale(1.06); } }
-@keyframes wiggle { 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
+@keyframes bob { 50% { transform: translateY(-0.08em); } }
+@keyframes pulse { 50% { transform: scale(1.05); } }

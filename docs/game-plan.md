@@ -25,14 +25,20 @@ _One short entry per feature, written clearly enough that a building Friend can 
 
 ## Still to decide
 _Open questions about the game for the Helper to ask the Team, most urgent first. Move each into Features once answered; unanswered ones stay and get asked again._
-- What does the opponent do? Does it shoot its hand back? Can you dodge or block?
+- Opponent shooting back: how much damage, and does the player also have 1000 health?
+- More characters: which characters, and what special move does each have?
+- How many hiding blocks, and can they break?
 
 ## Built so far
 - Title screen with a PLAY button (starter).
 
 ## Wish list
 - 🔨 First prototype: pixel ring, rocket hand, head/body punches, 1000 health bar, webcam + keyboard.
-- ⭐ Body moves the boxer: the player's position in front of the camera moves their boxer forward/back in the ring (webcam centroid, smoothed; keyboard fallback Left/Right arrows). Open: up/down too? Is it for dodging?
+- ⭐ Body moves the boxer: the player's position in front of the camera moves their boxer forward/back in the ring (webcam centroid, smoothed; keyboard fallback Left/Right arrows). Why: to hide behind blocks and to line up your aim.
+- ⭐ Hiding blocks: a few pixel blocks/crates standing in the ring the player can move behind to take cover; rocket hands that hit a block bounce off with a poof.
+- ⭐ Opponent shoots back: the opponent fires its own rocket hands at the player (that's why you hide).
+- ⭐ More characters, each with a different special move (pick a boxer before the fight).
+- ⭐ 2-player mode: both players stand in front of the same camera, one on the left half and one on the right half; each half controls one boxer (keyboard fallback: player 1 W/S/A/D, player 2 arrows). Team said "yes" to both-on-camera (guess: left/right halves).
 
 ## Ideas for later
 _The idea jar: wishes that arrived while the wish list was full (10). Pull them back onto the wish list as space frees up._

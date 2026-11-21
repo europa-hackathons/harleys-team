@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Our Game</title>
+  <title>Rocket Punch</title>
   <link rel="stylesheet" href="src/style.css">
   <!-- Collects page errors so the Helper can check the preview tab in one call (docs/agents/environment.md). Keep it. -->
   <script>window.pageErrors = []; addEventListener('error', (e) => pageErrors.push(String(e.message))); addEventListener('unhandledrejection', (e) => pageErrors.push(String(e.reason)));</script>
@@ -21,18 +21,50 @@
   <canvas id="stage"></canvas>
 
   <main id="title-screen" class="screen">
-    <h1 class="title">? ? ?</h1>
-    <p class="subtitle">Ett nytt spel är på väg… <span class="en">A new game is on its way…</span></p>
-    <button id="play" class="big-button">▶ SPELA · PLAY</button>
+    <div class="panel">
+      <h1 class="title">ROCKET PUNCH!</h1>
+      <p class="subtitle">Slå mot kameran så flyger handsken! <span class="en">Punch at the camera and your glove flies!</span></p>
+      <p class="keys">⬆️ / W = head · SPACE / ⬇️ = body</p>
+      <button id="play" class="big-button">▶ SPELA · PLAY</button>
+    </div>
   </main>
 
-  <main id="design-screen" class="screen hidden">
-    <div class="pencil">✏️</div>
-    <h2>Dags att designa!</h2>
-    <p>Berätta för din hjälpare vad spelet ska handla om.</p>
-    <p class="en">Time to design! Tell your helper what the game should be about.</p>
-    <button id="back" class="small-button">⏪</button>
+  <main id="camera-screen" class="screen hidden">
+    <div class="panel">
+      <div class="big-icon">📷</div>
+      <h2>Tillåt kameran! <span class="en">Allow the camera!</span></h2>
+      <p>Click <b>Allow</b> at the top of the window.</p>
+      <button id="skip-camera" class="small-button">⌨️ Play with keys instead</button>
+    </div>
   </main>
+
+  <main id="camera-failed-screen" class="screen hidden">
+    <div class="panel">
+      <div class="big-icon">🙈</div>
+      <h2>No camera this time</h2>
+      <p id="camera-trouble"></p>
+      <p class="keys">⬆️ / W = head · SPACE / ⬇️ = body</p>
+      <button id="play-keys" class="big-button">▶ PLAY WITH KEYS</button>
+    </div>
+  </main>
+
+  <main id="win-screen" class="screen hidden">
+    <div class="panel">
+      <h1 class="title win">YOU WIN! ⭐</h1>
+      <p class="subtitle">Du vann! <span class="en">What a rocket punch!</span></p>
+      <button id="again-win" class="big-button">🔁 SPELA IGEN · PLAY AGAIN</button>
+    </div>
+  </main>
+
+  <main id="timeup-screen" class="screen hidden">
+    <div class="panel">
+      <h1 class="title">TIME! ⏰</h1>
+      <p id="time-hits" class="subtitle"></p>
+      <button id="again-time" class="big-button">🔁 SPELA IGEN · PLAY AGAIN</button>
+    </div>
+  </main>
+
+  <p id="hint" class="hint hidden"></p>
 
   <script type="module" src="src/main.js"></script>
 </body>
