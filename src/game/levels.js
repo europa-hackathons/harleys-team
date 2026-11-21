@@ -10,8 +10,8 @@
 //   high       chance its punch flies HIGH (duck to dodge it); the rest fly LOW
 //   special    true = it has a SUPER meter and uses its special when it is full
 export const LEVELS = [
-  { place: 'arena', foe: 'orange', health: 600, seconds: 75, guardOpen: [1.6, 3.0], guardUp: [0.6, 1.1], attack: null, warn: 0.8, high: 0.5, special: false },
-  { place: 'apartment', foe: 'green', health: 800, seconds: 80, guardOpen: [1.4, 2.6], guardUp: [0.8, 1.4], attack: [4.0, 6.0], warn: 0.8, high: 0.5, special: false },
+  { place: 'arena', foe: 'orange', health: 600, seconds: 75, guardOpen: [1.6, 3.0], guardUp: [0.6, 1.1], attack: [4.0, 5.0], warn: 1.0, high: 0.3, special: false },   // gentle: slow, mostly LOW fists
+  { place: 'apartment', foe: 'green', health: 800, seconds: 80, guardOpen: [1.4, 2.6], guardUp: [0.8, 1.4], attack: [3.6, 5.0], warn: 0.8, high: 0.5, special: false },
   { place: 'jungle', foe: 'purple', health: 1000, seconds: 90, guardOpen: [1.2, 2.2], guardUp: [1.0, 1.6], attack: [3.2, 5.0], warn: 0.7, high: 0.55, special: true },
   { place: 'volcano', foe: 'teal', health: 1200, seconds: 100, guardOpen: [1.0, 1.9], guardUp: [1.1, 1.9], attack: [2.6, 4.0], warn: 0.6, high: 0.6, special: true },
   { place: 'space', foe: 'boss', health: 1500, seconds: 120, guardOpen: [0.9, 1.6], guardUp: [1.2, 2.1], attack: [2.0, 3.2], warn: 0.55, high: 0.6, special: true },

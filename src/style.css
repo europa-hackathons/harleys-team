@@ -104,3 +104,19 @@ h2 { font-size: clamp(1.6rem, 5vw, 2.6rem); margin: 0; color: #ffd23f; text-shad
 .level-foe { margin: 0; font-size: clamp(1.1rem, 3.5vw, 1.8rem); font-weight: bold; text-shadow: 2px 2px 0 #0b1226; }
 .title.over { color: #e0485a; }
 .panel.champ { outline-color: #ffd23f; }
+
+/* the language button on the title screen */
+.lang-button {
+  font: inherit; font-size: clamp(0.9rem, 2.6vw, 1.1rem); font-weight: bold; padding: 0.3em 0.9em; cursor: pointer;
+  border: 3px solid #0b1226; background: #1e5a7a; color: #f4e4c4; box-shadow: 0 0.15em 0 #0b1226;
+}
+.lang-button:hover { background: #2a7aa0; }
+
+/* 2 players: the random place reveal */
+#reveal-screen { justify-content: space-between; cursor: pointer; overflow: hidden; padding: 3vh 16px; }
+.reveal-place {
+  margin: 0; padding: 0.15em 0.8em; font-size: clamp(2.2rem, 9vw, 5rem); font-weight: bold; white-space: nowrap;
+  color: #f4e4c4; background: rgba(11, 18, 38, 0.7); text-shadow: 4px 4px 0 #0b1226;
+}
+.reveal-place.landed { color: #ffd23f; animation: pop-in 0.35s ease-out; }
+@keyframes pop-in { 0% { transform: scale(1.5); } 100% { transform: scale(1); } }

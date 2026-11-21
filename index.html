@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="sv">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -23,30 +23,31 @@
   <main id="title-screen" class="screen">
     <div class="panel">
       <h1 class="title">ROCKET PUNCH!</h1>
-      <p class="subtitle">Slå mot kameran så flyger handsken! <span class="en">Punch at the camera and your glove flies!</span></p>
+      <p class="subtitle" data-i18n="subtitle">Punch at the camera and your glove flies!</p>
       <p class="keys"></p>
-      <button id="play" class="big-button">👯 2 SPELARE · 2 PLAYERS</button>
-      <p class="sides"><span class="p1">⬅️ P1 TEAL</span> stand side by side <span class="p2">P2 ORANGE ➡️</span></p>
-      <button id="play-1p" class="small-button">🥊 1 SPELARE · 1 PLAYER</button>
+      <button id="play" class="big-button" data-i18n="play2">👯 2 PLAYERS</button>
+      <p class="sides"><span class="p1" data-i18n="p1Side">⬅️ P1 TEAL</span> <span data-i18n="sidesMiddle">stand side by side</span> <span class="p2" data-i18n="p2Side">P2 ORANGE ➡️</span></p>
+      <button id="play-1p" class="small-button" data-i18n="play1">🥊 1 PLAYER</button>
+      <button id="lang" class="lang-button" data-i18n="langButton">🇸🇪 Svenska</button>
     </div>
   </main>
 
   <main id="camera-screen" class="screen hidden">
     <div class="panel">
       <div class="big-icon">📷</div>
-      <h2>Tillåt kameran! <span class="en">Allow the camera!</span></h2>
-      <p>Click <b>Allow</b> at the top of the window.</p>
-      <button id="skip-camera" class="small-button">⌨️ Play with keys instead</button>
+      <h2 data-i18n="allowCamera">Allow the camera!</h2>
+      <p data-i18n-html="clickAllow">Click <b>Allow</b> at the top of the window.</p>
+      <button id="skip-camera" class="small-button" data-i18n="skipCamera">⌨️ Play with keys instead</button>
     </div>
   </main>
 
   <main id="camera-failed-screen" class="screen hidden">
     <div class="panel">
       <div class="big-icon">🙈</div>
-      <h2>No camera this time</h2>
+      <h2 data-i18n="noCamera">No camera this time</h2>
       <p id="camera-trouble"></p>
       <p class="keys"></p>
-      <button id="play-keys" class="big-button">▶ PLAY WITH KEYS</button>
+      <button id="play-keys" class="big-button" data-i18n="playKeys">▶ PLAY WITH KEYS</button>
     </div>
   </main>
 
@@ -56,19 +57,26 @@
     <p id="wheel-help" class="wheel-help"></p>
   </main>
 
+  <!-- 2 players: the random place is revealed like a slot machine (the place flickers on the canvas behind) -->
+  <main id="reveal-screen" class="screen hidden">
+    <h2 class="wheel-title" data-i18n="placeRoll">🎲 WHERE WILL YOU FIGHT?</h2>
+    <p id="reveal-place" class="reveal-place"></p>
+    <p class="wheel-help" data-i18n="placeHelp">Click · SPACE to go on</p>
+  </main>
+
   <!-- GET READY (camera play): the big camera picture with the STAND HERE boxes is drawn on the canvas -->
   <main id="ready-screen" class="screen hidden">
-    <h2 class="wheel-title">GÖR DIG REDO! <span class="en">GET READY!</span></h2>
+    <h2 class="wheel-title" data-i18n="getReady">GET READY!</h2>
     <p id="ready-help" class="wheel-help"></p>
   </main>
 
   <main id="win-screen" class="screen hidden">
     <div class="panel">
-      <h1 id="win-title" class="title win">YOU WIN! ⭐</h1>
-      <p id="win-sub" class="subtitle">Du vann! <span class="en">What a rocket punch!</span></p>
+      <h1 id="win-title" class="title win" data-i18n="youWin">YOU WIN! ⭐</h1>
+      <p id="win-sub" class="subtitle" data-i18n="youWinSub">What a rocket punch!</p>
       <div id="win-scores" class="scores"></div>
-      <button id="again-win" class="big-button">🔁 SPELA IGEN · PLAY AGAIN</button>
-      <button id="menu" class="small-button">🏠 1 / 2 PLAYERS</button>
+      <button id="again-win" class="big-button" data-i18n="playAgain">🔁 PLAY AGAIN</button>
+      <button id="menu" class="small-button" data-i18n="menu">🏠 1 / 2 PLAYERS</button>
     </div>
   </main>
 
@@ -79,27 +87,27 @@
       <p id="level-place" class="level-place"></p>
       <p id="level-foe" class="level-foe"></p>
     </div>
-    <p class="wheel-help">👊 Slå · Punch · SPACE · click = FIGHT!</p>
+    <p class="wheel-help" data-i18n="levelHelp">👊 Punch · SPACE · click = FIGHT!</p>
   </main>
 
   <main id="gameover-screen" class="screen hidden">
     <div class="panel">
-      <h1 class="title over">GAME OVER</h1>
+      <h1 class="title over" data-i18n="gameOver">GAME OVER</h1>
       <p id="over-sub" class="subtitle"></p>
       <div id="over-scores" class="scores"></div>
-      <button id="again-over" class="big-button">🔁 FÖRSÖK IGEN · TRY AGAIN</button>
-      <button id="menu-over" class="small-button">🏠 1 / 2 PLAYERS</button>
+      <button id="again-over" class="big-button" data-i18n="tryAgain">🔁 TRY AGAIN</button>
+      <button id="menu-over" class="small-button" data-i18n="menu">🏠 1 / 2 PLAYERS</button>
     </div>
   </main>
 
   <main id="champion-screen" class="screen hidden">
     <div class="panel champ">
       <div class="big-icon">⭐🏆⭐</div>
-      <h1 class="title">CHAMPION!</h1>
-      <p class="subtitle">Du klarade alla 5 nivåerna! <span class="en">You beat all 5 levels!</span></p>
+      <h1 class="title" data-i18n="champion">CHAMPION!</h1>
+      <p class="subtitle" data-i18n="championSub">You beat all 5 levels!</p>
       <div id="champ-scores" class="scores"></div>
-      <button id="again-champ" class="big-button">🔁 SPELA IGEN · PLAY AGAIN</button>
-      <button id="menu-champ" class="small-button">🏠 1 / 2 PLAYERS</button>
+      <button id="again-champ" class="big-button" data-i18n="playAgain">🔁 PLAY AGAIN</button>
+      <button id="menu-champ" class="small-button" data-i18n="menu">🏠 1 / 2 PLAYERS</button>
     </div>
   </main>
 

@@ -3,6 +3,7 @@
 // All the numbers are here so they are easy to tune.
 import { COLORS } from './scene.js';
 import { splash, flame, leaves, bubbles, zap, wind } from './effects.js';
+import { t } from './i18n.js';
 
 export const SUPER = {
   full: 300,                                                  // damage dealt to fill the meter
@@ -10,6 +11,7 @@ export const SUPER = {
   flameBonus: 50,                                             // FLAME: extra damage on top of the normal hit
   tangle: 2,                                                  // IVY: seconds you can't duck
   poison: { time: 5, perSecond: 20 },                         // POISON: 20 health a second for 5 s (never below 1)
+  lava: { time: 5, perSecond: 5 },                            // FLAME: lava splats burn 5 health a second for 5 s (never below 1)
   storm: [90, 80, 80], stormGap: 0.25,                        // ZEUS: 3 lightning bolts, 250 in total, this far apart (s)
   wind: 200,                                                  // BOSS: WIND STORM damage (a HIGH one can still be ducked)
 };
@@ -78,6 +80,26 @@ export function drawIvy(g, cx, footY, time) {
   }
 }
 
+// LAVA splats stuck on a boxer hit by the FLAME FIST: glowing orange-red cartoon blobs that pulse.
+// splats = [{ dx, dy, r }] from the boxer's top-left; fade = 0..1 (they cool down at the end).
+export function drawLava(g, x, y, splats, time, fade = 1) {
+  splats.forEach((s, i) => {
+    const cx = Math.round(x + s.dx), cy = Math.round(y + s.dy);
+    const glow = Math.sin(time * 9 + i * 1.7) > 0;
+    const r = s.r;
+    g.fillStyle = COLORS.outline; g.fillRect(cx - r - 1, cy - r + 1, r * 2 + 2, r * 2 - 1); g.fillRect(cx - r + 1, cy - r - 1, r * 2 - 1, r * 2 + 2);
+    g.fillStyle = fade > 0.35 ? '#d8423a' : '#8a3a3a';
+    g.fillRect(cx - r, cy - r + 1, r * 2, r * 2 - 1); g.fillRect(cx - r + 1, cy - r, r * 2 - 1, r * 2);
+    if (fade > 0.35) {
+      g.fillStyle = glow ? '#ffd23f' : '#ff9f2e';
+      g.fillRect(cx - r + 1, cy - r + 1, r * 2 - 2, r * 2 - 2);
+      g.fillStyle = '#fff4c2'; g.fillRect(cx - r + 1, cy - r + 1, 1, 1);
+    }
+    g.fillStyle = fade > 0.35 ? '#f0662c' : '#8a3a3a';   // a drip running down
+    g.fillRect(cx + (i % 2 ? 1 : -1), cy + r, 1, 1 + ((i + Math.floor(time * 3)) % 3));
+  });
+}
+
 // A copy of a picture tinted with a colour (POISON makes the boxer a bit purple).
 const scratch = document.createElement('canvas');
 const sg = scratch.getContext('2d');
@@ -112,8 +134,8 @@ export function drawSuperMeter(g, f, x, y, w, time, fromRight = false) {
     g.textAlign = 'center'; g.textBaseline = 'top';
     const tx = Math.round(x + w / 2), ty = y + h + 3 + (flash ? 0 : 1);
     g.fillStyle = COLORS.outline;
-    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1]]) g.fillText('SUPER READY!', tx + dx, ty + dy);
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1]]) g.fillText(t('superReady'), tx + dx, ty + dy);
     g.fillStyle = flash ? '#ffffff' : f.boxer.light;
-    g.fillText('SUPER READY!', tx, ty);
+    g.fillText(t('superReady'), tx, ty);
   }
 }

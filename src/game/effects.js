@@ -56,6 +56,12 @@ export function bubbles(x, y, dir = 1) {
     age: 0, life: 0.5 + Math.random() * 0.4, color: pick(POISON), r: Math.random() < 0.4 ? 2 : 1 });
 }
 
+// LAVA: little sizzle sparks hopping up off a lava splat.
+const SIZZLE = ['#fff4c2', '#ffd23f', '#ff9f2e', '#f0662c'];
+export function sizzle(x, y) {
+  bits.push({ kind: 'drop', x: x + Math.random() * 4 - 2, y, vx: Math.random() * 30 - 15, vy: -30 - Math.random() * 30, age: 0, life: 0.25 + Math.random() * 0.2, color: pick(SIZZLE), grav: 120 });
+}
+
 // WIND STORM (the boss): white and pale-blue gusts swirling off behind the big fist.
 const WIND = ['#ffffff', '#bfe8ff', '#8ff0e6'];
 export function wind(x, y, dir = 1) {

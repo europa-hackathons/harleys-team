@@ -2,7 +2,7 @@
 // Head punch = 100 damage, body punch = 50. Every boxer has 1000 health; 0 = knocked out.
 // 2 PLAYERS (default): teal (left half of the camera) fights orange (right half); duck to dodge HIGH fists.
 // 1 PLAYER: 5 LEVELS against the computer (src/game/levels.js), each in a new place and harder: more health,
-// more guarding, and from level 2 it fires rocket fists back (duck the HIGH ones). Level 5 is the BOSS.
+// more guarding, and faster rocket fists back (duck the HIGH ones; level 1 is gentle). Level 5 is the BOSS.
 // Beat a level -> "LEVEL 2!"; the sumo lands on you -> GAME OVER; beat level 5 -> CHAMPION!
 // Testing: ?level=3 in the URL starts 1 player at level 3; game.debug.level(5) jumps straight into a level.
 // Before each fight a big WHEEL picks your boxer (2 players: P1 spins, then P2). ZEUS (rare: ZEUS_CHANCE in src/game/roster.js) has THUNDER fists: 150 damage.
@@ -20,15 +20,16 @@ import { W, H, COLORS, drawArena, drawShadow, drawNumber } from './game/scene.js
 import { PLACES, drawPlace, randomPlace } from './game/places.js';
 import { LEVELS, foeFor } from './game/levels.js';
 import { loadArt } from './game/art.js';
-import { flame, zap, bolt, starBurst, popWord, playFrames, drawEffects, drawDizzy, clearEffects, drip, bubbles } from './game/effects.js';
-import { SUPER, SPECIALS, specialTrail, drawVine, drawIvy, tinted, drawSuperMeter, drawSwirl } from './game/specials.js';
+import { flame, zap, bolt, starBurst, popWord, playFrames, drawEffects, drawDizzy, clearEffects, drip, bubbles, sizzle } from './game/effects.js';
+import { SUPER, SPECIALS, specialTrail, drawVine, drawIvy, tinted, drawSuperMeter, drawSwirl, drawLava } from './game/specials.js';
 import { sfx, wakeSound, muteBleeps } from './game/sfx.js';
 import { sound } from './kit/sound.js';
-import { startPunchCam, cameraTrouble, trackBody, DUCK, READY } from './game/punch-cam.js';
+import { startPunchCam, trackBody, DUCK, READY } from './game/punch-cam.js';
 import { DUCK_DROP } from './game/poses.js';
 import { makeSumoFinish, SUMO } from './game/sumo-finish.js';
 import { buildRoster, ZEUS_CHANCE } from './game/roster.js';
 import { makeWheel, drawReveal } from './game/wheel.js';
+import { t, boxerName, placeName, applyPage, toggleLang, onLangChange } from './game/i18n.js';
 
 // Real sound effects (assets/audio/*.mp3) on top of the code-made bleeps: one per special, and SUPER READY.
 // Volume and a little random pitch for each; M mutes everything.
@@ -36,6 +37,12 @@ const SPECIAL_SOUND = { water: 'special-water', flame: 'special-flame', ivy: 'sp
 const SOUND_VOLUME = { special: 0.9, superReady: 0.7 };
 const varied = (volume) => ({ volume, pitch: 0.92 + Math.random() * 0.16 });
 sound.preload(...Object.values(SPECIAL_SOUND), 'super-ready');
+// FIGHT MUSIC: each place has its own looping track (assets/audio/music-<place>.mp3), quieter than the effects.
+// It starts when the fight starts and fades out on the end screens.
+const MUSIC = { arena: 'music-arena', apartment: 'music-apartment', jungle: 'music-jungle', volcano: 'music-volcano', space: 'music-space', cliffside: 'music-arena' };
+const MUSIC_VOLUME = 0.35;
+const fightMusic = () => sound.music(MUSIC[game.place] || MUSIC.arena, { volume: MUSIC_VOLUME, fadeSeconds: 0.8 });
+const stopFightMusic = () => sound.stopMusic(1.2);
 
 // Rules: the Team's win rule plus first-version guesses, all easy to change.
 export const RULES = {
@@ -68,10 +75,6 @@ const CONTROLS = {
     { head: ['KeyW'], body: ['KeyS'], duck: ['KeyX'], left: ['KeyA'], right: ['KeyD'] },
     { head: ['ArrowUp'], body: ['ArrowDown'], duck: ['ShiftRight', 'Slash'], left: ['ArrowLeft'], right: ['ArrowRight'] },
   ],
-};
-const KEY_TEXT = {
-  1: '⬅️ ➡️ / A D = walk · ⬆️ / W = head · SPACE / ⬇️ = body · X / ⇧ = duck · M = sound on/off',
-  2: 'P1: W high · S low · X duck · A D walk  —  P2: ⬆️ high · ⬇️ low · ⇧ Shift / - duck · ⬅️ ➡️ walk · M = sound',
 };
 const anyPressed = (codes) => codes.some((c) => keys.pressed(c));
 const anyHeld = (codes) => codes.some((c) => keys.held(c));
@@ -113,19 +116,11 @@ function show(id) {
   hint.classList.toggle('hidden', id !== null);
 }
 function setHint() {
-  if (game.mode === 2) {
-    hint.textContent = punchCam
-      ? 'Stand in your STAND box 👯  Punch into the HIGH / LOW boxes in the middle 👊  DUCK to dodge!'
-      : 'P1: W S X · A D    P2: ⬆️ ⬇️ ⇧ · ⬅️ ➡️    X / ⇧ = DUCK';
-  } else {
-    hint.textContent = punchCam
-      ? 'Stand in the STAND box 🚶  Punch right into the HEAD / BODY boxes 👊  DUCK when you see "!"'
-      : '⬅️ ➡️ walk  ⬆️ / W = HEAD 👊  SPACE / ⬇️ = BODY  X / ⇧ = DUCK';
-  }
+  hint.textContent = t(`hint${punchCam ? 'Cam' : 'Keys'}${game.mode}`);
 }
 function setMode(n) {
   game.mode = n;
-  for (const el of document.querySelectorAll('.keys')) el.textContent = KEY_TEXT[n];
+  for (const el of document.querySelectorAll('.keys')) el.textContent = t(`keys${n}`);
   if (punchCam && punchCam.players !== n) punchCam.setPlayers(n);
 }
 
@@ -134,7 +129,8 @@ function makeFighter(side) {
   return { side, dir: side ? -1 : 1, x: START_X[side], minX: 0, maxX: 0, health: RULES.health, maxHealth: RULES.health, hits: 0, damage: 0, headHits: 0, bodyHits: 0,
     glove: { mode: 'home', aim: 'body', x: 0, y: 0, vx: 0, vy: 0 }, wobble: 0, duck: 0, walking: 0, boxer: roster[side ? 'orange' : 'teal'],
     super: 0, specials: 0,                      // SUPER meter (damage dealt toward the next special) and special hits landed
-    slow: 0, tangle: 0, poison: 0, poisonT: 0, poisonBy: null, cooldown: 0 };   // seconds left of each special's effect on this boxer
+    slow: 0, tangle: 0, poison: 0, poisonT: 0, poisonBy: null, cooldown: 0,
+    lava: 0, lavaT: 0, lavaBy: null, splats: [] };   // LAVA from the FLAME FIST: seconds left, next burn, splats on the body   // seconds left of each special's effect on this boxer
 }
 const fighters = [makeFighter(0), makeFighter(1)];
 const [teal, orange] = fighters;
@@ -204,9 +200,10 @@ function startRound() {
   clearEffects();
   show(null);
   setHint();
-  if (game.mode === 1) popWord(game.level === LEVELS.length ? `BOSS: ${roster.boss.name}!` : `LEVEL ${game.level}`, W / 2, 42, COLORS.rope, 14);
-  popWord('FIGHT!', W / 2, game.mode === 1 ? 62 : 48, COLORS.sparkle, 22);
+  if (game.mode === 1) popWord(game.level === LEVELS.length ? t('boss', { name: boxerName(roster.boss) }) : t('levelN', { n: game.level }), W / 2, 42, COLORS.rope, 14);
+  popWord(t('fight'), W / 2, game.mode === 1 ? 62 : 48, COLORS.sparkle, 22);
   sfx.bell();
+  fightMusic();
 }
 
 // Everyone back to the start: full health, empty meters, boxers from game.picks.
@@ -228,7 +225,7 @@ function beginFight() {
   game.winner = null; game.loser = null;
   sumo.stop();
   if (game.mode === 1) { game.picks[1] = foeFor(game.level, game.picks[0]); game.place = lvl().place; }
-  else { game.place = randomPlace(art); readyPlace = true; }
+  else { if (!readyPlace) game.place = randomPlace(art); readyPlace = true; }
   resetFighters();
   clearEffects();
   readyT = 0; readyAll = 0;
@@ -243,12 +240,59 @@ function updateReady(dt) {
   const bodies = camBodies();
   const here = bodies.filter((b) => b.here).length, all = bodies.length > 0 && here === bodies.length;
   readyAll = all ? readyAll + dt : 0;
-  const text = all ? '✅ Nu kör vi! · Here we go!' : game.mode === 2
-    ? `Ställ dig i din ruta! · Stand in your box! (${here}/2) · SPACE = FIGHT!`
-    : 'Ställ dig i rutan! · Stand in the box! · SPACE = FIGHT!';
+  const text = all ? t('readyGo') : t(`readyBox${game.mode}`, { n: here });
   if (readyHelp.dataset.text !== text) { readyHelp.dataset.text = text; readyHelp.textContent = text; }
   if (readyAll >= READY.startAfter && readyT > 0.4) startRound();
 }
+
+// ---------- 2 players: the random place reveal ----------
+// A quick slot machine: the places flicker past (slowing down), then land on this fight's place with a fanfare.
+// Click, SPACE or a punch skips ahead. Then GET READY (camera) or straight into the fight (keys).
+const REVEAL = { spin: 1.0, hold: 0.7 };   // seconds of flickering, then seconds showing the place it landed on
+const revealPlace = document.getElementById('reveal-place');
+let reveal = { t: 0, shown: null, next: 0, landed: false };
+function startPlaceReveal() {
+  game.state = 'reveal';
+  game.place = randomPlace(art);
+  readyPlace = true;                       // GET READY / the fight keep this place
+  reveal = { t: 0, shown: null, next: 0, landed: false };
+  clearEffects();
+  show('reveal-screen');
+  revealPlace.classList.remove('landed');
+}
+function revealText(id, landed = false) {
+  const p = PLACES[id];
+  revealPlace.textContent = landed ? `🎲 ${placeName(p)}! ${p.icon}` : `${p.icon} ${placeName(p)}`;
+}
+function updateReveal(dt) {
+  reveal.t += dt;
+  if (!reveal.landed) {
+    reveal.next -= dt;
+    if (reveal.next <= 0) {
+      // the next place in the slot machine (never the same twice in a row), ticking slower and slower
+      const ids = Object.keys(PLACES).filter((id) => id !== reveal.shown && (!PLACES[id].artOnly || art[PLACES[id].art]));
+      reveal.shown = ids[Math.floor(Math.random() * ids.length)];
+      revealText(reveal.shown);
+      reveal.next = 0.06 + 0.16 * (reveal.t / REVEAL.spin);
+      sfx.tick();
+    }
+    if (reveal.t >= REVEAL.spin) landReveal();
+  } else if (reveal.t >= REVEAL.spin + REVEAL.hold) beginFight();
+}
+function landReveal() {
+  reveal.landed = true; reveal.t = Math.max(reveal.t, REVEAL.spin);
+  reveal.shown = game.place;
+  revealText(game.place, true);
+  revealPlace.classList.add('landed');
+  sfx.reveal();
+  starBurst(W / 2, H / 2, 20);
+}
+function skipReveal() {
+  if (game.state !== 'reveal') return;
+  if (!reveal.landed) landReveal();
+  else if (reveal.t > REVEAL.spin + 0.25) beginFight();
+}
+document.getElementById('reveal-screen').addEventListener('pointerdown', skipReveal);
 
 // ---------- the wheel ----------
 const wheelTitle = document.getElementById('wheel-title'), wheelHelp = document.getElementById('wheel-help');
@@ -258,6 +302,7 @@ function startWheel() {
   game.state = 'wheel';
   game.winner = null; game.loser = null;
   sumo.stop();
+  stopFightMusic();
   game.picks = [null, null];          // 1 player: the computer boxer comes from the level
   game.level = URL_LEVEL;
   clearRun();
@@ -272,16 +317,16 @@ function wheelText() {
   const b = spin.boxer;
   wheelTitle.classList.toggle('zeus', !!(b && b.thunder));
   if (wheel.phase === 'ready') {
-    wheelTitle.innerHTML = `${who}SNURRA! <span class="en">${who}SPIN THE WHEEL!</span>`;
-    wheelHelp.textContent = punchCam ? '👊 Punch · SPACE · click to spin!' : 'SPACE · click to spin!';
+    wheelTitle.innerHTML = `${who}${t('spin')}`;
+    wheelHelp.textContent = t(punchCam ? 'spinHelpCam' : 'spinHelp');
   } else if (wheel.phase === 'spinning') {
     wheelHelp.textContent = '🎡 ...';
   } else if (b.thunder) {
-    wheelTitle.innerHTML = `⚡ ZEUS! ⚡<span class="en">${who || 'YOU '}GOT THE RARE ONE! (${ZEUS_CHANCE}%)</span>`;
-    wheelHelp.textContent = '⚡ Thunder fists: 150 damage! ⚡';
+    wheelTitle.innerHTML = `⚡ ZEUS! ⚡<span class="en">${who}${t('zeusGot', { n: ZEUS_CHANCE })}</span>`;
+    wheelHelp.textContent = t('zeusHelp');
   } else {
-    wheelTitle.innerHTML = `${who || 'DU FICK · YOU GOT: '}<span style="color:${b.color}">${b.name}!</span>`;
-    wheelHelp.textContent = 'Click · SPACE to go on';
+    wheelTitle.innerHTML = `${who || t('youGot')}<span style="color:${b.color}">${boxerName(b)}!</span>`;
+    wheelHelp.textContent = t('goOn');
   }
 }
 function doSpin() {
@@ -294,6 +339,7 @@ function doSpin() {
 function nextSpinner() {
   // P2 can't get the same boxer as P1: that slice is greyed out on P2's spin
   if (game.mode === 2 && spin.who === 0) { spin = { who: 1, t: 0, boxer: null }; wheel.reset(game.picks[0]); wheelText(); }
+  else if (game.mode === 2) startPlaceReveal();
   else beginFight();
 }
 // the wheel stopped on boxer b
@@ -326,7 +372,7 @@ function fire(f, aim) {
   if (sp) {
     f.super = 0;
     sound.play(SPECIAL_SOUND[sp.kind], varied(SOUND_VOLUME.special));
-    popWord(sp.name, f.x + 32, BOXER_Y - 2, sp.color, 12);
+    popWord(t(sp.kind), f.x + 32, BOXER_Y - 2, sp.color, 12);
     sfx.reveal();
   }
   sfx.whoosh();
@@ -335,7 +381,7 @@ function fire(f, aim) {
 function startDuck(f) {
   if (game.state !== 'playing' || (game.mode === 1 && f.side === 1)) return;   // the computer doesn't duck
   if (f.tangle > 0) {   // IVY: tangled legs can't duck
-    if (f.duck <= 0 && f.wobble <= 0 && Math.random() < 0.3) popWord('TANGLED!', f.x + 32, BOXER_Y + 40, '#64be52', 9);
+    if (f.duck <= 0 && f.wobble <= 0 && Math.random() < 0.3) popWord(t('tangled'), f.x + 32, BOXER_Y + 40, '#64be52', 9);
     return;
   }
   f.duck = Math.max(f.duck, RULES.duckTime);
@@ -345,13 +391,17 @@ function startDuck(f) {
 function specialHit(f, foe, kind, dmg, x, y) {
   const sp = SPECIALS[f.boxer.id];
   f.specials++;
-  popWord(sp.status, foe.x + 32, BOXER_Y - 4, sp.color, 12);
+  popWord(t(`${sp.kind}Hit`), foe.x + 32, BOXER_Y - 4, sp.color, 12);
   if (kind === 'water') {
     foe.slow = SUPER.slow.time;
     for (let i = 0; i < 20; i++) drip(x + Math.random() * 20 - 10, y + Math.random() * 10 - 5);
   } else if (kind === 'flame') {
     for (let i = 0; i < 6; i++) flame(x, y + Math.random() * 16 - 8, 2, -f.dir, 1.5);
     starBurst(x, y, 16);
+    // LAVA: glowing splats stick to the target and burn a little every second
+    foe.lava = SUPER.lava.time; foe.lavaT = 1; foe.lavaBy = f;
+    foe.splats = Array.from({ length: 4 }, (_, i) => ({ dx: 22 + Math.random() * 20, dy: 26 + i * 8 + Math.random() * 4, r: 2 + (i % 2) }));
+    popWord(t('lava'), foe.x + 32, BOXER_Y + 12, '#ff7a2e', 11);
     return dmg + SUPER.flameBonus;
   } else if (kind === 'ivy') {
     foe.tangle = SUPER.tangle; foe.duck = 0;
@@ -396,7 +446,7 @@ function finish(winner) {
   game.loser = loser.side ? 'orange' : 'teal';
   ai.warn = 0;
   if (winner) { sfx.win(); starBurst(loser.x + 32, BOXER_Y + 16, 20); }
-  else { sfx.bell(); popWord('TIME!', W / 2, 48, COLORS.rope, 22); }
+  else { sfx.bell(); popWord(t('time'), W / 2, 48, COLORS.rope, 22); }
   // the Sumo finish: he lands on the loser, then hops toward the middle of the ring
   const cx = loser.x + (loser.side ? 30 : 34);
   sumo.start(cx, cx < W / 2 ? 1 : -1);
@@ -411,23 +461,20 @@ canvas.addEventListener('pointerdown', skipSumo);
 // Score cards for the results screen: damage dealt, hits, head hits and body hits for each side.
 function scoreCards() {
   const who = game.mode === 2
-    ? [[teal, `P1 · ${teal.boxer.name}`], [orange, `P2 · ${orange.boxer.name}`]]
-    : [[teal, `DU · YOU · ${teal.boxer.name}`]];
+    ? [[teal, `P1 · ${boxerName(teal.boxer)}`], [orange, `P2 · ${boxerName(orange.boxer)}`]]
+    : [[teal, `${t('you')} · ${boxerName(teal.boxer)}`]];
   return who.map(([fighter, name]) => {
     // 1 player: your numbers for the whole run, all levels so far
     const f = game.mode === 1 ? { side: 0, ...Object.fromEntries(STATS.map((k) => [k, run[k] + fighter[k]])) } : fighter;
     const color = f.side ? 'orange' : 'teal';
     const crown = game.winner === color || (game.winner === 'player' && !f.side) ? ' 🏆' : '';
     return `<div class="score-card ${color}"><h3>${name}${crown}</h3>
-      <dl><dt>💥 Skada · Damage</dt><dd>${f.damage}</dd>
-      <dt>👊 Träffar · Hits</dt><dd>${f.hits}</dd>
-      <dt>🙂 Huvud · Head</dt><dd>${f.headHits}</dd>
-      <dt>👕 Kropp · Body</dt><dd>${f.bodyHits}</dd>
-      <dt>⭐ Superslag · Specials</dt><dd>${f.specials}</dd></dl></div>`;
+      <dl>${STATS.map((k) => `<dt>${t(k)}</dt><dd>${f[k]}</dd>`).join('')}</dl></div>`;
   }).join('');
 }
 
 function showEndScreen() {
+  stopFightMusic();
   if (game.mode === 1) {
     if (game.winner !== 'player') showGameOver();
     else if (game.level < LEVELS.length) showNextLevel();
@@ -440,8 +487,8 @@ function showEndScreen() {
   if (game.winner === 'teal' || game.winner === 'orange') {
     const w = game.winner === 'teal' ? teal : orange, n = w.side + 1;
     title.style.color = w.boxer.color;
-    title.textContent = `P${n} ${w.boxer.name} WINS! ⭐`;
-    sub.innerHTML = `P${n} vann! <span class="en">Player ${n} (${w.side ? 'right' : 'left'}) wins!</span>`;
+    title.textContent = t('winTitle', { n, name: boxerName(w.boxer) });
+    sub.textContent = t('winSub', { n, side: t(w.side ? 'right' : 'left') });
   }
   show('win-screen');
 }
@@ -459,11 +506,11 @@ function showNextLevel() {
   clearEffects();
   nextT = 0;
   const p = PLACES[game.place], foe = roster[game.picks[1]], boss = game.level === LEVELS.length;
-  document.getElementById('level-title').textContent = boss ? `LEVEL ${game.level}: ${foe.name}!` : `LEVEL ${game.level}!`;
-  document.getElementById('level-place').innerHTML = `${p.icon} ${p.sv} <span class="en">${p.name}</span>`;
+  document.getElementById('level-title').textContent = t(boss ? 'bossLevelTitle' : 'levelTitle', { n: game.level, name: boxerName(foe) });
+  document.getElementById('level-place').textContent = `${p.icon} ${placeName(p)}`;
   document.getElementById('level-foe').innerHTML = boss
-    ? `⚠️ <span style="color:#ffd08a">BOSSEN ${foe.name} · THE BOSS ${foe.name}!</span> 🌪️`
-    : `vs <span style="color:${foe.color}">${foe.name}</span> · ❤️ ${lvl().health}`;
+    ? `⚠️ <span style="color:#ffd08a">${t('theBoss', { name: boxerName(foe) })}</span> 🌪️`
+    : `vs <span style="color:${foe.color}">${boxerName(foe)}</span> · ❤️ ${lvl().health}`;
   show('level-screen');
   sfx.reveal();
 }
@@ -472,8 +519,8 @@ function goNextLevel() { if (game.state === 'next-level' && nextT > 0.8) beginFi
 function showGameOver() {
   game.state = 'gameover';
   const timeUp = !game.winner;
-  const vs = game.level === LEVELS.length ? ` · vs ${roster.boss.name}` : '';
-  document.getElementById('over-sub').innerHTML = `${timeUp ? 'TIME! ⏰ ' : ''}på nivå ${game.level}${vs} <span class="en">at level ${game.level}${vs}</span>`;
+  const vs = game.level === LEVELS.length ? ` · vs ${boxerName(roster.boss)}` : '';
+  document.getElementById('over-sub').textContent = `${timeUp ? `${t('time')} ⏰ ` : ''}${t('atLevel', { n: game.level })}${vs}`;
   document.getElementById('over-scores').innerHTML = scoreCards();
   show('gameover-screen');
 }
@@ -499,7 +546,8 @@ async function askCamera() {
     game.camera = 'failed';
     if (game.state !== 'camera') return;      // already playing with keys: just keep going
     game.state = 'camera-failed';
-    document.getElementById('camera-trouble').textContent = cameraTrouble(e.reason);
+    const CAM_TROUBLE = { denied: 'camDenied', 'no-camera': 'camMissing', busy: 'camBusy', insecure: 'camInsecure', unsupported: 'camUnsupported' };
+    document.getElementById('camera-trouble').textContent = t(CAM_TROUBLE[e.reason] || 'camOther');
     show('camera-failed-screen');
   }
 }
@@ -529,9 +577,13 @@ for (const id of ['skip-camera', 'play-keys', 'again-win', 'again-over', 'again-
 }
 document.getElementById('level-screen').addEventListener('pointerdown', goNextLevel);
 for (const id of ['menu', 'menu-over', 'menu-champ']) {
-  document.getElementById(id).addEventListener('click', () => { game.state = 'title'; sumo.stop(); show('title-screen'); });
+  document.getElementById(id).addEventListener('click', () => { game.state = 'title'; sumo.stop(); stopFightMusic(); show('title-screen'); });
 }
 setMode(2);
+// LANGUAGE: one language at a time; the title-screen button switches it (src/game/i18n.js)
+applyPage();
+document.getElementById('lang').addEventListener('click', toggleLang);
+onLangChange(() => { setMode(game.mode); setHint(); });
 
 // ---------- update ----------
 function update(dt, now) {
@@ -539,7 +591,7 @@ function update(dt, now) {
   const ctrls = CONTROLS[game.mode];
   if (keys.pressed('KeyM')) {   // mute / unmute everything
     muteBleeps(sound.toggleMute());
-    popWord(sound.muted ? 'SOUND OFF' : 'SOUND ON', W / 2, 100, COLORS.rope, 10);
+    popWord(t(sound.muted ? 'soundOff' : 'soundOn'), W / 2, 100, COLORS.rope, 10);
   }
   if (game.state === 'playing') {
     ctrls.forEach((c, i) => {
@@ -551,6 +603,8 @@ function update(dt, now) {
     });
   } else if (game.state === 'ready') {
     if (keys.pressed('Space') || keys.pressed('Enter') || ctrls.some((c) => anyPressed(c.head) || anyPressed(c.body))) readyGo();
+  } else if (game.state === 'reveal') {
+    if (keys.pressed('Space') || keys.pressed('Enter') || ctrls.some((c) => anyPressed(c.head) || anyPressed(c.body))) skipReveal();
   } else if (game.state === 'next-level') {
     nextT += dt;
     if (keys.pressed('Space') || keys.pressed('Enter') || ctrls.some((c) => anyPressed(c.head) || anyPressed(c.body))) goNextLevel();
@@ -564,10 +618,12 @@ function update(dt, now) {
   }
   const camMoves = camUpdate(dt);
   if (game.state === 'ready') updateReady(dt);
+  if (game.state === 'reveal') updateReveal(dt);
   camMoves.forEach((move, i) => {
     if (game.state === 'next-level') { if (move === 'head' || move === 'body') goNextLevel(); }
     else if (game.state === 'wheel') { if ((move === 'head' || move === 'body') && (i === spin.who || game.mode === 1)) doSpin(); }
     else if (game.state === 'ready') { /* GET READY: punches don't count yet */ }
+    else if (game.state === 'reveal') { if (move === 'head' || move === 'body') skipReveal(); }
     else if (move === 'duck') startDuck(fighters[i]);
     else if (move) fire(fighters[i], move);
   });
@@ -616,6 +672,21 @@ function update(dt, now) {
       }
     }
   }
+  // LAVA: like poison, a little every second, never the last bit
+  for (const f of fighters) {
+    if (f.lava <= 0) continue;
+    f.lava = Math.max(0, f.lava - dt);
+    f.lavaT -= dt;
+    if (f.lavaT <= 0 && game.state === 'playing') {
+      f.lavaT += 1;
+      const dmg = Math.min(SUPER.lava.perSecond, f.health - 1);
+      if (dmg > 0) {
+        f.health -= dmg;
+        if (f.lavaBy) f.lavaBy.damage += dmg;
+        popWord(`-${dmg}`, f.x + 32 + Math.random() * 10 - 5, BOXER_Y + 30, '#ff9f2e', 9);
+      }
+    }
+  }
   // ZEUS's thunder storm: the bolts still to come
   if (game.state === 'playing') {
     for (const s of strikes) { s.t -= dt; if (s.t <= 0 && game.state === 'playing') strike(s); }
@@ -628,7 +699,7 @@ function update(dt, now) {
   draw(dt);
 }
 
-// The computer boxer (1 player): raises and drops its guard, and from level 2 fires rocket fists back.
+// The computer boxer (1 player): raises and drops its guard, and fires rocket fists back (gently on level 1).
 // Before each punch a "!" flashes over its head for lvl().warn seconds, so you have time to duck a HIGH one.
 function computer(dt) {
   const L = lvl(), f = orange;
@@ -684,11 +755,11 @@ function moveGlove(f, dt) {
     if (reached && !gl.dodged && game.state === 'playing') {
       if (gl.aim === 'head' && foe.duck > 0) {
         gl.dodged = true;
-        popWord('DODGE!', foe.x + 32, BOXER_Y + 8, COLORS.rope, 11);
+        popWord(t('dodge'), foe.x + 32, BOXER_Y + 8, COLORS.rope, 11);
         sfx.whoosh();
       } else if (game.mode === 1 && f.side === 0 && gl.aim === 'head' && guard.up && foe.wobble <= 0 && !f.boxer.thunder && !gl.special) {
         gl.mode = 'bounce'; gl.vy = -120;
-        popWord('BOING!', tip - 4 * d, gl.y - 14, COLORS.rope, 11);
+        popWord(t('boing'), tip - 4 * d, gl.y - 14, COLORS.rope, 11);
         sfx.boing();
       } else {
         const thunder = f.boxer.thunder;
@@ -704,7 +775,7 @@ function moveGlove(f, dt) {
         foe.health = Math.max(0, foe.health - dmg);
         playFrames(art['stars-burst'], tip + 2 * d, gl.y);
         starBurst(tip, gl.y, gl.aim === 'head' ? 12 : 7);
-        popWord(thunder ? 'ZAP!' : gl.special === 'wind' ? 'WHOOSH!' : gl.aim === 'head' ? 'POW!' : 'BAM!', tip - 10 * d, gl.y - 16, COLORS.sparkle, thunder ? 15 : 12);
+        popWord(t(thunder ? 'zap' : gl.special === 'wind' ? 'whoosh' : gl.aim === 'head' ? 'pow' : 'bam'), tip - 10 * d, gl.y - 16, COLORS.sparkle, thunder ? 15 : 12);
         if (dmg) popWord(`-${dmg}`, tip + 26 * d, gl.y - 6, thunder ? '#ffffff' : COLORS.rope, thunder ? 11 : 9);
         if (thunder) {
           // THUNDER: a lightning bolt from the sky onto the target, a white flash and a shake
@@ -800,6 +871,12 @@ function drawStatus(f, x, y) {
   if (f.slow > 0 && Math.random() < 0.6) drip(x + 18 + Math.random() * 28, y + 6 + duckY + Math.random() * 30);
   if (f.poison > 0 && Math.random() < 0.25) bubbles(x + 20 + Math.random() * 24, y + 4 + duckY + Math.random() * 20, 0);
   if (f.tangle > 0) drawIvy(g, Math.round(x + 32), Math.round(y + 70), time);
+  if (f.lava > 0) {
+    // mirrored for the boxer facing left, so the splats sit on the body either way
+    const splats = f.side ? f.splats.map((s) => ({ ...s, dx: 64 - s.dx })) : f.splats;
+    drawLava(g, x, y + duckY, splats, time, Math.min(1, f.lava));
+    if (Math.random() < 0.35) { const s = splats[Math.floor(Math.random() * splats.length)]; sizzle(x + s.dx, y + duckY + s.dy - s.r); }
+  }
 }
 
 const BIG_FIST = { flame: true, wind: true };
@@ -847,6 +924,13 @@ function drawWheelScene(dt) {
 
 function draw(dt) {
   if (game.state === 'wheel') { drawWheelScene(dt); present(false); return; }
+  if (game.state === 'reveal') {
+    drawPlace(g, reveal.shown || game.place, art, time, 0.5);
+    if (!reveal.landed) { g.fillStyle = 'rgba(11, 18, 38, 0.35)'; g.fillRect(0, 0, W, H); }
+    drawEffects(g, dt);
+    present(false);
+    return;
+  }
   drawPlace(gb, game.place, art, time, excite);
   g.clearRect(0, 0, W, H);
   if (game.state === 'ready') { present(); return; }
@@ -861,21 +945,21 @@ function draw(dt) {
   if (game.state === 'playing' || game.state === 'win' || game.state === 'timeup') {
     drawHealth(teal); drawHealth(orange);
     // the boss's name under its health bar
-    if (orange.boxer.id === 'boss') label(orange.boxer.name, W - 28 - hudW() / 2, 17, orange.boxer.light, 7);
+    if (orange.boxer.id === 'boss') label(boxerName(orange.boxer), W - 28 - hudW() / 2, 17, orange.boxer.light, 7);
     drawSuperMeter(g, teal, 22, 24, hudW(), time);
     if (hasMeter(orange)) drawSuperMeter(g, orange, W - 22 - hudW(), 24, hudW(), time, true);
     if (game.mode === 1) {
       // the timer and level: top middle, or under your bars when the camera picture is there
       const tx = punchCam ? 22 + hudW() / 2 : W / 2, ty = punchCam ? 38 : 5;
       drawNumber(g, Math.ceil(timer.left), tx, ty, timer.left <= 10 ? COLORS.sparkle : COLORS.rope, 2, 'center');
-      label(game.level === LEVELS.length ? roster.boss.name : `LEVEL ${game.level}`, tx, ty + 16, COLORS.rope, 7);
+      label(game.level === LEVELS.length ? boxerName(roster.boss) : t('levelN', { n: game.level }), tx, ty + 16, COLORS.rope, 7);
     }
   }
   // the computer is about to punch: "!" over its head, and "DUCK!" over you when the punch will be HIGH
   if (game.state === 'playing' && ai.warn > 0) {
     const blink = Math.floor(time * 10) % 2;
     label('!', orange.x + 32, BOXER_Y - 6 - blink, COLORS.sparkle, 16);
-    if (ai.aim === 'head') label('DUCK!', teal.x + 32, BOXER_Y - 4 - blink, blink ? '#ffffff' : COLORS.sparkle, 11);
+    if (ai.aim === 'head') label(t('duck'), teal.x + 32, BOXER_Y - 4 - blink, blink ? '#ffffff' : COLORS.sparkle, 11);
   }
 
   present();

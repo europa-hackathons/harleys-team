@@ -27,6 +27,8 @@ _One short entry per feature, written clearly enough that a building Friend can 
 - Round 1: they LOVE shooting the rocket fist. 2 players and walking weren't built yet (confused them).
 - Round 2 (camera 2P): any movement fires punches; ducking hard and rarely detected. Team's fix: players stand at the outer edges, punch boxes move near the centre. Being retuned.
 
+- Round 3: ducking should only be read from the BOTTOM of the stand area (a duck box), not the whole area. The crouching animation needs fixing (what's wrong: being asked).
+
 ## Still to decide
 _Open questions about the game for the Helper to ask the Team, most urgent first. Move each into Features once answered; unanswered ones stay and get asked again._
 - Opponent shooting back: how much damage, and does the player also have 1000 health?
