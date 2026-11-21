@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Webcam test</title>
+  <!-- Grown-up check that the camera and microphone work where the game is served (localhost or GitHub Pages).
+       Uses src/kit/webcam.js and src/kit/mic.js, the same pieces a game would use.
+       ?auto=1 starts both without a click (for headless checks); window.webcamTest holds the results. -->
+  <style>
+    :root { --bg: #120a2e; --panel: #1f1550; --ink: #f4f0ff; --ok: #4ade80; --bad: #f87171; --warn: #facc15; --accent: #a78bfa; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.4 system-ui, sans-serif; padding: 16px; }
+    h1 { margin: 0 0 12px; font-size: 22px; }
+    .wrap { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+    canvas { background: #000; border-radius: 12px; width: min(640px, 100%); height: auto; display: block; }
+    .panel { background: var(--panel); border-radius: 12px; padding: 12px 16px; min-width: 280px; flex: 1; max-width: 460px; }
+    ul { list-style: none; padding: 0; margin: 0 0 12px; }
+    li { padding: 3px 0; }
+    .ok::before { content: '✅ '; } .bad::before { content: '❌ '; } .wait::before { content: '⏳ '; } .warn::before { content: '⚠️ '; }
+    button { font: inherit; font-weight: 700; padding: 10px 16px; border: 0; border-radius: 10px; background: var(--accent); color: #120a2e; cursor: pointer; margin: 0 8px 8px 0; }
+    .bar { height: 14px; background: #0006; border-radius: 7px; overflow: hidden; margin: 4px 0 10px; }
+    .bar > div { height: 100%; width: 0; background: var(--ok); transition: width .08s; }
+    small { opacity: .75; }
+  </style>
+</head>
+<body>
+  <h1>📷 Webcam &amp; 🎤 mic test</h1>
+  <div class="wrap">
+    <canvas id="view" width="640" height="480"></canvas>
+    <div class="panel">
+      <button id="cam-btn">📷 Start camera</button><button id="mic-btn">🎤 Start mic</button>
+      <ul id="checks"></ul>
+      <div>Motion <small id="motion-num"></small></div><div class="bar"><div id="motion-bar"></div></div>
+      <div>Mic loudness <small id="mic-num"></small></div><div class="bar"><div id="mic-bar"></div></div>
+      <small>Wave a hand: the 3×3 boxes light up where you move and the yellow dot follows the movement. Raise your right hand: it should light up on the right (mirror view). Shout: the mic bar fills.</small>
+    </div>
+  </div>
+
+  <script type="module">
+    import { startWebcam } from '../src/kit/webcam.js';
+    import { startMic } from '../src/kit/mic.js';
+
+    const t = window.webcamTest = {
+      secure: window.isSecureContext,
+      inFrame: window.top !== window.self,
+      hasMediaDevices: !!navigator.mediaDevices?.getUserMedia,
+      camera: 'not started', frames: 0, fps: 0, videoSize: null, maxMotion: 0,
+      mic: 'not started', maxMic: 0, errors: [],
+    };
+    addEventListener('error', (e) => t.errors.push(String(e.message)));
+
+    const view = document.getElementById('view');
+    const ctx = view.getContext('2d');
+    let cam = null, mic = null;
+
+    const labels = { insecure: 'page is not https/localhost', unsupported: 'browser has no camera API', denied: 'permission denied (check the address-bar camera icon)', 'no-camera': 'no camera found', 'no-mic': 'no microphone found', busy: 'device busy (another app or tab is using it?)', other: 'unexpected error' };
+    function render() {
+      const rows = [
+        [t.secure ? 'ok' : 'bad', `Secure page (${location.protocol}//${location.host})`],
+        [t.hasMediaDevices ? 'ok' : 'bad', 'Browser camera/mic API'],
+        [t.inFrame ? 'warn' : 'ok', t.inFrame ? 'Inside a frame: the parent page must allow camera/microphone' : 'Top-level page'],
+        [state(t.camera), `Camera: ${t.camera}${t.videoSize ? ` (${t.videoSize})` : ''}`],
+        [t.frames > 10 ? 'ok' : t.camera === 'ok' ? 'wait' : state(t.camera), `Frames: ${t.frames}, ${t.fps} fps`],
+        [t.maxMotion > 0.02 ? 'ok' : t.camera === 'ok' ? 'wait' : state(t.camera), `Motion seen (peak ${(t.maxMotion * 100).toFixed(1)}%)`],
+        [state(t.mic), `Microphone: ${t.mic}`],
+        [t.maxMic > 0.05 ? 'ok' : t.mic === 'ok' ? 'wait' : state(t.mic), `Sound heard (peak ${(t.maxMic * 100).toFixed(0)}%)`],
+      ];
+      document.getElementById('checks').innerHTML = rows.map(([c, s]) => `<li class="${c}">${s}</li>`).join('');
+    }
+    function state(s) { return s === 'ok' ? 'ok' : s === 'not started' ? 'wait' : s === 'starting…' ? 'wait' : 'bad'; }
+
+    async function startCam() {
+      if (cam) return;
+      t.camera = 'starting…'; render();
+      try {
+        cam = await startWebcam();
+        t.camera = 'ok';
+        t.videoSize = `${cam.video.videoWidth}×${cam.video.videoHeight}`;
+      } catch (e) { t.camera = `${e.reason || 'other'}: ${labels[e.reason] || ''} (${e.message})`; }
+      render();
+    }
+    async function startMicrophone() {
+      if (mic) return;
+      t.mic = 'starting…'; render();
+      try { mic = await startMic(); t.mic = 'ok'; }
+      catch (e) { t.mic = `${e.reason || 'other'}: ${labels[e.reason] || ''} (${e.message})`; }
+      render();
+    }
+    document.getElementById('cam-btn').onclick = startCam;
+    document.getElementById('mic-btn').onclick = startMicrophone;
+
+    let fpsCount = 0, fpsStart = performance.now();
+    function frame() {
+      const W = view.width, H = view.height;
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+      if (cam) {
+        cam.update();
+        cam.draw(ctx, 0, 0, W, H);
+        t.frames = cam.frames;
+        t.maxMotion = Math.max(t.maxMotion, cam.motion);
+        cam.grid(3, 3).forEach((m, i) => {
+          const c = i % 3, r = (i / 3) | 0;
+          ctx.fillStyle = `rgba(167,139,250,${Math.min(0.7, m * 6)})`;
+          ctx.fillRect(c * W / 3, r * H / 3, W / 3, H / 3);
+          ctx.strokeStyle = '#ffffff55'; ctx.strokeRect(c * W / 3, r * H / 3, W / 3, H / 3);
+        });
+        if (cam.centroid) {
+          ctx.fillStyle = '#facc15';
+          ctx.beginPath(); ctx.arc(cam.centroid.x * W, cam.centroid.y * H, 14, 0, Math.PI * 2); ctx.fill();
+        }
+        document.getElementById('motion-bar').style.width = `${Math.min(100, cam.motion * 400)}%`;
+        document.getElementById('motion-num').textContent = `${(cam.motion * 100).toFixed(1)}%`;
+        fpsCount++;
+      } else {
+        ctx.fillStyle = '#fff8'; ctx.font = '24px system-ui'; ctx.textAlign = 'center';
+        ctx.fillText('Press 📷 Start camera', W / 2, H / 2);
+      }
+      if (mic) {
+        const lvl = mic.level();
+        t.maxMic = Math.max(t.maxMic, lvl);
+        document.getElementById('mic-bar').style.width = `${lvl * 100}%`;
+        document.getElementById('mic-num').textContent = `${(lvl * 100).toFixed(0)}%`;
+      }
+      const now = performance.now();
+      if (now - fpsStart > 1000) { t.fps = Math.round(fpsCount * 1000 / (now - fpsStart)); fpsCount = 0; fpsStart = now; render(); }
+      requestAnimationFrame(frame);
+    }
+    render();
+    requestAnimationFrame(frame);
+    if (new URLSearchParams(location.search).has('auto')) { startCam(); startMicrophone(); }
+  </script>
+</body>
+</html>

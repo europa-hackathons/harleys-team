@@ -13,8 +13,12 @@ Small, tested building blocks so a first prototype is assembled, not written fro
 | `poof3d.js` | `poof3d(scene, position)` + `updatePoofs(dt)`: sparkle burst in three.js | 3D |
 | `sound.js` | `sound.play('coin')`, `sound.music('theme')` (loops, crossfades), `sound.toggleMute()`: mp3s from `assets/audio/`, silent until the first click | both |
 | `renderer.js` | `await makeRenderer({ canvasId: 'stage', antialias: true })`: the three.js renderer. Always use it; a bare `new THREE.WebGLRenderer()` breaks in a preview tab that opens hidden (`tools/check.py` flags it) | 3D |
+| `webcam.js` | `const cam = await startWebcam()` then each frame `cam.update()`; `cam.motion`, `cam.zone(x0, y0, x1, y1)`, `cam.grid(3, 3)`, `cam.centroid` (all 0..1, mirrored like a mirror), `cam.draw(ctx)`. Motion only, no libraries. Needs https or localhost; start it from a button click | both |
+| `mic.js` | `const mic = await startMic()` then `mic.level()` → 0..1 loudness ("roar to breathe fire"). Start it from a button click | both |
 | `follow-camera.js` | `followCamera(camera, target, { distance, height })` → `.update(dt)` | 3D |
 
 Every game sets `window.game = { state, ... }` in `src/main.js` (`state` is e.g. `'title'`, `'race'`), so `tools/shot.py --js` and the Helper's tab check can see it running.
 
 Working examples of all of them together: `tools/kit-demo.html` (3D) and `tools/kit-demo.html?mode=2d` (its demo sounds live in `tools/demo-audio/`).
+
+Camera and mic check: `tools/webcam-test.html` (add `?auto=1` to start both without a click). Published: https://europa-hackathons.github.io/harleys-team/tools/webcam-test.html
