@@ -1,4 +1,5 @@
-// Extra boxer poses made in code from the Drawing Friend's frames (assets/art has no duck or orange punch frame).
+// Extra boxer poses made in code from the Drawing Friend's frames. The drawn duck/punch frames in
+// player-extra.png / opponent-extra.png are used now; these code-made ones are the fallback.
 import { COLORS } from './scene.js';
 
 export const DUCK_DROP = 14;     // how many pixels a ducking boxer's head and body go down
@@ -47,5 +48,15 @@ export function orangeGlove(frame) {
     if (to) [d[i], d[i + 1], d[i + 2]] = to;
   }
   g.putImageData(img, 0, 0);
+  return c;
+}
+
+// A frame flipped left-to-right.
+export function mirror(frame) {
+  const c = document.createElement('canvas');
+  c.width = frame.width; c.height = frame.height;
+  const g = c.getContext('2d');
+  g.translate(c.width, 0); g.scale(-1, 1);
+  g.drawImage(frame, 0, 0);
   return c;
 }

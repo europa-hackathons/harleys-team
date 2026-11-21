@@ -11,7 +11,8 @@ import { loadArt } from './game/art.js';
 import { flame, starBurst, popWord, playFrames, drawEffects, drawDizzy, clearEffects } from './game/effects.js';
 import { sfx, wakeSound } from './game/sfx.js';
 import { startPunchCam, cameraTrouble, DUCK } from './game/punch-cam.js';
-import { duckPose, gloveOffPose, orangeGlove, DUCK_DROP } from './game/poses.js';
+import { duckPose, gloveOffPose, orangeGlove, mirror, DUCK_DROP } from './game/poses.js';
+import { makeSumoFinish, SUMO } from './game/sumo-finish.js';
 
 // Rules: the Team's win rule plus first-version guesses, all easy to change.
 export const RULES = {
@@ -62,12 +63,17 @@ const g = pixels.getContext('2d');
 const art = await loadArt();
 const [P_IDLE, P_IDLE2, P_PUNCH, P_HIT] = art['player-boxer'];
 const [O_IDLE, O_IDLE2, O_GUARD, O_HIT] = art['opponent-boxer'];
+// Drawn duck/punch frames (player-extra, opponent-extra); the code-made poses are only a fallback.
+const [P_DUCK] = art['player-extra'] || [];
+const [O_PUNCH, O_DUCK] = art['opponent-extra'] || [];
 const POSES = [
-  { idle: [P_IDLE, P_IDLE2], punch: P_PUNCH, hit: P_HIT, duck: [duckPose(P_IDLE), duckPose(P_IDLE2)], guard: P_IDLE },
-  { idle: [O_IDLE2, O_IDLE], punch: gloveOffPose(O_IDLE), hit: O_HIT, duck: [duckPose(O_IDLE2), duckPose(O_IDLE)], guard: O_GUARD },
+  { idle: [P_IDLE, P_IDLE2], punch: P_PUNCH, hit: P_HIT, duck: P_DUCK ? [P_DUCK, P_DUCK] : [duckPose(P_IDLE), duckPose(P_IDLE2)], guard: P_IDLE },
+  { idle: [O_IDLE2, O_IDLE], punch: O_PUNCH || gloveOffPose(O_IDLE), hit: O_HIT, duck: O_DUCK ? [O_DUCK, O_DUCK] : [duckPose(O_IDLE2), duckPose(O_IDLE)], guard: O_GUARD },
 ];
 
-const GLOVES = [art['rocket-glove'], art['rocket-glove'].map(orangeGlove)];
+// gloves are drawn facing right and flipped when flying left; the orange glove art faces left, so turn it round
+const GLOVES = [art['rocket-glove'], art['opponent-glove'] ? art['opponent-glove'].map(mirror) : art['rocket-glove'].map(orangeGlove)];
+const sumo = makeSumoFinish(art['sumo'], art['sumo-dust']);
 
 let view = { x: 0, y: 0, w: W, h: H };
 function resize() {
@@ -107,22 +113,23 @@ function setMode(n) {
 
 // ---------- game state ----------
 function makeFighter(side) {
-  return { side, dir: side ? -1 : 1, x: START_X[side], minX: 0, maxX: 0, health: RULES.health, hits: 0,
+  return { side, dir: side ? -1 : 1, x: START_X[side], minX: 0, maxX: 0, health: RULES.health, hits: 0, damage: 0, headHits: 0, bodyHits: 0,
     glove: { mode: 'home', aim: 'body', x: 0, y: 0, vx: 0, vy: 0 }, wobble: 0, duck: 0, walking: 0 };
 }
 const fighters = [makeFighter(0), makeFighter(1)];
 const [teal, orange] = fighters;
 
 const game = window.game = {
-  state: 'title', mode: 2, winner: null, camera: 'off', rules: RULES, fighters,
+  state: 'title', mode: 2, winner: null, loser: null, camera: 'off', rules: RULES, fighters,
   get health() { return orange.health; },   // 1 player: the opponent's health
   get hits() { return teal.hits; },
   punch: (aim = 'body', who = 0) => fire(fighters[who], aim),   // handy for testing: game.punch('head', 1)
   duck: (who = 0) => startDuck(fighters[who]),                   // game.duck(1)
+  get sumo() { return sumo.active ? sumo.time : null; },          // seconds into the sumo finish, or null
 };
 let punchCam = null;
 let guard = { up: false, t: 2 };
-let excite = 0, endTimer = 0, time = 0;
+let excite = 0, time = 0;
 
 const timer = roundTimer(RULES.roundSeconds, { onEnd: () => finish(null) });
 // for checks from the console: game.debug.guard.up = true; game.debug.timer.reset(3)
@@ -136,13 +143,14 @@ const hitTip = (target, dir) => (dir > 0 ? target.x + HIT_DEPTH : target.x + 64 
 function startRound() {
   wakeSound();
   game.state = 'playing';
-  game.winner = null;
+  game.winner = null; game.loser = null;
+  sumo.stop();
   for (const f of fighters) {
     Object.assign(f, makeFighter(f.side));
     [f.minX, f.maxX] = RANGE[game.mode][f.side];
   }
   guard = { up: false, t: rand(RULES.guardOpen) };
-  excite = 0; endTimer = 0;
+  excite = 0;
   timer.reset();
   clearEffects();
   show(null);
@@ -169,20 +177,46 @@ function finish(winner) {
   if (game.state !== 'playing') return;
   game.state = winner ? 'win' : 'timeup';
   game.winner = winner ? (game.mode === 1 ? 'player' : winner.side ? 'orange' : 'teal') : null;
-  endTimer = winner ? 1.4 : 0.6;
-  if (winner) {
-    const loser = fighters[1 - winner.side];
-    sfx.win(); starBurst(loser.x + 32, BOXER_Y + 16, 30);
-  } else { sfx.bell(); popWord('TIME!', W / 2, 48, COLORS.rope, 22); }
+  // the loser: whoever was knocked out, or the player when time runs out (1 player)
+  const loser = winner ? fighters[1 - winner.side] : teal;
+  game.loser = loser.side ? 'orange' : 'teal';
+  if (winner) { sfx.win(); starBurst(loser.x + 32, BOXER_Y + 16, 20); }
+  else { sfx.bell(); popWord('TIME!', W / 2, 48, COLORS.rope, 22); }
+  // the Sumo finish: he lands on the loser, then hops toward the middle of the ring
+  const cx = loser.x + (loser.side ? 30 : 34);
+  sumo.start(cx, cx < W / 2 ? 1 : -1);
+}
+
+function skipSumo() {
+  if (sumo.active && sumo.time > SUMO.skipAfter) { sumo.stop(); showEndScreen(); }
+}
+addEventListener('keydown', skipSumo);
+canvas.addEventListener('pointerdown', skipSumo);
+
+// Score cards for the results screen: damage dealt, hits, head hits and body hits for each side.
+function scoreCards() {
+  const who = game.mode === 2
+    ? [[teal, 'P1 TURKOS · TEAL'], [orange, 'P2 ORANGE']]
+    : [[teal, 'DU · YOU']];
+  return who.map(([f, name]) => {
+    const color = f.side ? 'orange' : 'teal';
+    const crown = game.winner === color || (game.winner === 'player' && !f.side) ? ' 🏆' : '';
+    return `<div class="score-card ${color}"><h3>${name}${crown}</h3>
+      <dl><dt>💥 Skada · Damage</dt><dd>${f.damage}</dd>
+      <dt>👊 Träffar · Hits</dt><dd>${f.hits}</dd>
+      <dt>🙂 Huvud · Head</dt><dd>${f.headHits}</dd>
+      <dt>👕 Kropp · Body</dt><dd>${f.bodyHits}</dd></dl></div>`;
+  }).join('');
 }
 
 function showEndScreen() {
   if (game.state === 'timeup') {
-    const done = RULES.health - orange.health;
-    document.getElementById('time-hits').textContent = `You did ${done} damage with ${teal.hits} ${teal.hits === 1 ? 'hit' : 'hits'}! ⭐`;
+    document.getElementById('time-hits').textContent = `Sumo got you! 😄 You did ${teal.damage} damage ⭐`;
+    document.getElementById('time-scores').innerHTML = scoreCards();
     show('timeup-screen');
     return;
   }
+  document.getElementById('win-scores').innerHTML = scoreCards();
   const title = document.getElementById('win-title'), sub = document.getElementById('win-sub');
   title.className = `title win ${game.winner}`;
   if (game.winner === 'teal') { title.textContent = 'TEAL WINS! ⭐'; sub.innerHTML = 'Turkos vann! <span class="en">Player 1 (left) wins!</span>'; }
@@ -222,7 +256,7 @@ for (const id of ['skip-camera', 'play-keys', 'again-win', 'again-time']) {
   document.getElementById(id).addEventListener('click', startRound);
 }
 for (const id of ['menu', 'menu-time']) {
-  document.getElementById(id).addEventListener('click', () => { game.state = 'title'; show('title-screen'); });
+  document.getElementById(id).addEventListener('click', () => { game.state = 'title'; sumo.stop(); show('title-screen'); });
 }
 setMode(2);
 
@@ -261,7 +295,7 @@ function update(dt, now) {
     }
   }
   if (game.state === 'win' || game.state === 'timeup') {
-    if (endTimer > 0 && (endTimer -= dt) <= 0) showEndScreen();
+    if (sumo.active && sumo.update(dt)) { sumo.stop(); showEndScreen(); }
     if (game.state === 'win' && Math.random() < dt * 3) starBurst(30 + Math.random() * 196, 16 + Math.random() * 50, 8);
   }
   for (const f of fighters) {
@@ -314,7 +348,8 @@ function moveGlove(f, dt) {
         sfx.boing();
       } else {
         const dmg = RULES.damage[gl.aim];
-        f.hits++;
+        f.hits++; f.damage += dmg;
+        if (gl.aim === 'head') f.headHits++; else f.bodyHits++;
         foe.health = Math.max(0, foe.health - dmg);
         playFrames(art['stars-burst'], tip + 2 * d, gl.y);
         starBurst(tip, gl.y, gl.aim === 'head' ? 12 : 7);
@@ -371,16 +406,24 @@ function drawHealth(f) {
 
 function drawFighter(f, breathe) {
   const p = POSES[f.side];
-  const lost = game.state === 'win' && game.winner !== (f.side ? 'orange' : 'teal') && !(game.mode === 1 && f.side === 0);
+  const lost = game.loser === (f.side ? 'orange' : 'teal');
   let x = f.x, y = BOXER_Y, pose = p.idle[breathe];
+  const squash = lost ? sumo.squash() : null;
   const hop = f.walking > 0 ? -(Math.floor(time * 10) % 2) : 0;
-  if (lost) { pose = p.hit; y += 3; x += Math.sin(time * 6) * 2; }
+  if (lost) { pose = p.hit; y += squash ? 0 : 3; x += squash ? 0 : Math.sin(time * 6) * 2; }
   else if (f.wobble > 0) { pose = p.hit; x += Math.sin(f.wobble * 40) * 2 * (f.wobble / 0.5) - 3 * f.dir; }
   else if (f.duck > 0) pose = p.duck[breathe];
   else if (f.glove.mode !== 'home') { pose = p.punch; y += hop; }
   else if (game.mode === 1 && f.side === 1 && guard.up && game.state === 'playing') pose = p.guard;
   else y += hop;
-  put(pose, x, y);
+  if (squash) {
+    // flattened like a pancake by the sumo (cartoon!), stretched around the feet
+    const fx = x + (f.side ? 30 : 34), fy = y + 69;
+    g.save(); g.translate(Math.round(fx), fy); g.scale(squash.sx, squash.sy);
+    g.drawImage(pose, -(fx - x), -69); g.restore();
+    if (squash.sy < 0.5) return;
+    y = fy - 69 * squash.sy;
+  } else put(pose, x, y);
   if (lost || f.wobble > 0) drawDizzy(g, x + (f.side ? 34 : 30), y + 4 + (f.duck > 0 ? DUCK_DROP : 0), time);
 }
 
@@ -397,9 +440,11 @@ function drawGlove(f) {
 function draw(dt) {
   drawArena(g, time, excite);
   for (const f of fighters) drawShadow(g, Math.round(f.x) + 32, 121, f.duck > 0 ? 46 : 40);
+  sumo.drawShadow(g);
   const breathe = Math.floor(time * 2.5) % 2;
   for (const f of fighters) drawFighter(f, breathe);
   for (const f of fighters) drawGlove(f);
+  sumo.draw(g, time);
 
   drawEffects(g, dt);
   if (game.state === 'playing' || game.state === 'win' || game.state === 'timeup') {
@@ -414,7 +459,8 @@ function draw(dt) {
   ctx.fillStyle = COLORS.navy;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(pixels, view.x, view.y, view.w, view.h);
+  const shake = sumo.shake(), px = view.w / W;
+  ctx.drawImage(pixels, view.x + shake.x * px, view.y + shake.y * px, view.w, view.h);
 
   // the players' own mirrored camera picture: top-left for 1 player, top-middle (both halves) for 2
   if (punchCam) {

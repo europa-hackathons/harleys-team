@@ -62,3 +62,16 @@ h2 { font-size: clamp(1.6rem, 5vw, 2.6rem); margin: 0; color: #ffd23f; text-shad
 .sides .p2 { color: #f0662c; margin-left: 0.5em; }
 .title.win.teal { color: #1fb8b0; }
 .title.win.orange { color: #f0662c; }
+
+/* results screen: one score card per side, side by side */
+.screen { overflow-y: auto; }
+.scores { display: flex; gap: 0.6rem; justify-content: center; }
+.score-card { padding: 0.35rem 0.7rem; border: 3px solid #0b1226; background: #1e5a7a; text-align: left; }
+.score-card.teal { outline: 3px solid #1fb8b0; }
+.score-card.orange { outline: 3px solid #f0662c; }
+.score-card h3 { margin: 0 0 0.2rem; font-size: clamp(0.85rem, 2.4vw, 1.2rem); text-shadow: 2px 2px 0 #0b1226; white-space: nowrap; }
+.score-card.teal h3 { color: #1fb8b0; }
+.score-card.orange h3 { color: #f0662c; }
+.score-card dl { display: grid; grid-template-columns: auto auto; gap: 0.05rem 0.8rem; margin: 0; font-size: clamp(0.75rem, 2vw, 1.05rem); white-space: nowrap; }
+.score-card dt { opacity: 0.85; }
+.score-card dd { margin: 0; font-weight: bold; color: #ffd23f; text-align: right; }

@@ -39,5 +39,9 @@ export const sfx = {
   pow: () => { tone({ from: 300, to: 60, time: 0.18, volume: 0.2 }); noise(0.12, 0.25); },
   boing: () => { tone({ type: 'sine', from: 200, to: 600, time: 0.12, volume: 0.25 }); tone({ type: 'sine', from: 600, to: 250, time: 0.25, volume: 0.2, delay: 0.12 }); },
   win: () => [523, 659, 784, 1047].forEach((f, i) => tone({ from: f, time: 0.2, volume: 0.12, delay: i * 0.12 })),
+  // the sumo finish: whistling down, the big FLOMP, and a little hop
+  whistle: () => tone({ type: 'sine', from: 1600, to: 260, time: 0.85, volume: 0.12, delay: 0.2 }),
+  thump: () => { tone({ type: 'triangle', from: 140, to: 40, time: 0.4, volume: 0.4 }); noise(0.35, 0.3); },
+  hop: () => tone({ type: 'sine', from: 300, to: 700, time: 0.15, volume: 0.15 }),
   bell: () => [0, 0.25].forEach((d) => tone({ type: 'triangle', from: 1200, to: 1150, time: 0.5, volume: 0.15, delay: d })),
 };

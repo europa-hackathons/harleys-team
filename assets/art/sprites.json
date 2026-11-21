@@ -34,5 +34,34 @@
     "frameHeight": 160,
     "frameCount": 3,
     "scale": 4
+  },
+  "player-extra.png": {
+    "frameWidth": 256,
+    "frameHeight": 288,
+    "frameCount": 1,
+    "scale": 4,
+    "frames": [
+      "duck"
+    ]
+  },
+  "opponent-extra.png": {
+    "frameWidth": 256,
+    "frameHeight": 288,
+    "frameCount": 2,
+    "scale": 4,
+    "frames": [
+      "punch",
+      "duck"
+    ]
+  },
+  "opponent-glove.png": {
+    "frameWidth": 192,
+    "frameHeight": 96,
+    "frameCount": 2,
+    "scale": 4,
+    "frames": [
+      "flame-1",
+      "flame-2"
+    ]
   }
 }
