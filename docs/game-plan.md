@@ -26,11 +26,16 @@ _Written when the Team picks a concept (the Style Lock). Every picture and build
 
 ## Features
 _One short entry per feature, written clearly enough that a building Friend can build it: what it does, how it looks, what happens at the edges (crashes, falling off, running out of time). Grows during question time._
+- **Four season tracks** (this is how "the route changes"): each track is a different season, with its own light colour, floating trees in season colours, and a different landscape far below. Obstacles float in the way and you must fly around them (bumping one slows you down). The Helper picked these details at the Team's request:
+  - **Spring**: soft fresh morning light; floating trees with pink blossom; green meadows and flower fields below; obstacles are **giant tulips** and big daisies.
+  - **Summer**: bright warm golden light; floating trees in deep green; a sunny beach and fields below; obstacles are **giant sunflowers** and beach balls.
+  - **Autumn**: warm orange sunset light; floating trees in orange/red/yellow; a pumpkin patch and leafy forest below; obstacles are **giant pumpkins** and swirling leaf piles.
+  - **Winter**: cool pale-blue light, gently falling snow; floating trees frosted white; a snowy landscape below; obstacles are **snowmen** and big snowballs.
+  - Players pick the track (or season) before racing; the order is still to decide.
+- **Pick your animal**: before the race, each player picks their animal on a simple pick screen (P1 picks with their keys, P2 with theirs). The Team wants **lots of characters to choose from** (a big character roster), with kitten, pony, **piglet** (pink), **bunny** (white/grey, long ears) **puppy** (brown, floppy ears), and a **robot** (the Team's own pick: a chunky, friendly toy robot made of boxes, with an antenna). The Helper picked those three at the Team's request, as farm friends. Whether both players can pick the same animal is still to decide.
 
 ## Still to decide
 _Open questions about the game for the Helper to ask the Team, most urgent first. Move each into Features once answered; unanswered ones stay and get asked again._
-- Which animal does each player fly (kitten = player 1, pony = player 2?), or can they pick?
-- How does the route change (moving cloud rings, new paths each race, wind)?
 - What can you put in your stable when decorating?
 - Player 2's swim-forward key.
 - Sweets as bonuses: do you collect sweets along the route, or throw them to the crowd? What does a sweet give you (speed, points, more bananas)?
@@ -39,7 +44,12 @@ _Open questions about the game for the Helper to ask the Team, most urgent first
 - Title screen with a PLAY button (starter).
 
 ## Wish list
-- (none yet)
+- 🔨 First prototype: kitten vs pony sky-swim race to the farm (steering, cloud rings, boost/banana/mud, win screen)
+- ⭐ Pick-your-animal screen at the start, with piglet, bunny, puppy and robot added
+- ⭐ Stable decorating before the race
+- ⭐ Cheering crowds + fizzy-juice celebration
+- ⭐ Sweets bonuses
+- ⭐ Four season tracks (spring, summer, autumn, winter) with obstacles
 
 ## Ideas for later
 _The idea jar: wishes that arrived while the wish list was full (10). Pull them back onto the wish list as space frees up._
