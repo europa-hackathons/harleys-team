@@ -1,4 +1,6 @@
 assets/models/_source/
+assets/audio/_old/
+assets/audio/_refused.jsonl
 tools/__pycache__/
 *.tmp
 *.b64

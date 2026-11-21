@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kit demo</title>
   <!-- Working example of every src/kit module. 3D by default; ?mode=2d for the canvas version.
-       Arrows/WASD move, collect the stars before the timer runs out. window.demo exposes state for checks. -->
+       Arrows/WASD move, collect the stars before the timer runs out. M mutes the sound. window.demo exposes state for checks. -->
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
@@ -21,6 +21,7 @@
     import { hud } from '../src/kit/hud.js';
     import { roundTimer } from '../src/kit/timer.js';
     import { touching } from '../src/kit/touch.js';
+    import { sound } from '../src/kit/sound.js';
 
     const mode = new URLSearchParams(location.search).get('mode') === '2d' ? '2d' : '3d';
     const demo = window.demo = { mode, score: 0, stars: 0, over: false };
@@ -28,7 +29,9 @@
       onTick: (s) => hud.set('time', `⏱ ${s}`, 'top-right'),
       onEnd: () => { demo.over = true; hud.banner(`TIME! ⭐ ${demo.score}`, 0); },
     });
-    const scored = () => { demo.score++; hud.set('score', `⭐ ${demo.score}`); if (demo.score % 5 === 0) hud.banner('SUPER! 🎉'); };
+    sound.music('demo-audio/theme.mp3', { volume: 0.4 });   // starts on the first key press
+    addEventListener('keydown', (e) => { if (e.code === 'KeyM') demo.muted = sound.toggleMute(); });
+    const scored = () => { sound.play('demo-audio/pop.mp3', { pitch: 0.9 + Math.random() * 0.3 }); demo.score++; hud.set('score', `⭐ ${demo.score}`); if (demo.score % 5 === 0) hud.banner('SUPER! 🎉'); };
     hud.set('score', '⭐ 0');
     hud.banner('Collect the stars!', 1500);
 

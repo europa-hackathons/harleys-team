@@ -17,6 +17,7 @@ The only file that says *how* this setup does things. The playbooks (`helper.md`
 | **Picture Choice** | `AskUserQuestion` question cards | A numbered emoji list the kids can answer with a number. |
 | **Screenshots for checks** | `python tools/shot.py` (Edge) | Same script; it also finds Chrome/Chromium. No browser? Ask the human to look. |
 | **Fancier 3D models** | Tripo via `tools/tripo_model.py`; steps in `docs/agents/models-3d.md` | **Off**, even if your harness shows Tripo or 3D-model tools. The key is personal to the team machine. Build models from simple shapes; never ask anyone for a Tripo key. |
+| **Sounds and music** | ElevenLabs via `tools/elevenlabs_audio.py`; steps and the Grown-up's rules in `docs/agents/sounds.md`. The Grown-up listens through Markdown links to the absolute file path (the result's `path`), e.g. `[🔊 tank-shot](C:/Users/<you>/Projects/harleys-team/assets/audio/tank-shot.mp3)`: T3 opens them, also on the Grown-up's phone. Never link `localhost`. | **Off**, even if your harness shows ElevenLabs or audio tools. The key is personal to the team machine; never ask anyone for one. If the Team wants sound, a building Friend can make simple beeps in code (Web Audio oscillators), never spoken words. |
 | **Wish Records** | GitHub issues on `europa-hackathons/harleys-team` via `gh` | Issues on the repo the human confirmed as theirs in setup; otherwise markdown files in `docs/wishes/`. Never file issues in `europa-hackathons/harleys-team` unless that is your team. |
 | **Saving and publishing** | Commit and push `main` to `origin`; GitHub Pages publishes https://europa-hackathons.github.io/harleys-team/ | Commit locally. Push only to a remote the human confirmed as theirs in setup (then their GitHub Pages, if they use it). Never push to `europa-hackathons/harleys-team` or to a remote that's a folder on this computer. |
 | **Clock** | `Get-Date -Format HH:mm` (PowerShell) | `date +%H:%M` or your platform's equivalent. |
@@ -38,8 +39,9 @@ Use exactly these `delegate_task` targets (no need to look them up); higher effo
 
 Port 8000 belongs to the Helper's one server.
 
-1. **Start the server once**, at the start of the session: from the repo root, `python -m http.server 8000` as a background command with the maximum time limit (`timeout: 7200000`, 2 hours). A default background command is stopped after 30 minutes and the Team's game disappears; restart it the same way if it stops.
-   - Port 8000 already serving this game (a server you didn't start)? Use it for now. The first time the game disappears, stop that process and start your own as above.
+1. **Reset the server at the start of every session**, before anything else: whatever is listening on port 8000 is left over from an earlier chat (often serving a different folder), so always stop it first, in PowerShell:
+   `Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -Confirm:$false }`
+   Then, from the repo root, start `python -m http.server 8000` as a background command with the maximum time limit (`timeout: 7200000`, 2 hours). A default background command is stopped after 30 minutes and the Team's game disappears; restart it the same way if it stops.
 2. **Show the game** from Warm-up on (the starter screen invites the Team to design): `preview_open` with `target: { kind: "environment-port", port: 8000 }`, visible (this also reaches the Grown-up's remote laptop). After a change lands, reload the same tab.
 3. **When the game window is gone** (closed, or "it went away"): open a fresh tab with `reuseExistingTab: false`, then close the old one with `t3_preview_close`. Reusing the old tab doesn't bring it back.
 

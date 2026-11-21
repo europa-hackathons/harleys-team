@@ -11,6 +11,7 @@ Small, tested building blocks so a first prototype is assembled, not written fro
 | `touch.js` | `touching(a, b, radius)`: pickups and bumps, on `{x, y}`, `{x, y, z}` or three.js objects | both |
 | `poof2d.js` | `poof2d(x, y)` + `drawPoofs(ctx, dt)`: star burst on a canvas | 2D |
 | `poof3d.js` | `poof3d(scene, position)` + `updatePoofs(dt)`: sparkle burst in three.js | 3D |
+| `sound.js` | `sound.play('coin')`, `sound.music('theme')` (loops, crossfades), `sound.toggleMute()`: mp3s from `assets/audio/`, silent until the first click | both |
 | `follow-camera.js` | `followCamera(camera, target, { distance, height })` → `.update(dt)` | 3D |
 
-Working examples of all of them together: `tools/kit-demo.html` (3D) and `tools/kit-demo.html?mode=2d`.
+Working examples of all of them together: `tools/kit-demo.html` (3D) and `tools/kit-demo.html?mode=2d` (its demo sounds live in `tools/demo-audio/`).

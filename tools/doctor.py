@@ -27,7 +27,7 @@ def run(cmd):
 
 
 def line(ok, name, detail):
-    print(f"  {'OK ' if ok else '-- '} {name:<18} {detail}")
+    print(f"  {'OK ' if ok else '-- '} {name:<19} {detail}")
 
 
 def main():
@@ -67,13 +67,18 @@ def main():
     if free(8000):
         line(True, "Game port", "8000 is free: serve the game there")
     elif team:
-        line(True, "Game port", "8000 already serving (the Helper's game server, if you started it)")
+        line(True, "Game port", "8000 in use: at a session start, stop it and start the game server fresh (environment.md)")
     else:
         spare = next(p for p in range(8001, 8100) if free(p))
         line(False, "Game port", f"8000 is taken by something else: serve the game on {spare} and use tools/shot.py --port {spare}")
 
     tripo = team and bool(os.environ.get("TRIPO_API_KEY"))
     line(tripo, "3D models (Tripo)", "on" if tripo else "off: build models from simple shapes")
+
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from elevenlabs_audio import find_key
+    sounds = team and bool(find_key())
+    line(sounds, "Sounds (ElevenLabs)", "on" if sounds else "off: simple beeps made in code at most")
 
 
 if __name__ == "__main__":
