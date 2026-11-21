@@ -16,18 +16,19 @@ The Helper sends one record keeper after each delivered change. Run only one at 
 
 The brief includes: the **exact list of files** the finished Friend reported, a one-line summary of the wish, how it was understood, what was decided and why, any flags (content redirect, Big Change parked), and the Wish Record number when the wish chains onto an earlier one (or "new"). Never a placeholder like `#A`.
 
-1. **New wish?** Write its Wish Record first (step 5), so the commit can name its number.
-2. Stage **only the listed files**: `git add -- <files>`. Other Friends may be mid-edit in the same folder, so never `git add -A` or `git add .`. Leave anything unlisted alone and mention it in the report.
-3. `git commit` with the message `<Wish summary> (#<number>)`, one wish per commit, ending with the attribution line the system gives you.
-4. Push only as **Saving and publishing** in `docs/agents/environment.md` says (team machine: `git pull --rebase`, then `git push` to `main`); where no remote was confirmed, the commit stays local.
-5. Write the **Wish Record** where **Wish Records** in `docs/agents/environment.md` says. With GitHub issues:
+1. **New wish?** Write its Wish Record first (step 6), so the commit can name its number.
+2. Run `python tools/check.py`. If it fails, commit nothing: report its output to the Helper, who sends the fix to a Friend.
+3. Stage **only the listed files**: `git add -- <files>`. Other Friends may be mid-edit in the same folder, so never `git add -A` or `git add .`. Leave anything unlisted alone and mention it in the report.
+4. `git commit` with the message `<Wish summary> (#<number>)`, one wish per commit, ending with the attribution line the system gives you.
+5. Push only as **Saving and publishing** in `docs/agents/environment.md` says (team machine: `git pull --rebase`, then `git push` to `main`); where no remote was confirmed, the commit stays local.
+6. Write the **Wish Record** where **Wish Records** in `docs/agents/environment.md` says. With GitHub issues:
    - New wish: `gh issue create --label wish --title "<Wish summary>"` with the body below. During a rehearsal, also add `--label test-run`.
    - Chained wish: `gh issue comment <n>` with the same body sections for the new step.
    - Without GitHub: one file per wish, `docs/wishes/<NNN>-<short-name>.md` (numbered 001, 002, … in order), with the same body; append chained steps to it and mark it `Closed` at the top when done.
    - When the Team moves on from a feature, the Helper says so in the next brief: `gh issue close <n>` after a final comment naming the commits. A feature is never left open once the Team has moved on.
 **Design saves**: the game plan, concept pictures and mockups aren't wishes, so they get a plain commit with no Wish Record (`Design: <what was decided>`), sent by the Helper when Design ends and whenever the Style is locked.
 
-6. Report back to the Helper in one line: commit hash, issue number, published or not, and any unlisted changed files you saw.
+7. Report back to the Helper in one line: commit hash, issue number, published or not, and any unlisted changed files you saw.
 
 Wish Record body:
 

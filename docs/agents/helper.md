@@ -57,7 +57,7 @@ Game plan: <the relevant Features lines and the Style section from docs/game-pla
 Concept picture: <absolute path of the chosen concept, for anything visual>
 You own these files (nobody else edits them until you finish): <list>
 Smallest visible version first; report back as soon as it shows, then carry on.
-Finish: screenshot with `python tools/shot.py`, compare it with the concept picture, report your exact file list and any open questions.
+Finish: `python tools/check.py` passes; screenshot with `python tools/shot.py`, compare it with the concept picture, report your exact file list and any open questions.
 Follow the Friend rules in AGENTS.md.
 ```
 

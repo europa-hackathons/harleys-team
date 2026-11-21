@@ -26,7 +26,7 @@ A group of kids aged 8–10 (the **Team**) design and build a browser arcade gam
 ## Where things are
 
 - `index.html`, `src/`, `assets/`: the game itself. `src/kit/`: ready-made game pieces (see its README).
-- `tools/`: `shot.py` (screenshots), `doctor.py` (what this machine can do), `tripo_model.py` (3D models, team machine only; see `docs/agents/models-3d.md`), `elevenlabs_audio.py` (sounds and music, team machine only; see `docs/agents/sounds.md`), `model-viewer.html`, `kit-demo.html`.
+- `tools/`: `shot.py` (screenshots), `check.py` (fast code checks; must pass before a save), `serve.py` (the no-cache game server), `doctor.py` (what this machine can do), `tripo_model.py` (3D models, team machine only; see `docs/agents/models-3d.md`), `elevenlabs_audio.py` (sounds and music, team machine only; see `docs/agents/sounds.md`), `model-viewer.html`, `kit-demo.html`.
 - `docs/game-plan.md`: the living English game plan. Building Friends read it first.
 - `docs/agents/helper.md`: the Helper playbook (talking to the Team).
 - `docs/agents/backstage.md`: saving, publishing, Wish Records, Time Machine, Handover, preview.

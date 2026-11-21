@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sky Swim Race</title>
   <link rel="stylesheet" href="src/style.css">
+  <!-- Collects page errors so the Helper can check the preview tab in one call (docs/agents/environment.md). -->
+  <script>window.pageErrors = []; addEventListener('error', (e) => pageErrors.push(String(e.message))); addEventListener('unhandledrejection', (e) => pageErrors.push(String(e.reason)));</script>
   <!-- three.js is available to any module via `import * as THREE from 'three'`. Pinned version, no build step (see docs/adr/0002). -->
   <script type="importmap">
     {

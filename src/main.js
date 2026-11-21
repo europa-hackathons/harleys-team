@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { keys } from './kit/input.js';
 import { startLoop } from './kit/loop.js';
+import { makeRenderer } from './kit/renderer.js';
 import { hud } from './kit/hud.js';
 import { poof3d, updatePoofs } from './kit/poof3d.js';
 import { ROSTER, makeJet } from './animals.js';
@@ -38,42 +39,7 @@ const CONTROLS = [
 ];
 
 // ---- Scene ----
-/**
- * Make the WebGL renderer on #stage. A preview tab that opens hidden can't make a WebGL
- * context yet, so on failure swap in a fresh canvas and try again when the tab becomes
- * visible, and every 500 ms for about 20 s (after that, only when the tab becomes visible).
- */
-function createRenderer() {
-  const tryMake = () => {
-    try {
-      return new THREE.WebGLRenderer({ canvas: document.getElementById('stage'), antialias: true });
-    } catch (err) {
-      // A canvas that failed once can stay broken, so replace it with a fresh one.
-      const old = document.getElementById('stage');
-      const fresh = document.createElement('canvas');
-      fresh.id = 'stage';
-      old.replaceWith(fresh);
-      return null;
-    }
-  };
-  const first = tryMake();
-  if (first) return Promise.resolve(first);
-  console.warn('3D is not ready yet (hidden tab?); retrying when the tab is visible.');
-  return new Promise((resolve) => {
-    let tries = 0;
-    const attempt = () => {
-      const r = tryMake();
-      if (!r) return;
-      clearInterval(timer);
-      document.removeEventListener('visibilitychange', onVisible);
-      resolve(r);
-    };
-    const onVisible = () => { if (document.visibilityState === 'visible') attempt(); };
-    const timer = setInterval(() => { if (++tries >= 40) clearInterval(timer); else attempt(); }, 500);
-    document.addEventListener('visibilitychange', onVisible);
-  });
-}
-const renderer = await createRenderer();
+const renderer = await makeRenderer({ canvasId: 'stage', antialias: true });   // survives a hidden preview tab
 const canvas = renderer.domElement;
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 const scene = new THREE.Scene();

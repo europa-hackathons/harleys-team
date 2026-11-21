@@ -39,7 +39,8 @@
       const THREE = await import('three');
       const { poof3d, updatePoofs } = await import('../src/kit/poof3d.js');
       const { followCamera } = await import('../src/kit/follow-camera.js');
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      const { makeRenderer } = await import('../src/kit/renderer.js');
+      const renderer = await makeRenderer({ antialias: true });
       renderer.setSize(innerWidth, innerHeight);
       document.body.append(renderer.domElement);
       const scene = new THREE.Scene();

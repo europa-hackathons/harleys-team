@@ -2,7 +2,7 @@
 
 A setup for running a game jam where kids (about 8–10) design and build a browser arcade game by talking to an AI helper, with a grown-up supervising. The helper keeps the talk simple and fun, lets the kids make every creative choice, and does the engineering quietly in the background.
 
-Open the game: serve this folder (`python -m http.server 8000`) and visit http://localhost:8000/. There's no build step; it's plain HTML and JavaScript (three.js loaded from a CDN).
+Open the game: serve this folder (`python tools/serve.py`, which turns caching off) and visit http://localhost:8000/. There's no build step; it's plain HTML and JavaScript (three.js loaded from a CDN).
 
 ## Using it with your own AI agent
 
