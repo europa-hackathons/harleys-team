@@ -40,19 +40,20 @@ _Open questions about the game for the Helper to ask the Team, most urgent first
 - Player 2's swim-forward key: is Z OK (Left Shift can trigger Windows Sticky Keys)?
 - Should cloud rings matter more (bigger push), or are they just for show?
 - Can your own banana/mud hit you, or only the other racer?
-- Should the sky farm be visible on the horizon from the very start?
+- Can a player change their mind after pressing READY on the pick screen?
 - Sweets as bonuses: do you collect sweets along the route, or throw them to the crowd? What does a sweet give you (speed, points, more bananas)?
 
 ## Built so far
 - Title screen with a PLAY button (starter).
 - First prototype (#22): 3D kitten vs pony sky-swim race through cloud rings to the sky farm; boost/banana/mud with cooldowns; progress bar; win screen with confetti and RACE AGAIN. P2 swims with Left Shift or Z.
+- Pick your racer (#23): pick screen with six racers (kitten, pony, piglet, bunny, puppy, robot); both may pick the same; ready locks; last pick remembered.
 
 ## Wish list
-- 🔨 Pick-your-animal screen at the start, with piglet, bunny, puppy and robot added
 - ⭐ Stable decorating before the race
 - ⭐ Cheering crowds + fizzy-juice celebration
 - ⭐ Sweets bonuses
-- ⭐ Look fixes from the look check: chase camera closer (racers fill ~half the frame height, left/right thirds); first cloud ring bigger (~1/4 screen width, continuous rim) with later rings staggered so their openings show; farm (red barn, peaked roof, white trim, green island on cloud puffs) visible on the horizon from the start
+- 🔨 Look fixes from the look check (+ countdown should be 3-2-1, not 4-3-2-1): chase camera closer (racers fill ~half the frame height, left/right thirds); first cloud ring bigger (~1/4 screen width, continuous rim) with later rings staggered so their openings show; farm (red barn, peaked roof, white trim, green island on cloud puffs) visible on the horizon from the start
+- ⭐ Steering helper: racers drift gently toward the next cloud ring, so steering is easier (a little help, not autopilot); plus **catch-up help**: the racer who's behind swims a bit faster so they never drop far back, and the camera always keeps both racers clearly visible (the Team can't see their racer when behind)
 - ⭐ Four season tracks (spring, summer, autumn, winter) with obstacles
 
 ## Ideas for later

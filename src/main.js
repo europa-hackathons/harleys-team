@@ -6,7 +6,7 @@ import { hud } from './kit/hud.js';
 import { poof3d, updatePoofs } from './kit/poof3d.js';
 import { ROSTER, makeJet } from './animals.js';
 import { createPickScreen } from './pick.js';
-import { setupSky, buildRoute, buildFarm, pathCentre, makeBanana, makeMud, TRACK_LENGTH, RING_RADIUS } from './world.js';
+import { setupSky, buildRoute, buildFarm, updateFarm, pathCentre, makeBanana, makeMud, TRACK_LENGTH, RING_RADIUS } from './world.js';
 
 // ---- Tuning (change freely) ----
 const STROKE_PUSH = 5.5;      // speed added by one swim stroke
@@ -17,7 +17,7 @@ const RING_PUSH = 5;          // swimming through a ring gives a little push
 const BOOST_SPEED = 14, BOOST_TIME = 1.5;
 const COOLDOWN = { boost: 5, banana: 3, mud: 3 };
 const STEER_X = 9, STEER_Y = 7;
-const ROOM_X = 9, ROOM_Y = 6; // how far from the route's middle you can swim
+const ROOM_X = 12, ROOM_Y = 8; // how far from the route's middle you can swim
 const HIT_RADIUS = 1.8;
 
 const CONTROLS = [
@@ -41,9 +41,9 @@ resize();
 
 setupSky(scene);
 const rings = buildRoute(scene);
-buildFarm(scene);
+const farm = buildFarm(scene);
 
-const racers = [{ startX: -2.6 }, { startX: 2.6 }].map((r, i) => ({ ...r, controls: CONTROLS[i], index: i }));
+const racers = [{ startX: -2.5 }, { startX: 2.5 }].map((r, i) => ({ ...r, controls: CONTROLS[i], index: i }));
 
 /** Give a player the racer they picked (an id from ROSTER), swapping the 3D model. */
 function setRacer(r, id, sameAsOther) {
@@ -139,7 +139,9 @@ function startRace() {
   clearItems();
   winner = null;
   state = 'countdown';
-  countdown = 3.999;
+  countdown = 3;
+  snapCamera = true;
+  hud.banner('3', 900);
   titleScreen.classList.add('hidden');
   winScreen.classList.add('hidden');
   gameHud.classList.remove('hidden');
@@ -242,22 +244,34 @@ function updateItems(dt) {
   }
 }
 
-// ---- Camera: one shared chase camera behind both racers ----
+// ---- Camera: one shared chase camera close behind both racers ----
+// Close up when the racers are side by side (each fills about half the screen height);
+// it backs off smoothly as they drift apart so both always stay on screen.
+const CAM_BACK = 7.8;         // how far behind the racers when they are close together
+const CAM_UP = 2.7;           // how high above them
+const CAM_LOOK_AHEAD = 12;    // how far ahead it looks
+const CAM_LOOK_UP = -0.4;      // look a bit above the racers so they sit in the lower half
 const camPos = new THREE.Vector3(0, 4, 12);
 const camLook = new THREE.Vector3(0, 1, -10);
 const wantPos = new THREE.Vector3(), wantLook = new THREE.Vector3();
+let snapCamera = false;       // jump straight into place (at the start of a race)
 function updateCamera(dt, time) {
   const [a, b] = racers.map((r) => r.model.position);
   const mid = tmp.copy(a).add(b).multiplyScalar(0.5);
-  const gap = Math.min(30, Math.abs(a.z - b.z) + Math.abs(a.x - b.x) * 0.6);
   if (state === 'title') {
     wantPos.set(Math.sin(time * 0.3) * 3, 3 + Math.sin(time * 0.2), 10);
     wantLook.set(0, 1, -12);
   } else {
-    wantPos.set(mid.x, mid.y + 3.5 + gap * 0.12, mid.z + 10 + gap * 0.5);
-    wantLook.set(mid.x, mid.y + 1.2, mid.z - 14);
+    const tanY = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), tanX = tanY * camera.aspect;
+    const zGap = Math.min(40, Math.abs(a.z - b.z));
+    const fitX = (Math.abs(a.x - b.x) / 2 + 4.8) / tanX;   // distance that fits both side to side
+    const fitY = (Math.abs(a.y - b.y) / 2 + 4) / tanY;   // ... and top to bottom
+    const back = Math.max(CAM_BACK, fitX, fitY) + zGap * 0.5;
+    wantPos.set(mid.x, mid.y + CAM_UP + (back - CAM_BACK) * 0.15, mid.z + back);
+    wantLook.set(mid.x, mid.y + CAM_LOOK_UP, mid.z - CAM_LOOK_AHEAD);
   }
-  const k = 1 - Math.exp(-4 * dt);
+  const k = snapCamera ? 1 : 1 - Math.exp(-4 * dt);
+  snapCamera = false;
   camPos.lerp(wantPos, k);
   camLook.lerp(wantLook, k);
   camera.position.copy(camPos);
@@ -278,7 +292,7 @@ function tick(dt, time, draw = true) {
     const before = Math.ceil(countdown);
     countdown -= dt;
     const now = Math.ceil(countdown);
-    if (now !== before || before === 4) hud.banner(now > 0 ? String(now) : 'SWIM! ☁️', now > 0 ? 900 : 1000);
+    if (now !== before) hud.banner(now > 0 ? String(now) : 'GO! ☁️', now > 0 ? 900 : 1000);
     if (countdown <= 0) state = 'race';
   }
   const canMove = state === 'race';
@@ -301,6 +315,7 @@ function tick(dt, time, draw = true) {
   }
   updatePoofs(dt);
   updateCamera(dt, time);
+  updateFarm(farm, camera);
   updateHud();
   if (draw) renderer.render(scene, camera);
 }
@@ -309,6 +324,6 @@ startLoop((dt, time) => tick(dt, time));
 // For tools/shot.py and testing: window.game.startRace(), window.game.racers
 // window.game.pickAndRace(['piglet', 'robot']) skips the pick screen.
 window.game = {
-  startRace, openPick, racers, tick, keys, get state() { return state; },
+  startRace, openPick, racers, tick, keys, camera, get state() { return state; },
   pickAndRace(ids) { racers.forEach((r, i) => setRacer(r, ids[i], ids[0] === ids[1])); showRacerIcons(); pick.hide(); startRace(); },
 };
