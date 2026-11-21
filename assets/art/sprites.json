@@ -1,0 +1,26 @@
+{
+  "player-boxer.png": {
+    "frameWidth": 256,
+    "frameHeight": 288,
+    "frameCount": 4,
+    "scale": 4
+  },
+  "opponent-boxer.png": {
+    "frameWidth": 256,
+    "frameHeight": 288,
+    "frameCount": 4,
+    "scale": 4
+  },
+  "rocket-glove.png": {
+    "frameWidth": 192,
+    "frameHeight": 96,
+    "frameCount": 2,
+    "scale": 4
+  },
+  "stars-burst.png": {
+    "frameWidth": 192,
+    "frameHeight": 192,
+    "frameCount": 4,
+    "scale": 4
+  }
+}
