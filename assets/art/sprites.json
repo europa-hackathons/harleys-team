@@ -63,5 +63,77 @@
       "flame-1",
       "flame-2"
     ]
+  },
+  "zeus-boxer.png": {
+    "frameWidth": 256,
+    "frameHeight": 288,
+    "frameCount": 6,
+    "scale": 4,
+    "frames": [
+      "idle",
+      "idle2",
+      "punch",
+      "hit-wobble",
+      "duck",
+      "thunder-punch"
+    ]
+  },
+  "zeus-glove.png": {
+    "frameWidth": 192,
+    "frameHeight": 96,
+    "frameCount": 2,
+    "scale": 4,
+    "frames": [
+      "lightning-1",
+      "lightning-2"
+    ]
+  },
+  "boxer-green.png": {
+    "frameWidth": 256,
+    "frameHeight": 288,
+    "frameCount": 6,
+    "scale": 4,
+    "frames": [
+      "idle",
+      "idle2",
+      "punch",
+      "hit-wobble",
+      "duck",
+      "victory"
+    ]
+  },
+  "green-glove.png": {
+    "frameWidth": 192,
+    "frameHeight": 96,
+    "frameCount": 2,
+    "scale": 4,
+    "frames": [
+      "flame-1",
+      "flame-2"
+    ]
+  },
+  "boxer-purple.png": {
+    "frameWidth": 256,
+    "frameHeight": 288,
+    "frameCount": 6,
+    "scale": 4,
+    "frames": [
+      "idle",
+      "idle2",
+      "punch",
+      "hit-wobble",
+      "duck",
+      "victory"
+    ]
+  },
+  "purple-glove.png": {
+    "frameWidth": 192,
+    "frameHeight": 96,
+    "frameCount": 2,
+    "scale": 4,
+    "frames": [
+      "flame-1",
+      "flame-2"
+    ]
   }
 }

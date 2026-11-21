@@ -4,6 +4,8 @@ import { COLORS } from './scene.js';
 const bits = [];
 const words = [];
 const anims = [];
+const bolts = [];
+const ZAP_COLORS = ['#ffffff', '#fff4c2', '#ffd23f'];
 
 const STAR = ['..#..', '..#..', '#####', '.###.', '.#.#.'];
 const PLUS = ['..#..', '..#..', '#####', '..#..', '..#..'];
@@ -22,6 +24,39 @@ export function flame(x, y, power = 1, dir = 1) {
   for (let i = 0; i < 3; i++) {
     bits.push({ kind: 'flame', x, y: y + (Math.random() * 4 - 2), vx: dir * (-30 - Math.random() * 50 * power), vy: Math.random() * 16 - 8,
       age: 0, life: 0.18 + Math.random() * 0.14, size: 3 + Math.random() * 2 });
+  }
+}
+
+// Crackling lightning sparks behind a THUNDER fist (Zeus): call every frame while it flies.
+export function zap(x, y, dir = 1) {
+  for (let i = 0; i < 3; i++) {
+    bits.push({ kind: 'zap', x: x + Math.random() * 8 - 4, y: y + Math.random() * 10 - 5, vx: dir * (-20 - Math.random() * 40), vy: Math.random() * 30 - 15,
+      age: 0, life: 0.12 + Math.random() * 0.15, len: 2 + Math.floor(Math.random() * 3), color: ZAP_COLORS[i] });
+  }
+}
+
+// A zig-zag lightning bolt from (x0, y0) down to (x1, y1) that crackles for `life` seconds.
+export function bolt(x0, y0, x1, y1, life = 0.35) {
+  bolts.push({ x0, y0, x1, y1, age: 0, life });
+}
+
+function line(g, ax, ay, bx, by, size) {
+  const n = Math.max(Math.abs(bx - ax), Math.abs(by - ay), 1);
+  for (let i = 0; i <= n; i++) {
+    g.fillRect(Math.round(ax + ((bx - ax) * i) / n - size / 2), Math.round(ay + ((by - ay) * i) / n - size / 2), size, size);
+  }
+}
+
+function drawBolt(g, b) {
+  const n = 7, pts = [[b.x0, b.y0]];
+  for (let i = 1; i < n; i++) {
+    const k = i / n;
+    pts.push([b.x0 + (b.x1 - b.x0) * k + (Math.random() * 12 - 6), b.y0 + (b.y1 - b.y0) * k]);
+  }
+  pts.push([b.x1, b.y1]);
+  for (const [size, color] of [[5, COLORS.outline], [3, COLORS.sparkle], [1, '#ffffff']]) {
+    g.fillStyle = color;
+    for (let i = 1; i < pts.length; i++) line(g, pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1], size);
   }
 }
 
@@ -44,7 +79,7 @@ export function playFrames(frames, x, y, fps = 14) {
   anims.push({ frames, x, y, fps, age: 0 });
 }
 
-export function clearEffects() { bits.length = 0; words.length = 0; anims.length = 0; }
+export function clearEffects() { bits.length = 0; words.length = 0; anims.length = 0; bolts.length = 0; }
 
 export function drawEffects(g, dt) {
   for (let i = anims.length - 1; i >= 0; i--) {
@@ -54,6 +89,12 @@ export function drawEffects(g, dt) {
     if (f >= a.frames.length) { anims.splice(i, 1); continue; }
     const img = a.frames[f];
     g.drawImage(img, Math.round(a.x - img.width / 2), Math.round(a.y - img.height / 2));
+  }
+  for (let i = bolts.length - 1; i >= 0; i--) {
+    const b = bolts[i];
+    b.age += dt;
+    if (b.age >= b.life) { bolts.splice(i, 1); continue; }
+    if (b.age < b.life * 0.6 || Math.floor(b.age * 30) % 2) drawBolt(g, b);   // flickers out
   }
   for (let i = bits.length - 1; i >= 0; i--) {
     const b = bits[i];
@@ -65,6 +106,10 @@ export function drawEffects(g, dt) {
       const s = Math.max(1, Math.round(b.size * (1 - k)));
       g.fillStyle = FLAME_COLORS[Math.min(FLAME_COLORS.length - 1, Math.floor(k * FLAME_COLORS.length))];
       g.fillRect(Math.round(b.x - s / 2), Math.round(b.y - s / 2), s, s);
+    } else if (b.kind === 'zap') {
+      g.fillStyle = b.color;
+      const up = Math.random() < 0.5;
+      g.fillRect(Math.round(b.x), Math.round(b.y), up ? 1 : b.len, up ? b.len : 1);
     } else {
       b.vx *= 0.92; b.vy = b.vy * 0.92 + 60 * dt;
       if (k > 0.75 && Math.floor(b.age * 20) % 2) continue;   // twinkle before vanishing

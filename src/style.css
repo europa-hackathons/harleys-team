@@ -75,3 +75,18 @@ h2 { font-size: clamp(1.6rem, 5vw, 2.6rem); margin: 0; color: #ffd23f; text-shad
 .score-card dl { display: grid; grid-template-columns: auto auto; gap: 0.05rem 0.8rem; margin: 0; font-size: clamp(0.75rem, 2vw, 1.05rem); white-space: nowrap; }
 .score-card dt { opacity: 0.85; }
 .score-card dd { margin: 0; font-weight: bold; color: #ffd23f; text-align: right; }
+
+/* the boxer wheel: title at the top, help at the bottom, the canvas wheel shows through the middle */
+#wheel-screen { justify-content: space-between; cursor: pointer; overflow: hidden; padding: 1.5vh 16px; }
+.wheel-title {
+  margin: 0; font-size: clamp(1.4rem, 5.5vw, 3rem); letter-spacing: 0.04em; color: #f4e4c4;
+  text-shadow: 3px 3px 0 #0b1226, -2px -2px 0 #0b1226;
+}
+.wheel-title .en { font-size: 0.5em; }
+.wheel-title.zeus { color: #ffd23f; font-size: clamp(2.2rem, 9vw, 5rem); animation: zeus-shake 0.12s linear infinite, zeus-glow 0.5s ease-in-out infinite; }
+.wheel-help {
+  margin: 0; padding: 4px 14px; font-weight: bold; font-size: clamp(1rem, 3vw, 1.5rem);
+  background: rgba(11, 18, 38, 0.75); color: #ffd23f;
+}
+@keyframes zeus-shake { 25% { transform: translate(2px, -1px); } 75% { transform: translate(-2px, 1px); } }
+@keyframes zeus-glow { 50% { text-shadow: 3px 3px 0 #0b1226, 0 0 0.5em #fff4c2, 0 0 1em #ffd23f; } }
