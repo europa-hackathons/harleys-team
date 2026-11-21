@@ -25,12 +25,12 @@ const CATCHUP_START = 4;      // behind by less than this: no help
 const CATCHUP_FULL = 40;      // behind by this much or more: full help
 const CATCHUP_MAX = 0.3;      // full help = +30% forward speed
 // Steering helper: a soft drift toward the middle of the next cloud ring. The player's steering always wins.
-const ASSIST_RANGE = 40;      // starts helping when the next ring is this close
-const ASSIST_PULL = 1.6;      // how strongly it pulls toward the ring's middle when the ring is very close
+const ASSIST_RANGE = 60;      // starts helping when the next ring is this close
+const ASSIST_PULL = 3.0;      // how strongly it pulls toward the ring's middle when the ring is very close
 const ASSIST_INSIDE = 2.5;    // once you're this close to your lane's spot in the ring it stops pulling
 const ASSIST_LANE = 2.5;      // P1 aims a bit left of the ring's middle, P2 a bit right, so they don't bunch up
-const ASSIST_MAX = 3;         // the pull is never faster than this (player steering is 9 / 7)
-const ASSIST_WHEN_STEERING = 0.2;  // while you steer on an axis, the helper only does this much on it
+const ASSIST_MAX = 6;         // the pull is never faster than this (player steering is 9 / 7)
+const ASSIST_WHEN_STEERING = 0.5;  // while you steer on an axis, the helper only does this much on it
 
 const CONTROLS = [
   { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight', swim: ['Space'], boost: 'KeyB', banana: 'KeyN', mud: 'KeyM' },
