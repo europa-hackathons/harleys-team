@@ -192,6 +192,7 @@ def main():
             report["screenshot"] = out
         page.pump(0.2)
         report["errors"], report["console"] = page.errors, page.console[-30:]
+    sys.stdout.reconfigure(encoding="utf-8")  # emoji in game text crash a cp1252 Windows console
     print(json.dumps(report, indent=2, ensure_ascii=False))
     sys.exit(1 if failed or page.errors else 0)
 
