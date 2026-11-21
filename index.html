@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="en">
+<html lang="sv">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sky Swim Race</title>
+  <title>Our Game</title>
   <link rel="stylesheet" href="src/style.css">
-  <!-- Collects page errors so the Helper can check the preview tab in one call (docs/agents/environment.md). -->
+  <!-- Collects page errors so the Helper can check the preview tab in one call (docs/agents/environment.md). Keep it. -->
   <script>window.pageErrors = []; addEventListener('error', (e) => pageErrors.push(String(e.message))); addEventListener('unhandledrejection', (e) => pageErrors.push(String(e.reason)));</script>
   <!-- three.js is available to any module via `import * as THREE from 'three'`. Pinned version, no build step (see docs/adr/0002). -->
   <script type="importmap">
@@ -21,40 +21,17 @@
   <canvas id="stage"></canvas>
 
   <main id="title-screen" class="screen">
-    <h1 class="title">Sky Swim Race</h1>
-    <p class="subtitle">Pick your racer and sky-swim: first to the sky farm wins!</p>
-    <div class="howto">
-      <div class="player kitten">
-        <h3>Player 1</h3>
-        <p><b>Arrows</b> steer · <b>Space</b> swim</p>
-        <p><b>B</b> 🚀 boost · <b>N</b> 🍌 banana · <b>M</b> 🟤 mud</p>
-      </div>
-      <div class="player pony">
-        <h3>Player 2</h3>
-        <p><b>WASD</b> steer · <b>Left Shift</b> swim</p>
-        <p><b>1</b> 🚀 boost · <b>2</b> 🍌 banana · <b>3</b> 🟤 mud</p>
-      </div>
-    </div>
-    <p class="tip">Tap your swim key in a rhythm, like breaststroke! Swim through the cloud rings for a push.</p>
-    <button id="play" class="big-button">▶ PLAY</button>
+    <h1 class="title">? ? ?</h1>
+    <p class="subtitle">Ett nytt spel är på väg… <span class="en">A new game is on its way…</span></p>
+    <button id="play" class="big-button">▶ SPELA · PLAY</button>
   </main>
 
-  <div id="game-hud" class="hidden">
-    <div id="progress-wrap"><div id="progress"><span class="farm-flag">🏡</span></div></div>
-    <div id="powers-1" class="powers kitten"><b class="racer-icon">🐱</b> <span data-kind="boost">🚀B</span><span data-kind="banana">🍌N</span><span data-kind="mud">🟤M</span></div>
-    <div id="powers-2" class="powers pony"><b class="racer-icon">🐴</b> <span data-kind="boost">🚀1</span><span data-kind="banana">🍌2</span><span data-kind="mud">🟤3</span></div>
-  </div>
-
-  <main id="pick-screen" class="hidden">
-    <h1 class="pick-title">PICK YOUR RACER!</h1>
-    <div id="pick-labels"></div>
-    <div id="pick-status-1" class="pick-status p1"></div>
-    <div id="pick-status-2" class="pick-status p2"></div>
-  </main>
-
-  <main id="win-screen" class="screen hidden">
-    <h1 id="win-text">KITTEN WINS!</h1>
-    <button id="again" class="big-button">🔁 RACE AGAIN</button>
+  <main id="design-screen" class="screen hidden">
+    <div class="pencil">✏️</div>
+    <h2>Dags att designa!</h2>
+    <p>Berätta för din hjälpare vad spelet ska handla om.</p>
+    <p class="en">Time to design! Tell your helper what the game should be about.</p>
+    <button id="back" class="small-button">⏪</button>
   </main>
 
   <script type="module" src="src/main.js"></script>

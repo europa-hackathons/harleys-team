@@ -2,109 +2,44 @@
 html, body { margin: 0; height: 100%; overflow: hidden; }
 body {
   font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
-  background: #4FB3F6;
+  background: #120a2e;
   color: #fff;
 }
 #stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 
 .screen {
-  position: fixed; inset: 0; z-index: 5;
+  position: fixed; inset: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 1rem; padding: 16px; text-align: center;
 }
-.hidden { display: none !important; }
+.hidden { display: none; }
 
 .title {
-  font-size: clamp(3rem, 10vw, 6.5rem); margin: 0;
-  color: #ffd93b; text-shadow: 0 0.08em 0 #D9443A, 0 0 0.3em rgba(20, 60, 120, 0.4);
+  font-size: clamp(4rem, 16vw, 10rem); margin: 0; letter-spacing: 0.2em;
+  color: #ffd93b; text-shadow: 0 0.08em 0 #ff6b9a, 0 0 0.4em rgba(255, 217, 59, 0.6);
   animation: bob 2.4s ease-in-out infinite;
 }
-.subtitle { font-size: clamp(1.2rem, 3.5vw, 1.8rem); margin: 0; font-weight: bold; text-shadow: 0 2px 4px #1d5a8a; }
-
-.howto { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
-.player {
-  background: rgba(255, 255, 255, 0.9); color: #23324a; border-radius: 18px; padding: 0.6em 1.2em;
-  border: 4px solid; min-width: 15em;
-}
-.player h3 { margin: 0 0 0.3em; font-size: 1.5rem; }
-.player p { margin: 0.2em 0; font-size: 1.05rem; }
-.player.kitten { border-color: #F28C28; }
-.player.pony { border-color: #9B5BD6; }
-.tip { margin: 0; font-size: 1.05rem; text-shadow: 0 2px 4px #1d5a8a; max-width: 34em; }
+.subtitle { font-size: clamp(1.1rem, 3.5vw, 1.6rem); margin: 0; }
+.en { display: block; opacity: 0.65; font-size: 0.85em; margin-top: 0.3em; }
 
 .big-button {
   font: inherit; font-size: clamp(1.6rem, 6vw, 2.6rem); font-weight: bold;
   padding: 0.5em 1.4em; border: none; border-radius: 999px; cursor: pointer;
-  color: #fff; background: #6CC24A; box-shadow: 0 0.2em 0 #3f8a28;
+  color: #120a2e; background: #4be3a4; box-shadow: 0 0.2em 0 #1f9e6c;
   animation: pulse 1.6s ease-in-out infinite;
 }
-.big-button:hover { background: #80d65e; }
-.big-button:active { transform: translateY(0.15em); box-shadow: 0 0.05em 0 #3f8a28; }
+.big-button:hover { background: #6ff5bb; }
+.big-button:active { transform: translateY(0.15em); box-shadow: 0 0.05em 0 #1f9e6c; }
 
-/* In-race HUD */
-#progress-wrap { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); width: min(70vw, 640px); z-index: 4; }
-#progress {
-  position: relative; height: 14px; border-radius: 999px; background: rgba(255, 255, 255, 0.7);
-  margin: 18px 28px 0 10px;
+.small-button {
+  font-size: 1.6rem; padding: 0.3em 0.8em; border-radius: 999px; border: 2px solid #fff4;
+  background: transparent; color: #fff; cursor: pointer;
 }
-.progress-icon { position: absolute; top: 50%; transform: translate(-50%, -85%); font-size: 2rem; transition: left 0.1s linear; }
-.progress-icon + .progress-icon { transform: translate(-50%, -15%); }
-.farm-flag { position: absolute; right: -2.2rem; top: 50%; transform: translateY(-50%); font-size: 2.2rem; }
 
-.powers {
-  position: fixed; bottom: 14px; z-index: 4; display: flex; gap: 0.4em; align-items: center;
-  padding: 6px 14px; border-radius: 16px; background: rgba(255, 255, 255, 0.85); color: #23324a;
-  font: bold clamp(16px, 2.4vw, 24px) "Trebuchet MS", system-ui, sans-serif; border: 4px solid;
-}
-.powers span { padding: 2px 8px; border-radius: 10px; background: #fff; transition: opacity 0.2s; }
-.powers span.cooling { opacity: 0.3; }
-.powers.kitten { left: 14px; border-color: #F28C28; }
-.powers.pony { right: 14px; border-color: #9B5BD6; }
-
-/* Win screen */
-#win-screen { background: rgba(79, 179, 246, 0.15); }
-#win-text {
-  margin: 0; font-size: clamp(3rem, 12vw, 7.5rem); color: #ffd93b;
-  text-shadow: 0 0.08em 0 #D9443A, 0 0 0.3em rgba(0, 0, 0, 0.3);
-  animation: bob 1.2s ease-in-out infinite;
-}
-#win-text.kitten { color: #F28C28; text-shadow: 0 0.08em 0 #fff, 0 0 0.3em rgba(0, 0, 0, 0.3); }
-#win-text.pony { color: #9B5BD6; text-shadow: 0 0.08em 0 #fff, 0 0 0.3em rgba(0, 0, 0, 0.3); }
+#design-screen h2 { font-size: clamp(2rem, 8vw, 4rem); margin: 0; color: #ffd93b; }
+#design-screen p { font-size: clamp(1.1rem, 3.5vw, 1.6rem); margin: 0; max-width: 32em; }
+.pencil { font-size: clamp(4rem, 14vw, 7rem); animation: wiggle 1s ease-in-out infinite; }
 
 @keyframes bob { 50% { transform: translateY(-0.1em); } }
 @keyframes pulse { 50% { transform: scale(1.06); } }
-
-/* Pick screen */
-#pick-screen { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
-.pick-title {
-  position: absolute; top: 4vh; left: 0; right: 0; margin: 0; text-align: center;
-  font-size: clamp(2.2rem, 7vw, 4.5rem); color: #ffd93b;
-  text-shadow: 0 0.08em 0 #D9443A, 0 0 0.3em rgba(20, 60, 120, 0.4);
-  animation: bob 2.4s ease-in-out infinite;
-}
-.pick-label {
-  position: absolute; transform: translate(-50%, 0); display: flex; flex-direction: column; align-items: center;
-}
-.pick-name {
-  background: rgba(255, 255, 255, 0.9); color: var(--c); border: 3px solid var(--c); border-radius: 14px;
-  padding: 2px 10px; font-weight: bold; font-size: clamp(0.8rem, 1.7vw, 1.3rem); white-space: nowrap;
-  transition: transform 0.15s;
-}
-.pick-label.chosen .pick-name { transform: scale(1.2); }
-.pick-cursors { display: flex; gap: 4px; height: 2em; align-items: flex-end; order: 2; margin-top: 6px; }
-.pick-cursor {
-  color: #fff; font-weight: bold; font-size: clamp(0.9rem, 1.8vw, 1.3rem); padding: 2px 8px; border-radius: 10px;
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.2); animation: bob 0.8s ease-in-out infinite;
-}
-.pick-cursor.p1 { background: #F28C28; }
-.pick-cursor.p2 { background: #9B5BD6; }
-.pick-cursor.ready { animation: none; outline: 3px solid #fff; }
-.pick-status {
-  position: absolute; bottom: 5vh; padding: 0.4em 1em; border-radius: 18px; border: 4px solid;
-  background: rgba(255, 255, 255, 0.9); color: #23324a; font-weight: bold; font-size: clamp(1rem, 2.2vw, 1.5rem);
-}
-.pick-status.p1 { left: 16px; border-color: #F28C28; }
-.pick-status.p2 { right: 16px; border-color: #9B5BD6; }
-.pick-status.ready { font-size: clamp(1.6rem, 4vw, 3rem); color: #fff; animation: pulse 0.8s ease-in-out infinite; }
-.pick-status.p1.ready { background: #F28C28; }
-.pick-status.p2.ready { background: #9B5BD6; }
+@keyframes wiggle { 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
