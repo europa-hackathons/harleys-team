@@ -17,4 +17,4 @@ Please don't push to or open issues on the original repo; use your own copy.
 - `docs/agents/backstage.md`: saving, publishing, wish records, undo, handover.
 - `docs/agents/environment.md`: the only setup-specific file. It shows the original team's tools and a fallback for everyone else.
 - `src/kit/`: ready-made game pieces (keys, loop, score and timer text, poofs, follow camera). `tools/kit-demo.html` shows them working.
-- `tools/`: `shot.py` (headless screenshots), `doctor.py` (machine check).
+- `tools/`: `shot.py` (headless screenshots), `live.py` (real-time checks in a hidden browser), `doctor.py` (machine check; also stops leftover check browsers).

@@ -21,7 +21,7 @@ The camera picture stays on the screen, live. Never save, upload or log camera f
 ## Checking it
 
 - **Real camera**: `tools/webcam-test.html` (published at https://europa-hackathons.github.io/harleys-team/tools/webcam-test.html) checks camera, mic, motion zones and mirroring in one page; `?auto=1` starts both without a click. Works on https (GitHub Pages) and on localhost.
-- **Friends' checks**: `tools/shot.py` has no camera. Launch Edge (not headless: headless refuses fake devices) with `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream --disable-backgrounding-occluded-windows --disable-renderer-backgrounding`, a fresh `--user-data-dir` and `--remote-debugging-port`, then read the page's state over the DevTools protocol (Node 22 has `WebSocket` built in). The fake camera shows a moving pattern, so motion is detected; the fake mic plays a tone.
+- **Friends' checks**: `tools/shot.py` has no camera; use `python tools/live.py --camera --step 1500 "document.getElementById('play').click()" --step 4000 "window.game.state"`. It opens a browser with a fake camera and mic, runs the steps in real time, prints what each returned, and always closes the browser. The fake camera shows a moving pattern, so motion is detected; the fake mic plays a tone. Never launch a browser yourself (see **Friend rules** in `AGENTS.md`).
 
 ## Where the Team plays: the published page
 

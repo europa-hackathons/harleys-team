@@ -1,4 +1,4 @@
-"""Report what this machine can do for the game jam. Changes nothing.
+"""Report what this machine can do for the game jam. Changes nothing, except stopping leftover check browsers.
 
 Usage (from the repo root):  python tools/doctor.py
 
@@ -44,6 +44,11 @@ def main():
 
     browser = next((b for b in BROWSERS if (os.path.isfile(b) or shutil.which(b))), None)
     line(bool(browser), "Headless browser", browser or "none: tools/shot.py won't work; ask the human to look instead")
+    if browser:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from browser import sweep
+        stopped, deleted = sweep(quiet=True)
+        line(True, "Leftover browsers", f"stopped {stopped}, deleted {deleted} old temp profile(s)" if stopped or deleted else "none")
 
     code, remote = run(["git", "remote", "get-url", "origin"])
     remote = remote if code == 0 else "(no remote)"

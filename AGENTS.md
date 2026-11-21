@@ -23,12 +23,13 @@ A group of kids aged 8–10 (the **Team**) design and build a browser arcade gam
 - Leave git alone unless your task says you are the record keeper; then follow `docs/agents/backstage.md`.
 - The Helper's game server (port 8000 on the team machine; elsewhere see the game plan's `## Session` notes) is not yours: leave it running and point `tools/shot.py --port` at it. Need your own server? Use another free port and stop it when you're done.
 - Scratch and temporary files (downloads, base64, `.tmp`) go in the system temp folder, never in the repo.
+- Never launch a browser yourself (no hand-written Edge, Chrome, Puppeteer or DevTools scripts): browsers left running pile up until the machine freezes. Use `python tools/shot.py` for a picture and `python tools/live.py` for anything that needs the game running in real time (key presses, music, game state over time, the fake camera); both always close their browser. If they can't do the check, say so in your report.
 - Before finishing anything visible, check it with `python tools/shot.py` (it can click PLAY first with `--js`): look at the screenshot next to the concept picture in your brief (size, proportions, colours, camera) and confirm there are no console errors. "Loads without errors" alone isn't done.
 
 ## Where things are
 
 - `index.html`, `src/`, `assets/`: the game itself. `src/kit/`: ready-made game pieces (see its README).
-- `tools/`: `shot.py` (screenshots), `note.py` (Grown-up Notes log), `check.py` (fast code checks; must pass before a save), `serve.py` (the no-cache game server), `doctor.py` (what this machine can do), `tripo_model.py` (3D models, team machine only; see `docs/agents/models-3d.md`), `elevenlabs_audio.py` (sounds and music, team machine only; see `docs/agents/sounds.md`), `model-viewer.html`, `kit-demo.html`, `webcam-test.html` (camera and mic check).
+- `tools/`: `shot.py` (screenshots), `live.py` (real-time checks: steps, game state, fake camera), `browser.py` (the only way tools start a browser; `--sweep` stops leftovers), `note.py` (Grown-up Notes log), `check.py` (fast code checks; must pass before a save), `serve.py` (the no-cache game server), `doctor.py` (what this machine can do), `tripo_model.py` (3D models, team machine only; see `docs/agents/models-3d.md`), `elevenlabs_audio.py` (sounds and music, team machine only; see `docs/agents/sounds.md`), `model-viewer.html`, `kit-demo.html`, `webcam-test.html` (camera and mic check).
 - `docs/game-plan.md`: the living English game plan. Building Friends read it first.
 - `docs/agents/helper.md`: the Helper playbook (talking to the Team). `docs/agents/coach.md`: the Coach (the Grown-up's side chat, team machine).
 - `docs/agents/backstage.md`: saving, publishing, Wish Records, Time Machine, Handover, preview.

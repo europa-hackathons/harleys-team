@@ -9,45 +9,26 @@ Usage (the game server must be running; default port 8000, otherwise pass --port
 --wait is how long the page runs before the picture is taken. Prints the PNG path, and any console
 messages from the page (errors included) as lines starting with "console:".
 Use this instead of the kids' preview tab: hidden preview tabs draw 3D scenes blank.
+For checks that need the game running in real time (keys, music, camera), use tools/live.py.
 """
-import argparse, os, shutil, subprocess, sys, tempfile, time, urllib.parse
+import argparse, os, subprocess, sys, tempfile, time, urllib.parse
 
-BROWSERS = [
-    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-    r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-    "msedge", "chrome", "google-chrome", "chromium", "chromium-browser",
-]
-
-
-def browser():
-    for b in BROWSERS:
-        path = b if os.path.isfile(b) else shutil.which(b)
-        if path:
-            return path
-    sys.exit("No Edge or Chrome found for headless screenshots")
-
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import browser  # noqa: E402  (the one safe way to start a browser)
 
 def take(url, out, size, budget_ms):
-    profile = tempfile.mkdtemp(prefix="shot-")
-    cmd = [browser(), "--headless=new", f"--user-data-dir={profile}", "--hide-scrollbars", "--mute-audio",
-           "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist",
-           "--enable-logging=stderr", "--v=0", f"--window-size={size}", f"--virtual-time-budget={budget_ms}", f"--screenshot={out}", url]
-    # Git Bash leaks variables (e.g. __COMPAT_LAYER, MSYSTEM, HOME) that make Edge exit silently.
-    env = {k: v for k, v in os.environ.items() if not k.startswith(("MSYS", "MINGW", "__COMPAT", "EXEPATH", "SHELL",
-                                                                      "TERM", "SHLVL", "OLDPWD", "PWD", "_"))
-           and k not in ("HOME",)}
+    args = ["--hide-scrollbars", "--enable-logging=stderr", "--v=0", f"--window-size={size}",
+            f"--virtual-time-budget={budget_ms}", f"--screenshot={out}", url]
     if os.path.exists(out):
         os.remove(out)
-    try:
-        run = subprocess.run(cmd, check=True, capture_output=True, timeout=120, env=env)
-        for line in run.stderr.decode(errors="replace").splitlines():
-            if ":CONSOLE" in line and "chrome-extension://" not in line and "localhost" in line:
-                print("console: " + line.split("] ", 1)[-1], file=sys.stderr)
-    finally:
-        shutil.rmtree(profile, ignore_errors=True)
+    with browser.Browser(args, seconds=120) as b:   # always closed, even if this script is killed
+        try:
+            _, err = b.proc.communicate(timeout=120)
+        except subprocess.TimeoutExpired:
+            sys.exit("Screenshot timed out after 120 s; the browser was stopped")
+    for line in err.decode(errors="replace").splitlines():
+        if ":CONSOLE" in line and "chrome-extension://" not in line and "localhost" in line:
+            print("console: " + line.split("] ", 1)[-1], file=sys.stderr)
     if not os.path.isfile(out):
         sys.exit("Screenshot failed (is the server running?)")
 
@@ -100,6 +81,7 @@ def main():
     a = ap.parse_args()
 
     out = os.path.abspath(a.out)
+    browser.sweep()
     direct = f"http://localhost:{a.port}{a.page}"
     check_same_repo(a.port)
     if a.js:
