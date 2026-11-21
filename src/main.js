@@ -1,10 +1,11 @@
-// Sky Swim Race: kitten (player 1) vs pony (player 2) sky-swim through cloud rings to the farm on a cloud.
+// Sky Swim Race: two players pick a racer each on the pick screen, then sky-swim through cloud rings to the farm on a cloud.
 import * as THREE from 'three';
 import { keys } from './kit/input.js';
 import { startLoop } from './kit/loop.js';
 import { hud } from './kit/hud.js';
 import { poof3d, updatePoofs } from './kit/poof3d.js';
-import { makeKitten, makePony, makeJet } from './animals.js';
+import { ROSTER, makeJet } from './animals.js';
+import { createPickScreen } from './pick.js';
 import { setupSky, buildRoute, buildFarm, pathCentre, makeBanana, makeMud, TRACK_LENGTH, RING_RADIUS } from './world.js';
 
 // ---- Tuning (change freely) ----
@@ -42,16 +43,22 @@ setupSky(scene);
 const rings = buildRoute(scene);
 buildFarm(scene);
 
-const racers = [
-  { name: 'KITTEN', icon: '🐱', model: makeKitten(), startX: -2.6 },
-  { name: 'PONY', icon: '🐴', model: makePony(), startX: 2.6 },
-].map((r, i) => {
+const racers = [{ startX: -2.6 }, { startX: 2.6 }].map((r, i) => ({ ...r, controls: CONTROLS[i], index: i }));
+
+/** Give a player the racer they picked (an id from ROSTER), swapping the 3D model. */
+function setRacer(r, id, sameAsOther) {
+  const info = ROSTER.find((x) => x.id === id) ?? ROSTER[r.index];
+  if (r.model) scene.remove(r.model);
+  r.id = info.id;
+  r.icon = info.icon;
+  r.name = sameAsOther ? `P${r.index + 1} ${info.name}` : info.name;
+  r.model = info.make();
   r.jet = makeJet();
-  r.jet.position.z = i === 0 ? 2.2 : 2.6;
+  r.jet.position.z = info.jetZ;
   r.model.add(r.jet);
   scene.add(r.model);
-  return { ...r, controls: CONTROLS[i], index: i };
-});
+}
+racers.forEach((r, i) => setRacer(r, ROSTER[i].id));
 
 function resetRacer(r) {
   Object.assign(r, { speed: 0, vx: 0, vy: 0, boostT: 0, spinT: 0, stuckT: 0, nextRing: 0, finished: false,
@@ -79,11 +86,16 @@ const progressBar = document.getElementById('progress');
 const progressIcons = racers.map((r) => {
   const el = document.createElement('div');
   el.className = 'progress-icon';
-  el.textContent = r.icon;
   progressBar.append(el);
   return el;
 });
 const powerPanels = racers.map((r, i) => document.getElementById(`powers-${i + 1}`));
+function showRacerIcons() {
+  racers.forEach((r, i) => {
+    progressIcons[i].textContent = r.icon;
+    powerPanels[i].querySelector('.racer-icon').textContent = r.icon;
+  });
+}
 
 function updateHud() {
   racers.forEach((r, i) => {
@@ -101,10 +113,26 @@ const titleScreen = document.getElementById('title-screen');
 const winScreen = document.getElementById('win-screen');
 const winText = document.getElementById('win-text');
 const gameHud = document.getElementById('game-hud');
-let state = 'title';   // title -> countdown -> race -> won
+let state = 'title';   // title -> pick -> countdown -> race -> won
 let countdown = 0;
 let confettiT = 0;
 let winner = null;
+
+const pick = createPickScreen(renderer, (ids) => {
+  racers.forEach((r, i) => setRacer(r, ids[i], ids[0] === ids[1]));
+  showRacerIcons();
+  pick.hide();
+  startRace();
+});
+function openPick(e) {
+  e?.currentTarget?.blur();          // so Space doesn't press the button again
+  state = 'pick';
+  titleScreen.classList.add('hidden');
+  winScreen.classList.add('hidden');
+  gameHud.classList.add('hidden');
+  hud.banner('');
+  pick.show();
+}
 
 function startRace() {
   racers.forEach(resetRacer);
@@ -116,8 +144,8 @@ function startRace() {
   winScreen.classList.add('hidden');
   gameHud.classList.remove('hidden');
 }
-document.getElementById('play').addEventListener('click', startRace);
-document.getElementById('again').addEventListener('click', startRace);
+document.getElementById('play').addEventListener('click', openPick);
+document.getElementById('again').addEventListener('click', openPick);
 
 function win(r) {
   state = 'won';
@@ -239,6 +267,13 @@ function updateCamera(dt, time) {
 // ---- Main loop ----
 racers.forEach(resetRacer);
 function tick(dt, time, draw = true) {
+  if (state === 'pick') {
+    pick.update(dt, time);
+    if (state === 'pick') {          // (picking may have just started the countdown)
+      if (draw) pick.render();
+      return;
+    }
+  }
   if (state === 'countdown') {
     const before = Math.ceil(countdown);
     countdown -= dt;
@@ -272,4 +307,8 @@ function tick(dt, time, draw = true) {
 startLoop((dt, time) => tick(dt, time));
 
 // For tools/shot.py and testing: window.game.startRace(), window.game.racers
-window.game = { startRace, racers, tick, keys, get state() { return state; } };
+// window.game.pickAndRace(['piglet', 'robot']) skips the pick screen.
+window.game = {
+  startRace, openPick, racers, tick, keys, get state() { return state; },
+  pickAndRace(ids) { racers.forEach((r, i) => setRacer(r, ids[i], ids[0] === ids[1])); showRacerIcons(); pick.hide(); startRace(); },
+};

@@ -37,18 +37,22 @@ _One short entry per feature, written clearly enough that a building Friend can 
 ## Still to decide
 _Open questions about the game for the Helper to ask the Team, most urgent first. Move each into Features once answered; unanswered ones stay and get asked again._
 - What can you put in your stable when decorating?
-- Player 2's swim-forward key.
+- Player 2's swim-forward key: is Z OK (Left Shift can trigger Windows Sticky Keys)?
+- Should cloud rings matter more (bigger push), or are they just for show?
+- Can your own banana/mud hit you, or only the other racer?
+- Should the sky farm be visible on the horizon from the very start?
 - Sweets as bonuses: do you collect sweets along the route, or throw them to the crowd? What does a sweet give you (speed, points, more bananas)?
 
 ## Built so far
 - Title screen with a PLAY button (starter).
+- First prototype (#22): 3D kitten vs pony sky-swim race through cloud rings to the sky farm; boost/banana/mud with cooldowns; progress bar; win screen with confetti and RACE AGAIN. P2 swims with Left Shift or Z.
 
 ## Wish list
-- 🔨 First prototype: kitten vs pony sky-swim race to the farm (steering, cloud rings, boost/banana/mud, win screen)
-- ⭐ Pick-your-animal screen at the start, with piglet, bunny, puppy and robot added
+- 🔨 Pick-your-animal screen at the start, with piglet, bunny, puppy and robot added
 - ⭐ Stable decorating before the race
 - ⭐ Cheering crowds + fizzy-juice celebration
 - ⭐ Sweets bonuses
+- ⭐ Look fixes from the look check: chase camera closer (racers fill ~half the frame height, left/right thirds); first cloud ring bigger (~1/4 screen width, continuous rim) with later rings staggered so their openings show; farm (red barn, peaked roof, white trim, green island on cloud puffs) visible on the horizon from the start
 - ⭐ Four season tracks (spring, summer, autumn, winter) with obstacles
 
 ## Ideas for later

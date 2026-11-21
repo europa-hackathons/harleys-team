@@ -20,15 +20,15 @@
 
   <main id="title-screen" class="screen">
     <h1 class="title">Sky Swim Race</h1>
-    <p class="subtitle">Kitten vs Pony: first to the sky farm wins!</p>
+    <p class="subtitle">Pick your racer and sky-swim: first to the sky farm wins!</p>
     <div class="howto">
       <div class="player kitten">
-        <h3>🐱 Kitten</h3>
+        <h3>Player 1</h3>
         <p><b>Arrows</b> steer · <b>Space</b> swim</p>
         <p><b>B</b> 🚀 boost · <b>N</b> 🍌 banana · <b>M</b> 🟤 mud</p>
       </div>
       <div class="player pony">
-        <h3>🐴 Pony</h3>
+        <h3>Player 2</h3>
         <p><b>WASD</b> steer · <b>Left Shift</b> swim</p>
         <p><b>1</b> 🚀 boost · <b>2</b> 🍌 banana · <b>3</b> 🟤 mud</p>
       </div>
@@ -39,9 +39,16 @@
 
   <div id="game-hud" class="hidden">
     <div id="progress-wrap"><div id="progress"><span class="farm-flag">🏡</span></div></div>
-    <div id="powers-1" class="powers kitten">🐱 <span data-kind="boost">🚀B</span><span data-kind="banana">🍌N</span><span data-kind="mud">🟤M</span></div>
-    <div id="powers-2" class="powers pony">🐴 <span data-kind="boost">🚀1</span><span data-kind="banana">🍌2</span><span data-kind="mud">🟤3</span></div>
+    <div id="powers-1" class="powers kitten"><b class="racer-icon">🐱</b> <span data-kind="boost">🚀B</span><span data-kind="banana">🍌N</span><span data-kind="mud">🟤M</span></div>
+    <div id="powers-2" class="powers pony"><b class="racer-icon">🐴</b> <span data-kind="boost">🚀1</span><span data-kind="banana">🍌2</span><span data-kind="mud">🟤3</span></div>
   </div>
+
+  <main id="pick-screen" class="hidden">
+    <h1 class="pick-title">PICK YOUR RACER!</h1>
+    <div id="pick-labels"></div>
+    <div id="pick-status-1" class="pick-status p1"></div>
+    <div id="pick-status-2" class="pick-status p2"></div>
+  </main>
 
   <main id="win-screen" class="screen hidden">
     <h1 id="win-text">KITTEN WINS!</h1>
