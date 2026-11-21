@@ -24,8 +24,10 @@
     <div class="panel">
       <h1 class="title">ROCKET PUNCH!</h1>
       <p class="subtitle">Slå mot kameran så flyger handsken! <span class="en">Punch at the camera and your glove flies!</span></p>
-      <p class="keys">⬅️ ➡️ / A D = walk · ⬆️ / W = head · SPACE / ⬇️ = body</p>
-      <button id="play" class="big-button">▶ SPELA · PLAY</button>
+      <p class="keys"></p>
+      <button id="play" class="big-button">👯 2 SPELARE · 2 PLAYERS</button>
+      <p class="sides"><span class="p1">⬅️ P1 TEAL</span> stand side by side <span class="p2">P2 ORANGE ➡️</span></p>
+      <button id="play-1p" class="small-button">🥊 1 SPELARE · 1 PLAYER</button>
     </div>
   </main>
 
@@ -43,16 +45,17 @@
       <div class="big-icon">🙈</div>
       <h2>No camera this time</h2>
       <p id="camera-trouble"></p>
-      <p class="keys">⬅️ ➡️ / A D = walk · ⬆️ / W = head · SPACE / ⬇️ = body</p>
+      <p class="keys"></p>
       <button id="play-keys" class="big-button">▶ PLAY WITH KEYS</button>
     </div>
   </main>
 
   <main id="win-screen" class="screen hidden">
     <div class="panel">
-      <h1 class="title win">YOU WIN! ⭐</h1>
-      <p class="subtitle">Du vann! <span class="en">What a rocket punch!</span></p>
+      <h1 id="win-title" class="title win">YOU WIN! ⭐</h1>
+      <p id="win-sub" class="subtitle">Du vann! <span class="en">What a rocket punch!</span></p>
       <button id="again-win" class="big-button">🔁 SPELA IGEN · PLAY AGAIN</button>
+      <button id="menu" class="small-button">🏠 1 / 2 PLAYERS</button>
     </div>
   </main>
 
@@ -61,6 +64,7 @@
       <h1 class="title">TIME! ⏰</h1>
       <p id="time-hits" class="subtitle"></p>
       <button id="again-time" class="big-button">🔁 SPELA IGEN · PLAY AGAIN</button>
+      <button id="menu-time" class="small-button">🏠 1 / 2 PLAYERS</button>
     </div>
   </main>
 

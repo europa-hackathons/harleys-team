@@ -28,6 +28,7 @@ _One short entry per feature, written clearly enough that a building Friend can 
 
 ## Still to decide
 _Open questions about the game for the Helper to ask the Team, most urgent first. Move each into Features once answered; unanswered ones stay and get asked again._
+- Levels: does the place change each level (new backgrounds)? 
 - Opponent shooting back: how much damage, and does the player also have 1000 health?
 - More characters: which other boxers are on the wheel, and what special move does each have? 
 - How many hiding blocks, and can they break?
@@ -38,6 +39,8 @@ _Open questions about the game for the Helper to ask the Team, most urgent first
 ## Wish list
 - 🔨 First prototype: pixel ring, rocket hand, head/body punches, 1000 health bar, webcam + keyboard.
 - ⭐ Body moves the boxer: the player's position in front of the camera moves their boxer forward/back in the ring (webcam centroid, smoothed; keyboard fallback Left/Right arrows). Why: to hide behind blocks and to line up your aim.
+- ⭐ Sumo finish: when a fight ends, a random cartoon sumo wrestler drops in from the sky and belly-flops onto the loser (cartoon squash, stars and a puff of dust, the loser pops back up dizzy), then the score/results screen shows (each player's damage dealt and who won).
+- ⭐ 5 levels first (Grown-up: start with 5; Team wanted 10, more later) (1-player vs the computer): each level you beat makes the next one harder (opponent guards more often, has more health or fights back faster). Place changes per level still to decide.
 - ⭐ Hiding blocks: a few pixel blocks/crates standing in the ring the player can move behind to take cover; rocket hands that hit a block bounce off with a poof.
 - ⭐ Opponent shoots back: the opponent fires its own rocket hands at the player (that's why you hide).
 - ⭐ More characters, each with a different special move, chosen by spinning a WHEEL before the fight. One super-rare boxer, ZEUS (1% chance on the wheel), has a THUNDER ability that does 150 damage. Look (our own original character, inspired by a powered-up anime hero; no copied character): spiky glowing golden hair, crackling yellow lightning aura, glowing gloves.

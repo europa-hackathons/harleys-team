@@ -55,3 +55,10 @@ h2 { font-size: clamp(1.6rem, 5vw, 2.6rem); margin: 0; color: #ffd23f; text-shad
 
 @keyframes bob { 50% { transform: translateY(-0.08em); } }
 @keyframes pulse { 50% { transform: scale(1.05); } }
+
+/* 2 players: who stands where, and the winner's colour */
+.sides { font-weight: bold; font-size: clamp(0.95rem, 2.6vw, 1.2rem) !important; }
+.sides .p1 { color: #1fb8b0; margin-right: 0.5em; }
+.sides .p2 { color: #f0662c; margin-left: 0.5em; }
+.title.win.teal { color: #1fb8b0; }
+.title.win.orange { color: #f0662c; }

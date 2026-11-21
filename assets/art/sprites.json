@@ -22,5 +22,17 @@
     "frameHeight": 192,
     "frameCount": 4,
     "scale": 4
+  },
+  "sumo.png": {
+    "frameWidth": 384,
+    "frameHeight": 288,
+    "frameCount": 3,
+    "scale": 4
+  },
+  "sumo-dust.png": {
+    "frameWidth": 224,
+    "frameHeight": 160,
+    "frameCount": 3,
+    "scale": 4
   }
 }

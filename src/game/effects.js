@@ -17,9 +17,10 @@ function stamp(g, shape, x, y, color) {
 }
 
 // A puff of rocket flame behind the flying glove (call every frame while it flies).
-export function flame(x, y, power = 1) {
+// dir = 1 when the glove flies right (flame blows left), -1 when it flies left.
+export function flame(x, y, power = 1, dir = 1) {
   for (let i = 0; i < 3; i++) {
-    bits.push({ kind: 'flame', x, y: y + (Math.random() * 4 - 2), vx: -30 - Math.random() * 50 * power, vy: Math.random() * 16 - 8,
+    bits.push({ kind: 'flame', x, y: y + (Math.random() * 4 - 2), vx: dir * (-30 - Math.random() * 50 * power), vy: Math.random() * 16 - 8,
       age: 0, life: 0.18 + Math.random() * 0.14, size: 3 + Math.random() * 2 });
   }
 }
