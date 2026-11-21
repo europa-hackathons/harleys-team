@@ -38,14 +38,14 @@ export const TUNE = {
   // Ducking (2 players only): the TOP EDGE of the movement in the stand area (the highest moving row,
   // usually your head) drops quickly. A coloured line across the stand area shows that top edge.
   duck: {
-    hold: 0.8,          // seconds the boxer stays down after a duck is seen (game side, also for keys)
+    hold: 1.0,          // seconds the boxer stays down after a duck is seen (game side, also for keys)
     rows: 16,           // the stand area is cut into this many rows to find the top edge of the movement
     rowMin: 0.05,       // a row counts as moving when this much of it moves (0..1)
-    window: 0.5,        // seconds of history: the drop must happen within this time
-    drop: 0.14,         // the top edge must fall at least this far (0..1 of the picture height)...
+    window: 0.6,        // seconds of history: the drop must happen within this time
+    drop: 0.10,         // the top edge must fall at least this far (0..1 of the picture height)...
     startTop: 0.6,      // ...starting from above this height (your head was up)
     settle: 0.15,       // seconds: "now" = the lowest top edge seen this recently (you stop moving once down)
-    minMotion: 0.015,   // average movement in the stand area over the window (lower = easier ducks)
+    minMotion: 0.010,   // average movement in the stand area over the window (lower = easier ducks)
     cooldown: 0.9,      // seconds before another duck counts
     afterPunch: 0.3,    // no duck this soon after a punch (the punching shoulder moves too)
     punchAfter: 0.5,    // no punch this soon after a duck (coming back up shakes things)
