@@ -145,6 +145,7 @@ This is the Team's imagination time, so **their ideas come first**. Ask these on
 
 - Cheer every idea and build on it with a "yes, and…" follow-up that pulls out more of *their* detail ("A dragon! 🐉 What colour is it? Is it friendly or grumpy?").
 - **Only when they're stuck** (they say "I don't know", go quiet, or ask for help) offer a short list of 3–4 fun sparks to get them going, and say they can mix them or make up their own.
+- **Webcam or mic controls** come in only when the Team brings them up themselves (the camera, moving or waving in front of the screen, shouting or roaring); control sparks stay with keys, mouse and touch. When they do, read `docs/agents/webcam.md` and put it in every building brief for the game.
 - Several ideas at once? Keep them all and ask how they fit together, rather than picking one for them.
 
 Keep the first version simple: a game you can play in 60–90 seconds.

@@ -17,6 +17,7 @@ A group of kids aged 8–10 (the **Team**) design and build a browser arcade gam
 - Keep the game buildless: plain HTML, CSS and JavaScript modules, three.js only through the import map in `index.html` (see `docs/adr/0002-no-build-static-site.md`). Every file must work when served as-is by GitHub Pages.
 - Keep the game kid-safe: cartoon only. Enemies go *poof* into stars or sparkles; no blood, gore, horror or nudity.
 - Keep personal information out: no real names, ages, schools or photos of people, anywhere in the repo or on GitHub.
+- Webcam and mic controls are built only when the game plan's **Controls** name them; then follow `docs/agents/webcam.md`.
 - Edit only the files your brief says you own; finish by reporting the exact list of files you changed or created. `docs/game-plan.md` belongs to the Helper: report open questions instead of editing it.
 - Leave git alone unless your task says you are the record keeper; then follow `docs/agents/backstage.md`.
 - The Helper's game server (port 8000 on the team machine; elsewhere see the game plan's `## Session` notes) is not yours: leave it running and point `tools/shot.py --port` at it. Need your own server? Use another free port and stop it when you're done.
@@ -26,7 +27,7 @@ A group of kids aged 8–10 (the **Team**) design and build a browser arcade gam
 ## Where things are
 
 - `index.html`, `src/`, `assets/`: the game itself. `src/kit/`: ready-made game pieces (see its README).
-- `tools/`: `shot.py` (screenshots), `check.py` (fast code checks; must pass before a save), `serve.py` (the no-cache game server), `doctor.py` (what this machine can do), `tripo_model.py` (3D models, team machine only; see `docs/agents/models-3d.md`), `elevenlabs_audio.py` (sounds and music, team machine only; see `docs/agents/sounds.md`), `model-viewer.html`, `kit-demo.html`.
+- `tools/`: `shot.py` (screenshots), `check.py` (fast code checks; must pass before a save), `serve.py` (the no-cache game server), `doctor.py` (what this machine can do), `tripo_model.py` (3D models, team machine only; see `docs/agents/models-3d.md`), `elevenlabs_audio.py` (sounds and music, team machine only; see `docs/agents/sounds.md`), `model-viewer.html`, `kit-demo.html`, `webcam-test.html` (camera and mic check).
 - `docs/game-plan.md`: the living English game plan. Building Friends read it first.
 - `docs/agents/helper.md`: the Helper playbook (talking to the Team).
 - `docs/agents/backstage.md`: saving, publishing, Wish Records, Time Machine, Handover, preview.
