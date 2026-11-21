@@ -25,6 +25,7 @@ _One short entry per feature, written clearly enough that a building Friend can 
 
 ## Play-test notes
 - Round 1: they LOVE shooting the rocket fist. 2 players and walking weren't built yet (confused them).
+- Round 2 (camera 2P): any movement fires punches; ducking hard and rarely detected. Team's fix: players stand at the outer edges, punch boxes move near the centre. Being retuned.
 
 ## Still to decide
 _Open questions about the game for the Helper to ask the Team, most urgent first. Move each into Features once answered; unanswered ones stay and get asked again._
@@ -41,6 +42,7 @@ _Open questions about the game for the Helper to ask the Team, most urgent first
 - ⭐ Body moves the boxer: the player's position in front of the camera moves their boxer forward/back in the ring (webcam centroid, smoothed; keyboard fallback Left/Right arrows). Why: to hide behind blocks and to line up your aim.
 - ⭐ Sumo finish: when a fight ends, a random cartoon sumo wrestler drops in from the sky and belly-flops onto the loser (cartoon squash, stars and a puff of dust, the loser pops back up dizzy), then the score/results screen shows (each player's damage dealt and who won).
 - Level 5 boss: Team imagines him like a famous anime ninja hero; we make our OWN original boss in that spirit (details being asked).
+- ⭐ Special moves for wheel boxers: GREEN shoots ivy out of their hands: if the ivy hits, the other boxer is tangled and CAN'T DUCK for 2 seconds. PURPLE: a poison punch: on a hit the other boxer turns a bit PURPLE with purple cartoon bubbles and slowly loses health for a few seconds (guess: 20 per second for 5 s).
 - ⭐ 5 levels first (Grown-up: start with 5; Team wanted 10, more later) (1-player vs the computer): each level you beat makes the next one harder (opponent guards more often, has more health or fights back faster). Place changes per level still to decide.
 - ⭐ Hiding blocks: a few pixel blocks/crates standing in the ring the player can move behind to take cover; rocket hands that hit a block bounce off with a poof.
 - ⭐ Opponent shoots back: the opponent fires its own rocket hands at the player (that's why you hide).
