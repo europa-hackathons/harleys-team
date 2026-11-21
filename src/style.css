@@ -78,6 +78,11 @@ h2 { font-size: clamp(1.6rem, 5vw, 2.6rem); margin: 0; color: #ffd23f; text-shad
 
 /* the boxer wheel: title at the top, help at the bottom, the canvas wheel shows through the middle */
 #wheel-screen { justify-content: space-between; cursor: pointer; overflow: hidden; padding: 1.5vh 16px; }
+/* GET READY: title above and help below the big camera picture (drawn on the canvas) */
+#ready-screen { justify-content: space-between; cursor: pointer; overflow: hidden; padding: 1vh 16px; }
+#ready-screen .wheel-title { font-size: clamp(1.4rem, 5vh, 3rem); }
+#ready-screen .en { display: inline; margin: 0 0 0 0.3em; }
+#ready-help { white-space: normal; }
 .wheel-title {
   margin: 0; font-size: clamp(1.4rem, 5.5vw, 3rem); letter-spacing: 0.04em; color: #f4e4c4;
   text-shadow: 3px 3px 0 #0b1226, -2px -2px 0 #0b1226;

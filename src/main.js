@@ -9,7 +9,10 @@
 // Testing: ?zeus=1 in the URL, or hold Z while spinning, always lands on Zeus.
 // SUPER meter: dealing damage fills it (full at 300, see src/game/specials.js); then the next punch is your SPECIAL.
 // Testing: game.fillSuper(0) fills P1's meter.
-// The game is drawn on a small 256x144 picture and scaled up with big crisp pixels.
+// GET READY (camera play only): before each fight a BIG camera picture shows each player's STAND HERE box;
+// it turns green with a tick when someone moves in it. All boxes green for READY.startAfter s (or SPACE / click) = FIGHT.
+// The game is drawn on a small 256x144 picture and scaled up with big crisp pixels: the place on a BACK layer,
+// everything else on a front layer, so during a fight the camera picture can sit between them (behind the boxers).
 import { keys } from './kit/input.js';
 import { startLoop } from './kit/loop.js';
 import { roundTimer } from './kit/timer.js';
@@ -21,7 +24,7 @@ import { flame, zap, bolt, starBurst, popWord, playFrames, drawEffects, drawDizz
 import { SUPER, SPECIALS, specialTrail, drawVine, drawIvy, tinted, drawSuperMeter, drawSwirl } from './game/specials.js';
 import { sfx, wakeSound, muteBleeps } from './game/sfx.js';
 import { sound } from './kit/sound.js';
-import { startPunchCam, cameraTrouble, trackBody, DUCK } from './game/punch-cam.js';
+import { startPunchCam, cameraTrouble, trackBody, DUCK, READY } from './game/punch-cam.js';
 import { DUCK_DROP } from './game/poses.js';
 import { makeSumoFinish, SUMO } from './game/sumo-finish.js';
 import { buildRoster, ZEUS_CHANCE } from './game/roster.js';
@@ -79,6 +82,9 @@ const ctx = canvas.getContext('2d');
 const pixels = document.createElement('canvas');
 pixels.width = W; pixels.height = H;
 const g = pixels.getContext('2d');
+const back = document.createElement('canvas');   // the place (background) layer
+back.width = W; back.height = H;
+const gb = back.getContext('2d');
 
 const art = await loadArt();
 // every boxer on the wheel, with poses for both sides and rocket gloves facing right (flipped when flying left)
@@ -109,11 +115,11 @@ function show(id) {
 function setHint() {
   if (game.mode === 2) {
     hint.textContent = punchCam
-      ? 'Stand at the edges 👯  Punch into the HIGH / LOW boxes in the middle 👊  DUCK to dodge!'
+      ? 'Stand in your STAND box 👯  Punch into the HIGH / LOW boxes in the middle 👊  DUCK to dodge!'
       : 'P1: W S X · A D    P2: ⬆️ ⬇️ ⇧ · ⬅️ ➡️    X / ⇧ = DUCK';
   } else {
     hint.textContent = punchCam
-      ? 'Stand on the left 🚶  Punch right into the HEAD / BODY boxes 👊  DUCK when you see "!"'
+      ? 'Stand in the STAND box 🚶  Punch right into the HEAD / BODY boxes 👊  DUCK when you see "!"'
       : '⬅️ ➡️ walk  ⬆️ / W = HEAD 👊  SPACE / ⬇️ = BODY  X / ⇧ = DUCK';
   }
 }
@@ -184,7 +190,8 @@ function startRound() {
   if (game.mode === 1) {
     game.picks[1] = foeFor(game.level, game.picks[0]);
     game.place = lvl().place;
-  } else game.place = randomPlace(art);
+  } else if (!readyPlace) game.place = randomPlace(art);
+  readyPlace = false;
   resetFighters();
   if (game.mode === 1) {
     orange.health = orange.maxHealth = lvl().health;
@@ -197,7 +204,7 @@ function startRound() {
   clearEffects();
   show(null);
   setHint();
-  if (game.mode === 1) popWord(game.level === LEVELS.length ? 'BOSS LEVEL!' : `LEVEL ${game.level}`, W / 2, 42, COLORS.rope, 14);
+  if (game.mode === 1) popWord(game.level === LEVELS.length ? `BOSS: ${roster.boss.name}!` : `LEVEL ${game.level}`, W / 2, 42, COLORS.rope, 14);
   popWord('FIGHT!', W / 2, game.mode === 1 ? 62 : 48, COLORS.sparkle, 22);
   sfx.bell();
 }
@@ -209,6 +216,38 @@ function resetFighters() {
     [f.minX, f.maxX] = RANGE[game.mode][f.side];
     f.boxer = roster[game.picks[f.side]] || f.boxer;
   }
+}
+
+// ---------- GET READY (camera play only) ----------
+// After the wheel / LEVEL screen: a big camera picture shows where to stand. Keyboard play goes straight to the fight.
+const readyHelp = document.getElementById('ready-help');
+let readyT = 0, readyAll = 0, readyPlace = false;
+function beginFight() {
+  if (!punchCam) { startRound(); return; }
+  game.state = 'ready';
+  game.winner = null; game.loser = null;
+  sumo.stop();
+  if (game.mode === 1) { game.picks[1] = foeFor(game.level, game.picks[0]); game.place = lvl().place; }
+  else { game.place = randomPlace(art); readyPlace = true; }
+  resetFighters();
+  clearEffects();
+  readyT = 0; readyAll = 0;
+  readyHelp.dataset.text = '';
+  show('ready-screen');
+}
+function readyGo() { if (game.state === 'ready' && readyT > 0.4) startRound(); }
+document.getElementById('ready-screen').addEventListener('pointerdown', readyGo);
+// every frame on GET READY: starts by itself once every stand box has been green for READY.startAfter seconds
+function updateReady(dt) {
+  readyT += dt;
+  const bodies = camBodies();
+  const here = bodies.filter((b) => b.here).length, all = bodies.length > 0 && here === bodies.length;
+  readyAll = all ? readyAll + dt : 0;
+  const text = all ? '✅ Nu kör vi! · Here we go!' : game.mode === 2
+    ? `Ställ dig i din ruta! · Stand in your box! (${here}/2) · SPACE = FIGHT!`
+    : 'Ställ dig i rutan! · Stand in the box! · SPACE = FIGHT!';
+  if (readyHelp.dataset.text !== text) { readyHelp.dataset.text = text; readyHelp.textContent = text; }
+  if (readyAll >= READY.startAfter && readyT > 0.4) startRound();
 }
 
 // ---------- the wheel ----------
@@ -255,7 +294,7 @@ function doSpin() {
 function nextSpinner() {
   // P2 can't get the same boxer as P1: that slice is greyed out on P2's spin
   if (game.mode === 2 && spin.who === 0) { spin = { who: 1, t: 0, boxer: null }; wheel.reset(game.picks[0]); wheelText(); }
-  else startRound();
+  else beginFight();
 }
 // the wheel stopped on boxer b
 function landed(b) {
@@ -420,20 +459,21 @@ function showNextLevel() {
   clearEffects();
   nextT = 0;
   const p = PLACES[game.place], foe = roster[game.picks[1]], boss = game.level === LEVELS.length;
-  document.getElementById('level-title').textContent = `LEVEL ${game.level}!`;
+  document.getElementById('level-title').textContent = boss ? `LEVEL ${game.level}: ${foe.name}!` : `LEVEL ${game.level}!`;
   document.getElementById('level-place').innerHTML = `${p.icon} ${p.sv} <span class="en">${p.name}</span>`;
   document.getElementById('level-foe').innerHTML = boss
-    ? '⚠️ <span style="color:#ffd08a">BOSSEN · THE BOSS!</span> 🌪️'
+    ? `⚠️ <span style="color:#ffd08a">BOSSEN ${foe.name} · THE BOSS ${foe.name}!</span> 🌪️`
     : `vs <span style="color:${foe.color}">${foe.name}</span> · ❤️ ${lvl().health}`;
   show('level-screen');
   sfx.reveal();
 }
-function goNextLevel() { if (game.state === 'next-level' && nextT > 0.8) startRound(); }
+function goNextLevel() { if (game.state === 'next-level' && nextT > 0.8) beginFight(); }
 
 function showGameOver() {
   game.state = 'gameover';
   const timeUp = !game.winner;
-  document.getElementById('over-sub').innerHTML = `${timeUp ? 'TIME! ⏰ ' : ''}på nivå ${game.level} <span class="en">at level ${game.level}</span>`;
+  const vs = game.level === LEVELS.length ? ` · vs ${roster.boss.name}` : '';
+  document.getElementById('over-sub').innerHTML = `${timeUp ? 'TIME! ⏰ ' : ''}på nivå ${game.level}${vs} <span class="en">at level ${game.level}${vs}</span>`;
   document.getElementById('over-scores').innerHTML = scoreCards();
   show('gameover-screen');
 }
@@ -509,6 +549,8 @@ function update(dt, now) {
       if (anyPressed(c.head)) fire(f, 'head');
       else if (anyPressed(c.body)) fire(f, 'body');
     });
+  } else if (game.state === 'ready') {
+    if (keys.pressed('Space') || keys.pressed('Enter') || ctrls.some((c) => anyPressed(c.head) || anyPressed(c.body))) readyGo();
   } else if (game.state === 'next-level') {
     nextT += dt;
     if (keys.pressed('Space') || keys.pressed('Enter') || ctrls.some((c) => anyPressed(c.head) || anyPressed(c.body))) goNextLevel();
@@ -521,9 +563,11 @@ function update(dt, now) {
     if (ctrls.some((c) => anyPressed(c.head) || anyPressed(c.body))) startWheel();
   }
   const camMoves = camUpdate(dt);
+  if (game.state === 'ready') updateReady(dt);
   camMoves.forEach((move, i) => {
     if (game.state === 'next-level') { if (move === 'head' || move === 'body') goNextLevel(); }
     else if (game.state === 'wheel') { if ((move === 'head' || move === 'body') && (i === spin.who || game.mode === 1)) doSpin(); }
+    else if (game.state === 'ready') { /* GET READY: punches don't count yet */ }
     else if (move === 'duck') startDuck(fighters[i]);
     else if (move) fire(fighters[i], move);
   });
@@ -696,8 +740,10 @@ function putFacing(img, x, y, facing, anchor) {
 }
 
 // Health bar. side 0 = you / P1 (top-left), side 1 = the computer / P2 (top-right).
+// With the camera on, the bars are shorter so the bigger camera picture fits between them.
+const hudW = () => (punchCam ? 50 : 70);
 function drawHealth(f) {
-  const w = 70, h = 6, y = 6;
+  const w = hudW(), h = 6, y = 6;
   const x = f.side ? W - 22 - w : 22;
   const fillC = f.boxer.color, lightC = f.boxer.light;
   g.fillStyle = COLORS.outline; g.fillRect(x - 1, y - 1, w + 2, h + 2);
@@ -800,8 +846,10 @@ function drawWheelScene(dt) {
 }
 
 function draw(dt) {
-  if (game.state === 'wheel') { drawWheelScene(dt); present(); return; }
-  drawPlace(g, game.place, art, time, excite);
+  if (game.state === 'wheel') { drawWheelScene(dt); present(false); return; }
+  drawPlace(gb, game.place, art, time, excite);
+  g.clearRect(0, 0, W, H);
+  if (game.state === 'ready') { present(); return; }
   for (const f of fighters) drawShadow(g, Math.round(f.x) + 32, 121, f.duck > 0 ? 46 : 40);
   sumo.drawShadow(g);
   const breathe = Math.floor(time * 2.5) % 2;
@@ -812,13 +860,15 @@ function draw(dt) {
   drawEffects(g, dt);
   if (game.state === 'playing' || game.state === 'win' || game.state === 'timeup') {
     drawHealth(teal); drawHealth(orange);
-    drawSuperMeter(g, teal, 22, 24, 70, time);
-    if (hasMeter(orange)) drawSuperMeter(g, orange, W - 92, 24, 70, time, true);
+    // the boss's name under its health bar
+    if (orange.boxer.id === 'boss') label(orange.boxer.name, W - 28 - hudW() / 2, 17, orange.boxer.light, 7);
+    drawSuperMeter(g, teal, 22, 24, hudW(), time);
+    if (hasMeter(orange)) drawSuperMeter(g, orange, W - 22 - hudW(), 24, hudW(), time, true);
     if (game.mode === 1) {
-      // the timer and level (under the camera picture when the camera is on)
-      const ty = punchCam ? 44 : 5;
-      drawNumber(g, Math.ceil(timer.left), W / 2, ty, timer.left <= 10 ? COLORS.sparkle : COLORS.rope, 2, 'center');
-      label(game.level === LEVELS.length ? 'BOSS' : `LEVEL ${game.level}`, W / 2, ty + 16, COLORS.rope, 7);
+      // the timer and level: top middle, or under your bars when the camera picture is there
+      const tx = punchCam ? 22 + hudW() / 2 : W / 2, ty = punchCam ? 38 : 5;
+      drawNumber(g, Math.ceil(timer.left), tx, ty, timer.left <= 10 ? COLORS.sparkle : COLORS.rope, 2, 'center');
+      label(game.level === LEVELS.length ? roster.boss.name : `LEVEL ${game.level}`, tx, ty + 16, COLORS.rope, 7);
     }
   }
   // the computer is about to punch: "!" over its head, and "DUCK!" over you when the punch will be HIGH
@@ -832,7 +882,8 @@ function draw(dt) {
 }
 
 // Scale the small picture up onto the screen (with any shake and thunder flash), plus the camera picture.
-function present() {
+// layered = the place is on the back layer, so the camera picture goes between it and the boxers.
+function present(layered = true) {
   if (flashT > 0) {
     g.fillStyle = `rgba(255, 255, 235, ${Math.min(1, flashT / 0.2) * 0.85})`;
     g.fillRect(0, 0, W, H);
@@ -845,23 +896,38 @@ function present() {
     const p = Math.min(1, shakeT / 0.4) * 4;
     shake.x += Math.round((Math.random() * 2 - 1) * p); shake.y += Math.round((Math.random() * 2 - 1) * p);
   }
-  ctx.drawImage(pixels, view.x + shake.x * px, view.y + shake.y * px, view.w, view.h);
+  const sx = view.x + shake.x * px, sy = view.y + shake.y * px;
+  if (game.state === 'ready') { drawReadyCamera(sx, sy); return; }
+  if (layered) ctx.drawImage(back, sx, sy, view.w, view.h);
+  // the players' own mirrored camera picture, top middle: big and BEHIND the boxers during a fight;
+  // on the wheel small in the top-left, on top, so the title stays readable
+  if (punchCam && layered) drawCamera(view.x + view.w * 0.285, view.y + view.h * 0.015, view.w * 0.43);
+  ctx.drawImage(pixels, sx, sy, view.w, view.h);
+  if (punchCam && !layered) drawCamera(view.x + view.w * 0.012, view.y + view.h * 0.02, view.w * 0.18);
+}
 
-  // the players' own mirrored camera picture: top-left for 1 player, top-middle (both halves) for 2;
-  // on the wheel it sits small in the top-left so the title stays readable
-  if (punchCam) {
-    const onWheel = game.state === 'wheel';
-    const cw = view.w * (onWheel ? 0.18 : game.mode === 2 ? 0.27 : 0.2), ch = cw * 0.75;
-    const cx = !onWheel ? view.x + (view.w - cw) / 2 : view.x + view.w * 0.012, cy = view.y + view.h * 0.02;
-    if (game.mode === 1 && soloCam) {
-      // 1 player: the camera picture with our own (duck-seeing) tracker's boxes
-      ctx.save();
-      ctx.globalAlpha = 0.85; soloCam.cam.draw(ctx, cx, cy, cw, ch); ctx.globalAlpha = 1;
-      ctx.lineWidth = Math.max(2, cw / 80); ctx.strokeStyle = COLORS.outline; ctx.strokeRect(cx, cy, cw, ch);
-      ctx.restore();
-      soloCam.body.drawZones(ctx, cx, cy, cw, ch, true);
-    } else punchCam.draw(ctx, cx, cy, cw, ch);
-  }
+// The camera picture (4:3) at x, y, w wide, with each player's stand box in their boxer's colour.
+function drawCamera(cx, cy, cw, opts) {
+  const ch = cw * 0.75;
+  camBodies().forEach((b, i) => { b.color = fighters[i].boxer.color; });
+  if (game.mode === 1 && soloCam) {
+    // 1 player: the camera picture with our own (duck-seeing) tracker's boxes
+    ctx.save();
+    ctx.globalAlpha = 0.85; soloCam.cam.draw(ctx, cx, cy, cw, ch); ctx.globalAlpha = 1;
+    ctx.lineWidth = Math.max(2, cw / 80); ctx.strokeStyle = COLORS.outline; ctx.strokeRect(cx, cy, cw, ch);
+    ctx.restore();
+    soloCam.body.drawZones(ctx, cx, cy, cw, ch, true, opts);
+  } else punchCam.draw(ctx, cx, cy, cw, ch, opts);
+}
+
+// GET READY: the place dimmed, and the camera picture as big as fits between the title and the help line.
+function drawReadyCamera(sx, sy) {
+  ctx.drawImage(back, sx, sy, view.w, view.h);
+  ctx.fillStyle = 'rgba(11, 18, 38, 0.6)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const top = canvas.height * 0.13, room = canvas.height * 0.76;
+  const cw = Math.min(canvas.width * 0.94, room / 0.75);
+  drawCamera((canvas.width - cw) / 2, top + (room - cw * 0.75) / 2, cw, { big: true });
 }
 
 startLoop(update);

@@ -50,15 +50,23 @@ export const TUNE = {
     afterPunch: 0.3,    // no duck this soon after a punch (the punching shoulder moves too)
     punchAfter: 0.5,    // no punch this soon after a duck (coming back up shakes things)
   },
+  // GET READY (before each camera fight): a stand box turns green with a tick when someone moves in it.
+  ready: {
+    motion: 0.012,      // this much movement in the stand area = someone is standing there
+    hold: 0.7,          // seconds the box stays green after the last movement (standing still is OK)
+    startAfter: 1.0,    // seconds every stand box must be green before the fight starts by itself
+  },
 };
 // Short names (src/main.js reads DUCK.hold).
-export const PUNCH = TUNE.punch, WALK = TUNE.walk, DUCK = TUNE.duck, ZONES = TUNE.zones;
+export const PUNCH = TUNE.punch, WALK = TUNE.walk, DUCK = TUNE.duck, ZONES = TUNE.zones, READY = TUNE.ready;
 
 // One player's body in one region of the camera picture: { x0, y0, x1, y1 } as 0..1 of the picture.
 // inner = 'right' or 'left': which side of the region faces the middle (where the punch boxes are).
 // Each frame (after cam.update()) call tracker.update(dt): returns 'head', 'body' or 'duck', else null.
 // tracker.walkX is 0..1 where the player stands (0 = far left, 1 = far right of their stand area), null until they've moved.
-export function trackBody(cam, region = { x0: 0, y0: 0, x1: 1, y1: 1 }, { duck = false, color = '#1fb8b0', inner = 'right' } = {}) {
+// tracker.here is true while someone is moving in the stand area (GET READY). tracker.color can be changed
+// (the boxer's colour from the wheel); tag = 'P1' / 'P2' on the stand box, '' for 1 player.
+export function trackBody(cam, region = { x0: 0, y0: 0, x1: 1, y1: 1 }, { duck = false, color = '#1fb8b0', inner = 'right', tag = '' } = {}) {
   const rw = region.x1 - region.x0, rh = region.y1 - region.y0;
   // a box in outer→inner coordinates → a box in picture coordinates (0..1)
   const toPic = (z) => ({
@@ -73,6 +81,7 @@ export function trackBody(cam, region = { x0: 0, y0: 0, x1: 1, y1: 1 }, { duck =
   let wait = 0, flash = 0, flashZone = null;
   let follow = null, walkX = null, hold = 0;   // smoothed movement middle, and the walk position it gives
   let clock = 0, duckWait = 0, sincePunch = 99, duckFlash = 0, top = null;
+  let seen = 0;                                // seconds the stand box stays "someone is here"
   const history = [];                          // { t, top, motion } for the duck check
   const counts = { head: 0, body: 0, duck: 0 };
 
@@ -123,8 +132,9 @@ export function trackBody(cam, region = { x0: 0, y0: 0, x1: 1, y1: 1 }, { duck =
   }
 
   return {
-    region, level, counts,
+    region, level, counts, color,
     get walkX() { return walkX; },
+    get here() { return seen > 0; },
     update(dt) {
       wait = Math.max(0, wait - dt);
       flash = Math.max(0, flash - dt);
@@ -133,6 +143,7 @@ export function trackBody(cam, region = { x0: 0, y0: 0, x1: 1, y1: 1 }, { duck =
       sincePunch += dt;
       const s = toPic(ZONES.stand);
       level.stand = zoneOf(s);
+      seen = level.stand > READY.motion && level.stand < PUNCH.maxStand ? READY.hold : Math.max(0, seen - dt);
       const mx = hold > 0 ? null : middleX(s);
       if (mx !== null) {
         follow = follow === null ? mx : follow + (mx - follow) * WALK.smooth;
@@ -155,22 +166,37 @@ export function trackBody(cam, region = { x0: 0, y0: 0, x1: 1, y1: 1 }, { duck =
       return KEY[best];
     },
     // Outlines this player's stand area and punch boxes on a camera picture drawn at x, y, w, h.
-    drawZones(ctx, x, y, w, h, labels = true) {
+    // big = the GET READY picture: "P1 STAND HERE" in big letters.
+    drawZones(ctx, x, y, w, h, labels = true, { big = false } = {}) {
+      const color = this.color, ok = seen > 0;
       ctx.save();
       const line = Math.max(2, w / 120);
       ctx.lineWidth = line;
       ctx.textBaseline = 'top';
       const px = (p) => ({ x: x + p.x0 * w, y: y + p.y0 * h, w: (p.x1 - p.x0) * w, h: (p.y1 - p.y0) * h });
-      // stand here: a soft coloured area with a dashed outline and a STAND label
+      // stand here: a thick box in the boxer's colour (green with a tick when someone is in it), and a label
       const s = px(toPic(ZONES.stand));
-      ctx.globalAlpha = 0.16; ctx.fillStyle = color; ctx.fillRect(s.x, s.y, s.w, s.h);
-      ctx.globalAlpha = 0.9; ctx.strokeStyle = color; ctx.setLineDash([w / 60, w / 60]);
-      ctx.strokeRect(s.x + line / 2, s.y + line / 2, s.w - line, s.h - line);
-      ctx.globalAlpha = 1; ctx.setLineDash([]);
-      ctx.font = `bold ${Math.round(Math.max(9, Math.min(h / 12, s.w / 4.5)))}px "Trebuchet MS", sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#0b1226'; ctx.fillText('STAND', s.x + s.w / 2 + 1, s.y + s.h * 0.62 + 1);
-      ctx.fillStyle = '#f4e4c4'; ctx.fillText('STAND', s.x + s.w / 2, s.y + s.h * 0.62);
+      const boxC = ok ? '#3ddc5a' : color, thick = line * (big ? 3.5 : 2.5);
+      ctx.globalAlpha = ok ? 0.28 : 0.16; ctx.fillStyle = boxC; ctx.fillRect(s.x, s.y, s.w, s.h);
+      ctx.globalAlpha = 1; ctx.lineWidth = thick;
+      ctx.strokeStyle = '#0b1226'; ctx.strokeRect(s.x + thick / 2, s.y + thick / 2, s.w - thick, s.h - thick);
+      ctx.lineWidth = thick * 0.6; ctx.strokeStyle = boxC;
+      ctx.strokeRect(s.x + thick / 2, s.y + thick / 2, s.w - thick, s.h - thick);
+      const words = big ? [tag, ok ? 'READY!' : 'STAND', ok ? '' : 'HERE'].filter(Boolean) : [`${tag ? tag + ' ' : ''}STAND`];
+      const size = Math.round(Math.max(9, Math.min(h / (big ? 9 : 12), s.w / (big ? 4.2 : 4.5 + tag.length * 0.9))));
+      ctx.font = `bold ${size}px "Trebuchet MS", sans-serif`;
+      ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+      const ty = big ? s.y + s.h * 0.42 - (words.length - 1) * size * 0.55 : s.y + thick * 1.5;   // small: at the top, above the boxers
+      words.forEach((word, i) => {
+        const wy = ty + i * size * 1.1;
+        ctx.lineWidth = Math.max(3, size / 6); ctx.strokeStyle = '#0b1226'; ctx.strokeText(word, s.x + s.w / 2, wy);
+        ctx.fillStyle = i === 0 && tag ? (ok ? '#3ddc5a' : color) : '#f4e4c4'; ctx.fillText(word, s.x + s.w / 2, wy);
+      });
+      if (ok) {
+        ctx.font = `${Math.round(size * (big ? 1.6 : 0.9))}px "Segoe UI Emoji", sans-serif`;
+        ctx.fillText('✅', s.x + s.w / 2, big ? s.y + s.h * 0.1 : ty + size * 1.1);
+      }
+      ctx.lineWidth = line;
       ctx.textAlign = 'left';
       for (const name of ['high', 'low']) {
         const z = px(toPic(ZONES[name])), lit = flash > 0 && flashZone === name;
@@ -220,14 +246,14 @@ export async function startPunchCam(players = 1) {
     get players() { return bodies.length; },
     setPlayers(n) {
       bodies = n === 2
-        ? [trackBody(cam, { x0: 0, y0: 0, x1: 0.5, y1: 1 }, { duck: true, color: COLOR[0], inner: 'right' }),
-           trackBody(cam, { x0: 0.5, y0: 0, x1: 1, y1: 1 }, { duck: true, color: COLOR[1], inner: 'left' })]
+        ? [trackBody(cam, { x0: 0, y0: 0, x1: 0.5, y1: 1 }, { duck: true, color: COLOR[0], inner: 'right', tag: 'P1' }),
+           trackBody(cam, { x0: 0.5, y0: 0, x1: 1, y1: 1 }, { duck: true, color: COLOR[1], inner: 'left', tag: 'P2' })]
         : [trackBody(cam, undefined, { color: COLOR[0], inner: 'right' })];
     },
     // Call every frame; returns one entry per player: 'head', 'body', 'duck' or null.
     update(dt) { cam.update(); return bodies.map((b) => b.update(dt)); },
-    // Small mirrored camera picture with the zones outlined, at full screen resolution.
-    draw(ctx, x, y, w, h) {
+    // Mirrored camera picture with the zones outlined, at full screen resolution. opts.big = GET READY labels.
+    draw(ctx, x, y, w, h, opts) {
       ctx.save();
       ctx.globalAlpha = 0.85;
       cam.draw(ctx, x, y, w, h);
@@ -236,19 +262,12 @@ export async function startPunchCam(players = 1) {
       ctx.strokeStyle = '#0b1226';
       ctx.strokeRect(x, y, w, h);
       if (bodies.length === 2) {
-        // divider down the middle, and a coloured P1 / P2 tag in each half
+        // divider down the middle (each player's P1 / P2 tag is on their stand box)
         ctx.fillStyle = '#ffd23f';
         ctx.fillRect(x + w / 2 - Math.max(1, w / 160), y, Math.max(2, w / 80), h);
-        ctx.font = `bold ${Math.round(h / 8)}px "Trebuchet MS", sans-serif`;
-        ctx.textBaseline = 'bottom';
-        for (let i = 0; i < 2; i++) {
-          const tx = x + (i ? w - w * 0.13 : w * 0.02), ty = y + h - 3;
-          ctx.fillStyle = '#0b1226'; ctx.fillRect(tx - 2, ty - h / 8 - 2, w * 0.11, h / 8 + 4);
-          ctx.fillStyle = COLOR[i]; ctx.fillText(`P${i + 1}`, tx + 2, ty + 1);
-        }
       }
       ctx.restore();
-      for (const b of bodies) b.drawZones(ctx, x, y, w, h, bodies.length === 1);
+      for (const b of bodies) b.drawZones(ctx, x, y, w, h, bodies.length === 1, opts);
     },
   };
   pc.setPlayers(players);

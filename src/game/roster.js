@@ -15,8 +15,8 @@ export const BOXERS = [
   { id: 'purple', name: 'PURPLE', sv: 'LILA', color: '#aa65d9', light: '#e5b3ff', dark: '#694393', chance: SHARE },
   { id: 'zeus', name: 'ZEUS', sv: 'ZEUS', color: '#ffd23f', light: '#fff4c2', dark: '#c98121', chance: ZEUS_CHANCE, thunder: true },
 ];
-// The level-5 BOSS (1 player): not on the wheel. A wind ninja with an orange scarf and WIND STORM fists.
-export const BOSS = { id: 'boss', name: 'BOSS', sv: 'BOSSEN', color: '#f28a2e', light: '#ffd08a', dark: '#1e2a4a', chance: 0 };
+// The level-5 BOSS, KANG (named by the Team; 1 player): not on the wheel. A wind ninja with an orange scarf and WIND STORM fists.
+export const BOSS = { id: 'boss', name: 'KANG', sv: 'KANG', color: '#f28a2e', light: '#ffd08a', dark: '#1e2a4a', chance: 0 };
 
 // Picks a boxer by its wheel chance. force = a boxer id to always get (testing: ?zeus=1 or hold Z).
 // blocked = a boxer id that can't be picked (P1's boxer, on P2's spin). Landing on it re-picks among the
