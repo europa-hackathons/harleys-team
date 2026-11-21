@@ -59,31 +59,36 @@ export function drawArena(g, time, excite = 0) {
   // a dark band behind the ring so the boxers stand out from the crowd
   g.fillStyle = COLORS.navy;
   g.fillRect(0, 78, W, FLOOR_Y - 78);
+  drawRing(g);
+}
 
+// The ring itself: ropes, corner posts, floor and apron. look = other colours for the floor (each place has its own).
+export const RING_LOOK = { floor: COLORS.floor, floorDark: COLORS.floorDark, apron: COLORS.apron, post: COLORS.ring, postDark: COLORS.ringDark, rope: COLORS.rope };
+export function drawRing(g, look = RING_LOOK) {
   // ropes: cream with a dark outline
   for (const ry of ROPES) {
     g.fillStyle = COLORS.outline; g.fillRect(6, ry - 1, W - 12, 5);
-    g.fillStyle = COLORS.rope; g.fillRect(6, ry, W - 12, 3);
+    g.fillStyle = look.rope; g.fillRect(6, ry, W - 12, 3);
   }
   // corner posts
   for (const px of [0, W - 8]) {
     g.fillStyle = COLORS.outline; g.fillRect(px - 1, 62, 10, FLOOR_Y - 60);
-    g.fillStyle = COLORS.ring; g.fillRect(px, 63, 8, FLOOR_Y - 62);
-    g.fillStyle = COLORS.ringDark; g.fillRect(px + 6, 63, 2, FLOOR_Y - 62);
-    g.fillStyle = COLORS.rope;
+    g.fillStyle = look.post; g.fillRect(px, 63, 8, FLOOR_Y - 62);
+    g.fillStyle = look.postDark; g.fillRect(px + 6, 63, 2, FLOOR_Y - 62);
+    g.fillStyle = look.rope;
     for (const ry of ROPES) g.fillRect(px + 1, ry, 6, 2);
   }
   // floor and apron
   g.fillStyle = COLORS.outline; g.fillRect(0, FLOOR_Y - 1, W, 1);
-  g.fillStyle = COLORS.floor; g.fillRect(0, FLOOR_Y, W, 22);
-  g.fillStyle = COLORS.floorDark; g.fillRect(0, FLOOR_Y + 19, W, 3);
+  g.fillStyle = look.floor; g.fillRect(0, FLOOR_Y, W, 22);
+  g.fillStyle = look.floorDark; g.fillRect(0, FLOOR_Y + 19, W, 3);
   g.fillStyle = COLORS.outline; g.fillRect(0, FLOOR_Y + 22, W, 1);
-  g.fillStyle = COLORS.apron; g.fillRect(0, FLOOR_Y + 23, W, H - FLOOR_Y - 23);
+  g.fillStyle = look.apron; g.fillRect(0, FLOOR_Y + 23, W, H - FLOOR_Y - 23);
 }
 
 // Flat dark oval under a boxer's feet.
 export function drawShadow(g, cx, y, w) {
-  g.fillStyle = COLORS.floorDark;
+  g.fillStyle = 'rgba(11, 18, 38, 0.35)';
   g.fillRect(Math.round(cx - w / 2), y, w, 3);
   g.fillRect(Math.round(cx - w / 2 + 3), y + 3, w - 6, 1);
 }

@@ -135,5 +135,65 @@
       "flame-1",
       "flame-2"
     ]
+  },
+  "bg-1-arena.png": {
+    "frameWidth": 1024,
+    "frameHeight": 576,
+    "frameCount": 1,
+    "scale": 4
+  },
+  "bg-2-apartment.png": {
+    "frameWidth": 1024,
+    "frameHeight": 576,
+    "frameCount": 1,
+    "scale": 4
+  },
+  "bg-3-jungle.png": {
+    "frameWidth": 1024,
+    "frameHeight": 576,
+    "frameCount": 1,
+    "scale": 4
+  },
+  "bg-4-volcano.png": {
+    "frameWidth": 1024,
+    "frameHeight": 576,
+    "frameCount": 1,
+    "scale": 4
+  },
+  "bg-5-space.png": {
+    "frameWidth": 1024,
+    "frameHeight": 576,
+    "frameCount": 1,
+    "scale": 4
+  },
+  "bg-6-cliffside.png": {
+    "frameWidth": 1024,
+    "frameHeight": 576,
+    "frameCount": 1,
+    "scale": 4
+  },
+  "boss-boxer.png": {
+    "frameWidth": 256,
+    "frameHeight": 288,
+    "frameCount": 6,
+    "scale": 4,
+    "frames": [
+      "idle",
+      "idle2",
+      "punch",
+      "hit-wobble",
+      "duck",
+      "special"
+    ]
+  },
+  "boss-glove.png": {
+    "frameWidth": 192,
+    "frameHeight": 96,
+    "frameCount": 2,
+    "scale": 4,
+    "frames": [
+      "wind-1",
+      "wind-2"
+    ]
   }
 }

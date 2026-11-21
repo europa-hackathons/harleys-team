@@ -66,13 +66,34 @@
     </div>
   </main>
 
-  <main id="timeup-screen" class="screen hidden">
+  <!-- 1 player: the next level (the new place shows through on the canvas) -->
+  <main id="level-screen" class="screen hidden">
+    <div class="level-top">
+      <h1 id="level-title" class="title">LEVEL 2!</h1>
+      <p id="level-place" class="level-place"></p>
+      <p id="level-foe" class="level-foe"></p>
+    </div>
+    <p class="wheel-help">👊 Slå · Punch · SPACE · click = FIGHT!</p>
+  </main>
+
+  <main id="gameover-screen" class="screen hidden">
     <div class="panel">
-      <h1 class="title">TIME! ⏰</h1>
-      <p id="time-hits" class="subtitle"></p>
-      <div id="time-scores" class="scores"></div>
-      <button id="again-time" class="big-button">🔁 SPELA IGEN · PLAY AGAIN</button>
-      <button id="menu-time" class="small-button">🏠 1 / 2 PLAYERS</button>
+      <h1 class="title over">GAME OVER</h1>
+      <p id="over-sub" class="subtitle"></p>
+      <div id="over-scores" class="scores"></div>
+      <button id="again-over" class="big-button">🔁 FÖRSÖK IGEN · TRY AGAIN</button>
+      <button id="menu-over" class="small-button">🏠 1 / 2 PLAYERS</button>
+    </div>
+  </main>
+
+  <main id="champion-screen" class="screen hidden">
+    <div class="panel champ">
+      <div class="big-icon">⭐🏆⭐</div>
+      <h1 class="title">CHAMPION!</h1>
+      <p class="subtitle">Du klarade alla 5 nivåerna! <span class="en">You beat all 5 levels!</span></p>
+      <div id="champ-scores" class="scores"></div>
+      <button id="again-champ" class="big-button">🔁 SPELA IGEN · PLAY AGAIN</button>
+      <button id="menu-champ" class="small-button">🏠 1 / 2 PLAYERS</button>
     </div>
   </main>
 

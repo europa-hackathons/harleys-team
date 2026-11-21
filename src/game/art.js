@@ -12,12 +12,14 @@ function loadImage(url) {
   });
 }
 
-// Returns { name: [frameCanvas, ...] } for every sheet in sprites.json.
+// Returns { name: [frameCanvas, ...] } for every sheet in sprites.json. A sheet that won't load is left
+// out (the game then uses its code-drawn stand-in), so new art can be registered before it lands.
 export async function loadArt() {
   const info = await (await fetch(new URL('sprites.json', BASE))).json();
   const out = {};
   await Promise.all(Object.entries(info).map(async ([file, s]) => {
-    const img = await loadImage(new URL(file, BASE));
+    let img;
+    try { img = await loadImage(new URL(file, BASE)); } catch { console.warn(`art missing: ${file}`); return; }
     const w = Math.round(s.frameWidth / s.scale), h = Math.round(s.frameHeight / s.scale);
     out[file.replace('.png', '')] = Array.from({ length: s.frameCount }, (_, i) => {
       const c = document.createElement('canvas');

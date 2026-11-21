@@ -1,6 +1,6 @@
 // The boxers on the WHEEL: what they look like, how likely each is, and who has a special power.
 // Every boxer's frames are kept facing RIGHT; poses[1] is the same set mirrored for the right-hand side.
-// Real sprites: player-boxer / opponent-boxer (teal, orange), boxer-green, boxer-purple, zeus-boxer
+// Real sprites: player-boxer / opponent-boxer (teal, orange), boxer-green, boxer-purple, zeus-boxer, boss-boxer
 // (6 frames: idle, idle2, punch, hit-wobble, duck, special). Any missing sheet falls back to a recolour of teal.
 import { duckPose, gloveOffPose, orangeGlove, mirror } from './poses.js';
 
@@ -15,6 +15,8 @@ export const BOXERS = [
   { id: 'purple', name: 'PURPLE', sv: 'LILA', color: '#aa65d9', light: '#e5b3ff', dark: '#694393', chance: SHARE },
   { id: 'zeus', name: 'ZEUS', sv: 'ZEUS', color: '#ffd23f', light: '#fff4c2', dark: '#c98121', chance: ZEUS_CHANCE, thunder: true },
 ];
+// The level-5 BOSS (1 player): not on the wheel. A wind ninja with an orange scarf and WIND STORM fists.
+export const BOSS = { id: 'boss', name: 'BOSS', sv: 'BOSSEN', color: '#f28a2e', light: '#ffd08a', dark: '#1e2a4a', chance: 0 };
 
 // Picks a boxer by its wheel chance. force = a boxer id to always get (testing: ?zeus=1 or hold Z).
 // blocked = a boxer id that can't be picked (P1's boxer, on P2's spin). Landing on it re-picks among the
@@ -45,7 +47,7 @@ function recolour(frame, b) {
   return c;
 }
 
-const SHEETS = { green: ['boxer-green', 'green-glove'], purple: ['boxer-purple', 'purple-glove'], zeus: ['zeus-boxer', 'zeus-glove'] };
+const SHEETS = { green: ['boxer-green', 'green-glove'], purple: ['boxer-purple', 'purple-glove'], zeus: ['zeus-boxer', 'zeus-glove'], boss: ['boss-boxer', 'boss-glove'] };
 
 // Builds { id: boxer } with ready-to-draw poses for both sides, the rocket-glove frames (facing right),
 // the reveal picture for the wheel, and a small head picture for the wheel slices.
@@ -56,7 +58,7 @@ export function buildRoster(art) {
   const tealGlove = art['rocket-glove'];
 
   const roster = {};
-  for (const b of BOXERS) {
+  for (const b of [...BOXERS, BOSS]) {
     let right, glove;
     if (b.id === 'teal') { right = teal; glove = tealGlove; }
     else if (b.id === 'orange') {

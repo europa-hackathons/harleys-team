@@ -2,7 +2,7 @@
 // "SUPER READY!" and the NEXT punch (high or low, keys or camera) is that boxer's special. Then it empties.
 // All the numbers are here so they are easy to tune.
 import { COLORS } from './scene.js';
-import { splash, flame, leaves, bubbles, zap } from './effects.js';
+import { splash, flame, leaves, bubbles, zap, wind } from './effects.js';
 
 export const SUPER = {
   full: 300,                                                  // damage dealt to fill the meter
@@ -11,6 +11,7 @@ export const SUPER = {
   tangle: 2,                                                  // IVY: seconds you can't duck
   poison: { time: 5, perSecond: 20 },                         // POISON: 20 health a second for 5 s (never below 1)
   storm: [90, 80, 80], stormGap: 0.25,                        // ZEUS: 3 lightning bolts, 250 in total, this far apart (s)
+  wind: 200,                                                  // BOSS: WIND STORM damage (a HIGH one can still be ducked)
 };
 
 // Which special each boxer has, its name, and the word that pops over the target.
@@ -20,6 +21,7 @@ export const SPECIALS = {
   green: { kind: 'ivy', name: 'IVY FIST!', status: 'TANGLED!', color: '#64be52' },
   purple: { kind: 'poison', name: 'POISON FIST!', status: 'POISONED!', color: '#c47fef' },
   zeus: { kind: 'storm', name: 'THUNDER STORM!', status: 'STORM!', color: '#ffd23f' },
+  boss: { kind: 'wind', name: 'WIND STORM!', status: 'BLOWN AWAY!', color: '#bfe8ff' },
 };
 
 // The trail behind a flying special glove (call every frame while it flies). x, y = the back of the glove.
@@ -29,6 +31,16 @@ export function specialTrail(kind, x, y, dir) {
   else if (kind === 'ivy') leaves(x, y, dir);
   else if (kind === 'poison') { bubbles(x, y, dir); if (Math.random() < 0.6) bubbles(x, y, dir); }
   else if (kind === 'storm') { zap(x, y, dir); zap(x, y - 6, dir); zap(x, y + 6, dir); }
+  else if (kind === 'wind') wind(x, y, dir);
+}
+
+// The swirl of wind spinning round the boss's big WIND STORM fist. x, y = the middle of the fist.
+export function drawSwirl(g, x, y, time) {
+  for (let i = 0; i < 14; i++) {
+    const a = time * 14 + i * 0.45, r = 16 + (i % 3) * 3;
+    g.fillStyle = i % 2 ? '#ffffff' : '#bfe8ff';
+    g.fillRect(Math.round(x + Math.cos(a) * r), Math.round(y + Math.sin(a) * r * 0.6), 2, 1);
+  }
 }
 
 // The ivy vine shooting out from the arm (x0) to the glove (x1), wiggling, with leaves.

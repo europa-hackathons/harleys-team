@@ -1,5 +1,8 @@
 // Tiny made-up sound effects with Web Audio (no files needed). Swap for real sounds later with src/kit/sound.js.
 let ac = null;
+let muted = false;
+// The mute key (M) silences these bleeps too.
+export function muteBleeps(on) { muted = !!on; }
 
 // Call from a click or key press: browsers keep sound off until the player does something.
 export function wakeSound() {
@@ -8,7 +11,7 @@ export function wakeSound() {
 }
 
 function tone({ type = 'square', from = 440, to = from, time = 0.15, volume = 0.15, delay = 0 }) {
-  if (!ac || ac.state !== 'running') return;
+  if (!ac || ac.state !== 'running' || muted) return;
   const t = ac.currentTime + delay;
   const osc = ac.createOscillator(), gain = ac.createGain();
   osc.type = type;
@@ -22,7 +25,7 @@ function tone({ type = 'square', from = 440, to = from, time = 0.15, volume = 0.
 }
 
 function noise(time = 0.2, volume = 0.12, freq = 900) {
-  if (!ac || ac.state !== 'running') return;
+  if (!ac || ac.state !== 'running' || muted) return;
   const buf = ac.createBuffer(1, Math.floor(ac.sampleRate * time), ac.sampleRate);
   const d = buf.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);

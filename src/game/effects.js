@@ -56,6 +56,16 @@ export function bubbles(x, y, dir = 1) {
     age: 0, life: 0.5 + Math.random() * 0.4, color: pick(POISON), r: Math.random() < 0.4 ? 2 : 1 });
 }
 
+// WIND STORM (the boss): white and pale-blue gusts swirling off behind the big fist.
+const WIND = ['#ffffff', '#bfe8ff', '#8ff0e6'];
+export function wind(x, y, dir = 1) {
+  for (let i = 0; i < 4; i++) {
+    const a = Math.random() * Math.PI * 2;
+    bits.push({ kind: 'drop', x: x + Math.cos(a) * 12, y: y + Math.sin(a) * 12, vx: dir * (-30 - Math.random() * 40) - Math.sin(a) * 50, vy: Math.cos(a) * 50,
+      age: 0, life: 0.3 + Math.random() * 0.2, color: pick(WIND), grav: 0 });
+  }
+}
+
 // Crackling lightning sparks behind a THUNDER fist (Zeus): call every frame while it flies.
 export function zap(x, y, dir = 1) {
   for (let i = 0; i < 3; i++) {
