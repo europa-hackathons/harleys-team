@@ -46,7 +46,7 @@ To undo the latest wish: `git revert --no-edit <commit(s) for that wish>`, push 
 
 ## Handover
 
-1. Write `docs/session/handover.md` in English: the Helper's name, current phase, the wish list, open Wish Records, what's half-built, and anything the Grown-up flagged. No personal details.
+1. Write `docs/session/handover.md` in English: the Helper's name, current phase, the wish list, open Wish Records, what's half-built, anything the Grown-up flagged, and the Coach's thread id if there is one. No personal details.
 2. Have the record keeper save it.
 3. Start a new chat as **Handover** in `docs/agents/environment.md` says, prompting: "You are the Helper. Read AGENTS.md, then docs/session/handover.md, then greet the Team as <name> and carry on."
-4. Put the new chat's link (or what to do) in the Grown-up Note so the Grown-up can switch across.
+4. Put the new chat's link (or what to do) in the Grown-up Note so the Grown-up can switch across. With a Coach, send it there: `helper: handover, new kids' thread <link>`.

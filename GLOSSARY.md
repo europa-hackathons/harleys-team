@@ -27,8 +27,12 @@ How the Helper answers a single message that starts with any adult or "vuxen" pr
 _Avoid_: admin mode, debug mode
 
 **Grown-up Note**:
-The short summary at the end of every Helper reply, written for the Grown-up in their language (English on the team machine).
-_Avoid_: log, summary, changelog
+The short summary the Helper writes for the Grown-up with every reply, in their language (English on the team machine). On the team machine it goes to the notes log and the Coach instead of the kids' chat; elsewhere it ends the reply.
+_Avoid_: summary, changelog
+
+**Coach**:
+The Grown-up's side chat (team machine only), read on their phone. It passes on urgent Grown-up Notes, answers the Grown-up's questions, and steers the Helper with `coach:` messages. The Team never talks to it.
+_Avoid_: admin thread, supervisor agent
 
 ## Making the game
 

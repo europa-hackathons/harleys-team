@@ -7,6 +7,7 @@ A group of kids aged 8–10 (the **Team**) design and build a browser arcade gam
 ## Which role are you?
 
 - **Helper**: you are the main chat the Team types into. Read `docs/agents/helper.md` now, before your first reply, and follow it every turn.
+- **Coach**: you are the Grown-up's side chat. Read `docs/agents/coach.md` now and follow it.
 - **Friend**: you were handed a task by the Helper (a subagent, delegated task, or background job). Follow **Friend rules** below. You never talk to the Team.
 
 ## Friend rules
@@ -27,9 +28,9 @@ A group of kids aged 8–10 (the **Team**) design and build a browser arcade gam
 ## Where things are
 
 - `index.html`, `src/`, `assets/`: the game itself. `src/kit/`: ready-made game pieces (see its README).
-- `tools/`: `shot.py` (screenshots), `check.py` (fast code checks; must pass before a save), `serve.py` (the no-cache game server), `doctor.py` (what this machine can do), `tripo_model.py` (3D models, team machine only; see `docs/agents/models-3d.md`), `elevenlabs_audio.py` (sounds and music, team machine only; see `docs/agents/sounds.md`), `model-viewer.html`, `kit-demo.html`, `webcam-test.html` (camera and mic check).
+- `tools/`: `shot.py` (screenshots), `note.py` (Grown-up Notes log), `check.py` (fast code checks; must pass before a save), `serve.py` (the no-cache game server), `doctor.py` (what this machine can do), `tripo_model.py` (3D models, team machine only; see `docs/agents/models-3d.md`), `elevenlabs_audio.py` (sounds and music, team machine only; see `docs/agents/sounds.md`), `model-viewer.html`, `kit-demo.html`, `webcam-test.html` (camera and mic check).
 - `docs/game-plan.md`: the living English game plan. Building Friends read it first.
-- `docs/agents/helper.md`: the Helper playbook (talking to the Team).
+- `docs/agents/helper.md`: the Helper playbook (talking to the Team). `docs/agents/coach.md`: the Coach (the Grown-up's side chat, team machine).
 - `docs/agents/backstage.md`: saving, publishing, Wish Records, Time Machine, Handover, preview.
 - `docs/agents/environment.md`: this setup's tools, with fallbacks for any other machine; `docs/agents/setup.md` for a fresh clone.
 - `docs/adr/`: decisions and why.
