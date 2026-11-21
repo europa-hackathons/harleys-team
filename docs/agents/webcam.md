@@ -22,4 +22,15 @@ The camera picture stays on the screen, live. Never save, upload or log camera f
 
 - **Real camera**: `tools/webcam-test.html` (published at https://europa-hackathons.github.io/harleys-team/tools/webcam-test.html) checks camera, mic, motion zones and mirroring in one page; `?auto=1` starts both without a click. Works on https (GitHub Pages) and on localhost.
 - **Friends' checks**: `tools/shot.py` has no camera. Launch Edge (not headless: headless refuses fake devices) with `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream --disable-backgrounding-occluded-windows --disable-renderer-backgrounding`, a fresh `--user-data-dir` and `--remote-debugging-port`, then read the page's state over the DevTools protocol (Node 22 has `WebSocket` built in). The fake camera shows a moving pattern, so motion is detected; the fake mic plays a tone.
-- **Where the Team plays**: the T3 preview pane refused camera and mic in testing (2026-11-21). For a webcam game, the Grown-up opens the game in a normal Edge or Chrome tab (`http://localhost:8000` or the published page) and allows the camera once; flag this in the Grown-up Note the first time.
+
+## Where the Team plays: the published page
+
+The T3 preview pane can't use the camera or mic (confirmed by the Grown-up, 2026-11-21), so a webcam game is played on the **published page** (**Saving and publishing** in `docs/agents/environment.md`; team machine: https://europa-hackathons.github.io/harleys-team/) in a normal Edge or Chrome tab. The first time, the Grown-up opens it and clicks Allow for the camera (and mic); flag this in the Grown-up Note.
+
+That changes the loop for every delivered change:
+
+1. The record keeper saves and publishes the change straight away (`docs/agents/backstage.md`); the Team sees nothing until it's pushed.
+2. Wait for the publish to finish: `gh api repos/<owner>/<repo>/pages/builds/latest --jq '.status + " " + .commit'` shows `built` with the new commit (about a minute).
+3. Tell the Team to **hard-reload** the game tab (Ctrl+Shift+R; a plain reload can show the old game for up to 10 minutes, because GitHub Pages lets the browser cache files).
+
+Fill the minute of waiting with question time. The preview pane still works for everything except the camera and mic, so keep using it for quick looks (the keyboard fallback plays there).
