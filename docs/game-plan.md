@@ -23,10 +23,13 @@ _One short entry per feature, written clearly enough that a building Friend can 
 - **Head and body punches:** webcam: a punch in the upper punch zone aims at the head (100), in the lower zone at the body (50). Keyboard fallback: Up arrow / W = head punch, Space / Down arrow = body punch. Health bar shows the number out of 1000.
 - **Webcam play:** mirrored camera picture faded behind or in a corner with the punch zone outlined; friendly screens for "Allow the camera! 📷" and for camera failures; keyboard fallback always works.
 
+## Play-test notes
+- Round 1: they LOVE shooting the rocket fist. 2 players and walking weren't built yet (confused them).
+
 ## Still to decide
 _Open questions about the game for the Helper to ask the Team, most urgent first. Move each into Features once answered; unanswered ones stay and get asked again._
 - Opponent shooting back: how much damage, and does the player also have 1000 health?
-- More characters: which characters, and what special move does each have?
+- More characters: which other boxers are on the wheel, and what special move does each have? 
 - How many hiding blocks, and can they break?
 
 ## Built so far
@@ -37,8 +40,8 @@ _Open questions about the game for the Helper to ask the Team, most urgent first
 - ⭐ Body moves the boxer: the player's position in front of the camera moves their boxer forward/back in the ring (webcam centroid, smoothed; keyboard fallback Left/Right arrows). Why: to hide behind blocks and to line up your aim.
 - ⭐ Hiding blocks: a few pixel blocks/crates standing in the ring the player can move behind to take cover; rocket hands that hit a block bounce off with a poof.
 - ⭐ Opponent shoots back: the opponent fires its own rocket hands at the player (that's why you hide).
-- ⭐ More characters, each with a different special move (pick a boxer before the fight).
-- ⭐ 2-player mode: both players stand in front of the same camera, one on the left half and one on the right half; each half controls one boxer (keyboard fallback: player 1 W/S/A/D, player 2 arrows). Team said "yes" to both-on-camera (guess: left/right halves).
+- ⭐ More characters, each with a different special move, chosen by spinning a WHEEL before the fight. One super-rare boxer, ZEUS (1% chance on the wheel), has a THUNDER ability that does 150 damage. Look (our own original character, inspired by a powered-up anime hero; no copied character): spiky glowing golden hair, crackling yellow lightning aura, glowing gloves.
+- ⭐ NEXT: 2-player mode (play-test round 1 top wish): the two players stand NEXT TO EACH OTHER in front of the one camera, left half = player 1 (teal, left boxer), right half = player 2 (orange, right boxer). They fight each other: punch HIGH = rocket fist flies high (head, 100), punch LOW = rocket fist flies low (body, 50). DUCK in real life = your boxer ducks, and high rocket fists fly over you (dodging). Each boxer has 1000 health. Keyboard fallback: P1 W high / S low / X duck, P2 Up high / Down low / Shift duck.
 
 ## Ideas for later
 _The idea jar: wishes that arrived while the wish list was full (10). Pull them back onto the wish list as space frees up._

@@ -19,11 +19,13 @@ export const RULES = {
   returnSpeed: 260,        // flying back
   guardOpen: [1.4, 2.8],   // guess: seconds the opponent stays open (random between)
   guardUp: [0.7, 1.3],     // guess: seconds the guard stays up (it blocks HEAD punches only)
+  walkSpeed: 70,           // pixels per second the boxer walks (keys, and catching up with your body on the webcam)
 };
 
 // Where things are on the 256x144 picture (boxer frames are 64x72).
 const PLAYER_X = 14, OPP_X = 178, BOXER_Y = 54;
-const LAUNCH_TIP = PLAYER_X + 78;           // the glove's front edge when it leaves the arm
+const PLAYER_MIN_X = 4, PLAYER_MAX_X = 60;  // how far the player's boxer can walk (stays in the left half of the ring)
+const LAUNCH_OFFSET = 78;                   // the glove's front edge, from the boxer's left edge, when it leaves the arm
 const HIT_TIP = OPP_X + 18;                 // ...and when it reaches the opponent
 const ARM_Y = BOXER_Y + 33;                 // height of the punching arm: the glove leaves from here
 const AIM_Y = { head: BOXER_Y + 20, body: BOXER_Y + 41 };
@@ -61,8 +63,8 @@ function show(id) {
 }
 function setHint() {
   hint.textContent = punchCam
-    ? 'Punch high = HEAD 👊  low = BODY  (or ⬆️ / SPACE)'
-    : '⬆️ or W = HEAD punch 👊  SPACE or ⬇️ = BODY punch';
+    ? 'Step left/right to walk 🚶  Punch high = HEAD 👊  low = BODY'
+    : '⬅️ ➡️ walk  ⬆️ / W = HEAD 👊  SPACE / ⬇️ = BODY';
 }
 
 // ---------- game state ----------
@@ -71,13 +73,15 @@ const game = window.game = {
   punch: (aim = 'body') => fire(aim),   // handy for testing: window.game.punch('head')
 };
 let punchCam = null;
+const me = { x: PLAYER_X, walking: 0 };   // the player's boxer: left edge on the picture, and how much it is walking
+const launchTip = () => me.x + LAUNCH_OFFSET;
 let glove = { mode: 'home', aim: 'body', x: 0, y: 0, vx: 0, vy: 0 };
 let guard = { up: false, t: 2 };
 let wobble = 0, excite = 0, endTimer = 0, time = 0;
 
 const timer = roundTimer(RULES.roundSeconds, { onEnd: () => finish('timeup') });
 // for checks from the console: game.debug.guard.up = true; game.debug.timer.reset(3)
-game.debug = { get guard() { return guard; }, timer };
+game.debug = { get guard() { return guard; }, get cam() { return punchCam; }, timer, me };
 
 function rand([a, b]) { return a + Math.random() * (b - a); }
 
@@ -88,6 +92,7 @@ function startRound() {
   game.hits = 0;
   glove = { mode: 'home', aim: 'body', x: 0, y: 0, vx: 0, vy: 0 };
   guard = { up: false, t: rand(RULES.guardOpen) };
+  me.x = PLAYER_X; me.walking = 0;
   wobble = 0; excite = 0; endTimer = 0;
   timer.reset();
   clearEffects();
@@ -99,7 +104,7 @@ function startRound() {
 
 function fire(aim) {
   if (game.state !== 'playing' || glove.mode !== 'home') return;
-  glove = { mode: 'out', aim, x: LAUNCH_TIP, y: ARM_Y, vx: RULES.gloveSpeed, vy: 0 };
+  glove = { mode: 'out', aim, x: launchTip(), from: launchTip(), y: ARM_Y, vx: RULES.gloveSpeed, vy: 0 };
   sfx.whoosh();
 }
 
@@ -154,6 +159,7 @@ function update(dt, now) {
   if (camPunch) fire(camPunch);
 
   if (game.state === 'playing') {
+    walk(dt);
     timer.update(dt);
     // the opponent raises and drops its guard
     if (wobble <= 0) {
@@ -176,11 +182,26 @@ function update(dt, now) {
   draw(dt);
 }
 
+// Walk the player's boxer: keys (Left/Right, A/D) walk it; on the webcam it walks toward where your body is.
+function walk(dt) {
+  const keyDir = (keys.held('ArrowRight') || keys.held('KeyD') ? 1 : 0) - (keys.held('ArrowLeft') || keys.held('KeyA') ? 1 : 0);
+  const step = RULES.walkSpeed * dt;
+  const before = me.x;
+  if (keyDir) me.x += keyDir * step;
+  else if (punchCam && punchCam.walkX !== null) {
+    const target = PLAYER_MIN_X + punchCam.walkX * (PLAYER_MAX_X - PLAYER_MIN_X);
+    const gap = target - me.x;
+    if (Math.abs(gap) > 1) me.x += Math.sign(gap) * Math.min(Math.abs(gap), step);
+  }
+  me.x = Math.max(PLAYER_MIN_X, Math.min(PLAYER_MAX_X, me.x));
+  me.walking = Math.abs(me.x - before) > 0.01 ? 0.15 : Math.max(0, me.walking - dt);
+}
+
 function moveGlove(dt) {
   if (glove.mode === 'out') {
     glove.x += glove.vx * dt;
     // steer from arm height up to the head or down to the body during the first part of the flight
-    const k = Math.min(1, (glove.x - LAUNCH_TIP) / 45);
+    const k = Math.min(1, Math.max(0, (glove.x - glove.from) / 45));
     glove.y = ARM_Y + (AIM_Y[glove.aim] - ARM_Y) * k * (2 - k);
     flame(glove.x - 40, glove.y);
     if (glove.x >= HIT_TIP && game.state === 'playing') {
@@ -207,7 +228,7 @@ function moveGlove(dt) {
     glove.x += glove.vx * dt;
     if (glove.mode === 'bounce') { glove.y += glove.vy * dt; glove.vy += 500 * dt; glove.y = Math.min(glove.y, ARM_Y); }
     else glove.y += (ARM_Y - glove.y) * Math.min(1, dt * 4);
-    if (glove.x <= LAUNCH_TIP) glove.mode = 'home';
+    if (glove.x <= launchTip()) glove.mode = 'home';
   }
 }
 
@@ -231,12 +252,14 @@ function drawHealth() {
 
 function draw(dt) {
   drawArena(g, time, excite);
-  drawShadow(g, PLAYER_X + 32, 121, 40);
+  drawShadow(g, Math.round(me.x) + 32, 121, 40);
   drawShadow(g, OPP_X + 32, 121, 40);
 
   // player: two idle frames for breathing, the punch frame while the glove is away
   const breathe = Math.floor(time * 2.5) % 2;
-  put(glove.mode === 'home' ? (breathe ? P_IDLE2 : P_IDLE) : P_PUNCH, PLAYER_X, BOXER_Y);
+  // walking: a little bouncy step
+  const hop = me.walking > 0 ? -(Math.floor(time * 10) % 2) : 0;
+  put(glove.mode === 'home' ? (breathe ? P_IDLE2 : P_IDLE) : P_PUNCH, Math.round(me.x), BOXER_Y + hop);
 
   // opponent: wobbles when hit, guard up or open, dizzy after the knockout
   const won = game.state === 'win';
