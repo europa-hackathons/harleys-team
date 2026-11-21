@@ -41,6 +41,8 @@ _Open questions about the game for the Helper to ask the Team, most urgent first
 - Should cloud rings matter more (bigger push), or are they just for show?
 - Can your own banana/mud hit you, or only the other racer?
 - Farm up-right like the concept, or straight ahead? Is "GO!" the right word? Are the big rings too easy now?
+- Is the steering helper too strong (it gets you through ~9 of 10 rings without steering)? Should catch-up be stronger? Do the arrow markers look good?
+- Which season track first?
 - Can a player change their mind after pressing READY on the pick screen?
 - Sweets as bonuses: do you collect sweets along the route, or throw them to the crowd? What does a sweet give you (speed, points, more bananas)?
 
@@ -49,12 +51,12 @@ _Open questions about the game for the Helper to ask the Team, most urgent first
 - First prototype (#22): 3D kitten vs pony sky-swim race through cloud rings to the sky farm; boost/banana/mud with cooldowns; progress bar; win screen with confetti and RACE AGAIN. P2 swims with Left Shift or Z.
 - Pick your racer (#23): pick screen with six racers (kitten, pony, piglet, bunny, puppy, robot); both may pick the same; ready locks; last pick remembered.
 - Prettier sky (#24): closer chase camera that keeps both racers in frame, big staggered cloud rings, farm island visible from the start, 3-2-1-GO countdown.
+- Steering helper + catch-up (#25): soft pull toward the next ring, speed bonus for the racer behind (up to +30%), camera always frames both racers, orange/purple floating markers.
 
 ## Wish list
 - ⭐ Stable decorating before the race
 - ⭐ Cheering crowds + fizzy-juice celebration
 - ⭐ Sweets bonuses
-- 🔨 Steering helper: racers drift gently toward the next cloud ring, so steering is easier (a little help, not autopilot); plus **catch-up help**: the racer who's behind swims a bit faster so they never drop far back, and the camera always keeps both racers clearly visible (the Team can't see their racer when behind)
 - ⭐ Four season tracks (spring, summer, autumn, winter) with obstacles
 
 ## Ideas for later
