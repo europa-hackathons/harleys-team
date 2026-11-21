@@ -20,11 +20,40 @@ function stamp(g, shape, x, y, color) {
 
 // A puff of rocket flame behind the flying glove (call every frame while it flies).
 // dir = 1 when the glove flies right (flame blows left), -1 when it flies left.
-export function flame(x, y, power = 1, dir = 1) {
-  for (let i = 0; i < 3; i++) {
-    bits.push({ kind: 'flame', x, y: y + (Math.random() * 4 - 2), vx: dir * (-30 - Math.random() * 50 * power), vy: Math.random() * 16 - 8,
-      age: 0, life: 0.18 + Math.random() * 0.14, size: 3 + Math.random() * 2 });
+// big = 2 makes the huge FLAME FIST version (more, bigger, longer-lasting puffs).
+export function flame(x, y, power = 1, dir = 1, big = 1) {
+  for (let i = 0; i < 3 * big; i++) {
+    bits.push({ kind: 'flame', x, y: y + (Math.random() * 4 - 2) * big, vx: dir * (-30 - Math.random() * 50 * power), vy: (Math.random() * 16 - 8) * big,
+      age: 0, life: (0.18 + Math.random() * 0.14) * big, size: (3 + Math.random() * 2) * big });
   }
+}
+
+// ---------- special-move trails and status effects ----------
+const WATER = ['#ffffff', '#a8e8ff', '#5cc4f5', '#2f86e0'];
+const LEAF = ['#bbf183', '#64be52', '#347346'];
+const POISON = ['#e5b3ff', '#c47fef', '#aa65d9'];
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
+
+// WATER FIST: a spray of water drops flying off behind the glove (call every frame while it flies).
+export function splash(x, y, dir = 1) {
+  for (let i = 0; i < 4; i++) {
+    bits.push({ kind: 'drop', x: x + Math.random() * 6 - 3, y: y + Math.random() * 8 - 4, vx: dir * (-20 - Math.random() * 50), vy: -50 + Math.random() * 40,
+      age: 0, life: 0.35 + Math.random() * 0.25, color: pick(WATER), grav: 300 });
+  }
+}
+// A water drop falling off a DRIPPING WET boxer.
+export function drip(x, y) {
+  bits.push({ kind: 'drop', x, y, vx: Math.random() * 10 - 5, vy: 5 + Math.random() * 10, age: 0, life: 0.45 + Math.random() * 0.2, color: pick(WATER), grav: 220 });
+}
+// IVY FIST: little leaves fluttering off the vine.
+export function leaves(x, y, dir = 1) {
+  bits.push({ kind: 'leaf', x: x + Math.random() * 6 - 3, y: y + Math.random() * 8 - 4, vx: dir * (-10 - Math.random() * 20), vy: 10 + Math.random() * 20,
+    age: 0, life: 0.5 + Math.random() * 0.3, color: pick(LEAF) });
+}
+// POISON: purple cartoon bubbles that float up and pop. dir = 0 for bubbles rising off a poisoned boxer.
+export function bubbles(x, y, dir = 1) {
+  bits.push({ kind: 'bubble', x: x + Math.random() * 6 - 3, y: y + Math.random() * 8 - 4, vx: dir * (-15 - Math.random() * 25) + Math.random() * 8 - 4, vy: -15 - Math.random() * 20,
+    age: 0, life: 0.5 + Math.random() * 0.4, color: pick(POISON), r: Math.random() < 0.4 ? 2 : 1 });
 }
 
 // Crackling lightning sparks behind a THUNDER fist (Zeus): call every frame while it flies.
@@ -106,6 +135,21 @@ export function drawEffects(g, dt) {
       const s = Math.max(1, Math.round(b.size * (1 - k)));
       g.fillStyle = FLAME_COLORS[Math.min(FLAME_COLORS.length - 1, Math.floor(k * FLAME_COLORS.length))];
       g.fillRect(Math.round(b.x - s / 2), Math.round(b.y - s / 2), s, s);
+    } else if (b.kind === 'drop') {
+      b.vy += b.grav * dt;
+      g.fillStyle = b.color;
+      g.fillRect(Math.round(b.x), Math.round(b.y), 1, 2);
+    } else if (b.kind === 'leaf') {
+      b.vx += Math.sin(b.age * 12) * 60 * dt;
+      g.fillStyle = COLORS.outline; g.fillRect(Math.round(b.x), Math.round(b.y) + 1, 2, 2);
+      g.fillStyle = b.color; g.fillRect(Math.round(b.x), Math.round(b.y), 2, 2);
+    } else if (b.kind === 'bubble') {
+      const x = Math.round(b.x), y = Math.round(b.y), r = b.r;
+      if (k > 0.85) { g.fillStyle = b.color; g.fillRect(x - r - 1, y, 1, 1); g.fillRect(x + r + 1, y, 1, 1); g.fillRect(x, y - r - 1, 1, 1); continue; }   // pop!
+      g.fillStyle = b.color;
+      g.fillRect(x - r, y - r - 1, r * 2 + 1, 1); g.fillRect(x - r, y + r + 1, r * 2 + 1, 1);
+      g.fillRect(x - r - 1, y - r, 1, r * 2 + 1); g.fillRect(x + r + 1, y - r, 1, r * 2 + 1);
+      g.fillStyle = '#ffffff'; g.fillRect(x - r, y - r, 1, 1);
     } else if (b.kind === 'zap') {
       g.fillStyle = b.color;
       const up = Math.random() < 0.5;

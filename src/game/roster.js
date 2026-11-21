@@ -4,21 +4,28 @@
 // (6 frames: idle, idle2, punch, hit-wobble, duck, special). Any missing sheet falls back to a recolour of teal.
 import { duckPose, gloveOffPose, orangeGlove, mirror } from './poses.js';
 
-// chance = percent on the wheel (they add up to 100). ZEUS is the super-rare one.
+// chance = percent on the wheel (they add up to 100). ZEUS is the rare one: change ZEUS_CHANCE to tune him;
+// the four ordinary boxers share the rest equally.
+export const ZEUS_CHANCE = 10;
+const SHARE = (100 - ZEUS_CHANCE) / 4;
 export const BOXERS = [
-  { id: 'teal', name: 'TEAL', sv: 'TURKOS', color: '#1fb8b0', light: '#8ff0e6', dark: '#087c83', chance: 24.75 },
-  { id: 'orange', name: 'ORANGE', sv: 'ORANGE', color: '#f0662c', light: '#ffb07a', dark: '#ac412b', chance: 24.75 },
-  { id: 'green', name: 'GREEN', sv: 'GRÖN', color: '#64be52', light: '#bbf183', dark: '#347346', chance: 24.75 },
-  { id: 'purple', name: 'PURPLE', sv: 'LILA', color: '#aa65d9', light: '#e5b3ff', dark: '#694393', chance: 24.75 },
-  { id: 'zeus', name: 'ZEUS', sv: 'ZEUS', color: '#ffd23f', light: '#fff4c2', dark: '#c98121', chance: 1, thunder: true },
+  { id: 'teal', name: 'TEAL', sv: 'TURKOS', color: '#1fb8b0', light: '#8ff0e6', dark: '#087c83', chance: SHARE },
+  { id: 'orange', name: 'ORANGE', sv: 'ORANGE', color: '#f0662c', light: '#ffb07a', dark: '#ac412b', chance: SHARE },
+  { id: 'green', name: 'GREEN', sv: 'GRÖN', color: '#64be52', light: '#bbf183', dark: '#347346', chance: SHARE },
+  { id: 'purple', name: 'PURPLE', sv: 'LILA', color: '#aa65d9', light: '#e5b3ff', dark: '#694393', chance: SHARE },
+  { id: 'zeus', name: 'ZEUS', sv: 'ZEUS', color: '#ffd23f', light: '#fff4c2', dark: '#c98121', chance: ZEUS_CHANCE, thunder: true },
 ];
 
 // Picks a boxer by its wheel chance. force = a boxer id to always get (testing: ?zeus=1 or hold Z).
-export function pickBoxer(force) {
-  if (force) return BOXERS.find((b) => b.id === force);
-  let r = Math.random() * 100;
-  for (const b of BOXERS) { if ((r -= b.chance) < 0) return b; }
-  return BOXERS[0];
+// blocked = a boxer id that can't be picked (P1's boxer, on P2's spin). Landing on it re-picks among the
+// ordinary boxers only, so ZEUS always stays at exactly his own ZEUS_CHANCE.
+export function pickBoxer(force, blocked) {
+  if (force && force !== blocked) return BOXERS.find((b) => b.id === force);
+  let r = Math.random() * 100, got = BOXERS[0];
+  for (const b of BOXERS) { if ((r -= b.chance) < 0) { got = b; break; } }
+  if (got.id !== blocked) return got;
+  const rest = BOXERS.filter((b) => b.id !== blocked && !b.thunder);
+  return rest[Math.floor(Math.random() * rest.length)];
 }
 
 // Fallback recolour of the teal art: teal shades -> the boxer's shades.

@@ -2,20 +2,23 @@
 // Head punch = 100 damage, body punch = 50. Every boxer has 1000 health; 0 = knocked out.
 // 2 PLAYERS (default): teal (left half of the camera) fights orange (right half); duck to dodge HIGH fists.
 // 1 PLAYER: teal against the orange computer boxer, which raises its guard but doesn't punch back.
-// Before each fight a big WHEEL picks your boxer (2 players: P1 spins, then P2). ZEUS (1%) has THUNDER fists: 150 damage.
+// Before each fight a big WHEEL picks your boxer (2 players: P1 spins, then P2). ZEUS (rare: ZEUS_CHANCE in src/game/roster.js) has THUNDER fists: 150 damage.
 // Testing: ?zeus=1 in the URL, or hold Z while spinning, always lands on Zeus.
+// SUPER meter: dealing damage fills it (full at 300, see src/game/specials.js); then the next punch is your SPECIAL.
+// Testing: game.fillSuper(0) fills P1's meter.
 // The game is drawn on a small 256x144 picture and scaled up with big crisp pixels.
 import { keys } from './kit/input.js';
 import { startLoop } from './kit/loop.js';
 import { roundTimer } from './kit/timer.js';
 import { W, H, COLORS, drawArena, drawShadow, drawNumber } from './game/scene.js';
 import { loadArt } from './game/art.js';
-import { flame, zap, bolt, starBurst, popWord, playFrames, drawEffects, drawDizzy, clearEffects } from './game/effects.js';
+import { flame, zap, bolt, starBurst, popWord, playFrames, drawEffects, drawDizzy, clearEffects, drip, bubbles } from './game/effects.js';
+import { SUPER, SPECIALS, specialTrail, drawVine, drawIvy, tinted, drawSuperMeter } from './game/specials.js';
 import { sfx, wakeSound } from './game/sfx.js';
 import { startPunchCam, cameraTrouble, DUCK } from './game/punch-cam.js';
 import { DUCK_DROP } from './game/poses.js';
 import { makeSumoFinish, SUMO } from './game/sumo-finish.js';
-import { buildRoster } from './game/roster.js';
+import { buildRoster, ZEUS_CHANCE } from './game/roster.js';
 import { makeWheel, drawReveal } from './game/wheel.js';
 
 // Rules: the Team's win rule plus first-version guesses, all easy to change.
@@ -111,7 +114,9 @@ function setMode(n) {
 // ---------- game state ----------
 function makeFighter(side) {
   return { side, dir: side ? -1 : 1, x: START_X[side], minX: 0, maxX: 0, health: RULES.health, hits: 0, damage: 0, headHits: 0, bodyHits: 0,
-    glove: { mode: 'home', aim: 'body', x: 0, y: 0, vx: 0, vy: 0 }, wobble: 0, duck: 0, walking: 0, boxer: roster[side ? 'orange' : 'teal'] };
+    glove: { mode: 'home', aim: 'body', x: 0, y: 0, vx: 0, vy: 0 }, wobble: 0, duck: 0, walking: 0, boxer: roster[side ? 'orange' : 'teal'],
+    super: 0, specials: 0,                      // SUPER meter (damage dealt toward the next special) and special hits landed
+    slow: 0, tangle: 0, poison: 0, poisonT: 0, poisonBy: null, cooldown: 0 };   // seconds left of each special's effect on this boxer
 }
 const fighters = [makeFighter(0), makeFighter(1)];
 const [teal, orange] = fighters;
@@ -126,16 +131,20 @@ const game = window.game = {
   punch: (aim = 'body', who = 0) => fire(fighters[who], aim),   // handy for testing: game.punch('head', 1)
   duck: (who = 0) => startDuck(fighters[who]),                   // game.duck(1)
   get sumo() { return sumo.active ? sumo.time : null; },          // seconds into the sumo finish, or null
+  fillSuper: (who = 0) => { fighters[who].super = SUPER.full; },  // testing: game.fillSuper(1)
 };
 let punchCam = null;
 let guard = { up: false, t: 2 };
 let excite = 0, time = 0;
 let shakeT = 0, flashT = 0;      // thunder: screen shake and white flash (seconds left)
 let spin = { who: 0, t: 0, boxer: null };
+let strikes = [];               // ZEUS's thunder storm: bolts still to come { t, target, attacker, dmg }
 
 const timer = roundTimer(RULES.roundSeconds, { onEnd: () => finish(null) });
 // for checks from the console: game.debug.guard.up = true; game.debug.timer.reset(3)
 game.debug = { get guard() { return guard; }, get cam() { return punchCam; }, timer, fighters, roster, forceZeus: FORCE_ZEUS };
+// skip the wheel for checks: game.debug.fight('green', 'purple')
+game.debug.fight = (p1 = 'teal', p2 = 'orange') => { game.picks = [p1, p2]; startRound(); };
 
 function rand([a, b]) { return a + Math.random() * (b - a); }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -154,6 +163,7 @@ function startRound() {
   }
   guard = { up: false, t: rand(RULES.guardOpen) };
   excite = 0;
+  strikes = [];
   timer.reset();
   clearEffects();
   show(null);
@@ -187,7 +197,7 @@ function wheelText() {
   } else if (wheel.phase === 'spinning') {
     wheelHelp.textContent = '🎡 ...';
   } else if (b.thunder) {
-    wheelTitle.innerHTML = `⚡ ZEUS! ⚡<span class="en">${who || 'YOU '}GOT THE SUPER RARE ONE! (1%)</span>`;
+    wheelTitle.innerHTML = `⚡ ZEUS! ⚡<span class="en">${who || 'YOU '}GOT THE RARE ONE! (${ZEUS_CHANCE}%)</span>`;
     wheelHelp.textContent = '⚡ Thunder fists: 150 damage! ⚡';
   } else {
     wheelTitle.innerHTML = `${who || 'DU FICK · YOU GOT: '}<span style="color:${b.color}">${b.name}!</span>`;
@@ -202,7 +212,8 @@ function doSpin() {
   } else if (wheel.phase === 'stopped' && spin.t > 1) nextSpinner();
 }
 function nextSpinner() {
-  if (game.mode === 2 && spin.who === 0) { spin = { who: 1, t: 0, boxer: null }; wheel.reset(); wheelText(); }
+  // P2 can't get the same boxer as P1: that slice is greyed out on P2's spin
+  if (game.mode === 2 && spin.who === 0) { spin = { who: 1, t: 0, boxer: null }; wheel.reset(game.picks[0]); wheelText(); }
   else startRound();
 }
 // the wheel stopped on boxer b
@@ -223,17 +234,71 @@ function landed(b) {
 }
 document.getElementById('wheel-screen').addEventListener('pointerdown', doSpin);
 
+// Who has a SUPER meter: both players in 2 players; only you in 1 player (the computer has none for now).
+const hasMeter = (f) => game.mode === 2 || f.side === 0;
+
 function fire(f, aim) {
-  if (game.state !== 'playing' || f.glove.mode !== 'home' || f.duck > 0) return;
+  if (game.state !== 'playing' || f.glove.mode !== 'home' || f.duck > 0 || f.cooldown > 0) return;
   if (game.mode === 1 && f.side === 1) return;   // the computer boxer doesn't punch (yet)
   const x = launchTip(f);
-  f.glove = { mode: 'out', aim, x, from: x, y: ARM_Y, vx: 0, vy: 0, dodged: false };
+  // a full SUPER meter turns this punch into the special, and empties
+  const sp = hasMeter(f) && f.super >= SUPER.full ? SPECIALS[f.boxer.id] : null;
+  f.glove = { mode: 'out', aim, x, from: x, y: ARM_Y, vx: 0, vy: 0, dodged: false, special: sp && sp.kind };
+  if (sp) {
+    f.super = 0;
+    popWord(sp.name, f.x + 32, BOXER_Y - 2, sp.color, 12);
+    sfx.reveal();
+  }
   sfx.whoosh();
 }
 
 function startDuck(f) {
   if (game.state !== 'playing' || game.mode !== 2) return;
+  if (f.tangle > 0) {   // IVY: tangled legs can't duck
+    if (f.duck <= 0 && f.wobble <= 0 && Math.random() < 0.3) popWord('TANGLED!', f.x + 32, BOXER_Y + 40, '#64be52', 9);
+    return;
+  }
   f.duck = Math.max(f.duck, RULES.duckTime);
+}
+
+// A special hit lands on foe: its extra effect. Returns the damage to deal now.
+function specialHit(f, foe, kind, dmg, x, y) {
+  const sp = SPECIALS[f.boxer.id];
+  f.specials++;
+  popWord(sp.status, foe.x + 32, BOXER_Y - 4, sp.color, 12);
+  if (kind === 'water') {
+    foe.slow = SUPER.slow.time;
+    for (let i = 0; i < 20; i++) drip(x + Math.random() * 20 - 10, y + Math.random() * 10 - 5);
+  } else if (kind === 'flame') {
+    for (let i = 0; i < 6; i++) flame(x, y + Math.random() * 16 - 8, 2, -f.dir, 1.5);
+    starBurst(x, y, 16);
+    return dmg + SUPER.flameBonus;
+  } else if (kind === 'ivy') {
+    foe.tangle = SUPER.tangle; foe.duck = 0;
+  } else if (kind === 'poison') {
+    foe.poison = SUPER.poison.time; foe.poisonT = 1; foe.poisonBy = f;
+    for (let i = 0; i < 10; i++) bubbles(x, y, 0);
+  } else if (kind === 'storm') {
+    // THUNDER STORM: 3 bolts from the sky, one after another (the first one right now)
+    SUPER.storm.forEach((d, i) => strikes.push({ t: i * SUPER.stormGap, target: foe, attacker: f, dmg: d }));
+    return 0;
+  }
+  return dmg;
+}
+
+// One bolt of the thunder storm hits.
+function strike(s) {
+  const foe = s.target, x = foe.x + 32 + Math.random() * 16 - 8;
+  bolt(x + Math.random() * 30 - 15, 0, x, BOXER_Y + 30, 0.4);
+  bolt(x + Math.random() * 30 - 15, 0, x, BOXER_Y + 30, 0.3);
+  starBurst(x, BOXER_Y + 30, 12);
+  flashT = 0.25; shakeT = 0.45;
+  sfx.zap(); sfx.thunder();
+  popWord(`-${s.dmg}`, x, BOXER_Y + 14, '#ffffff', 11);
+  s.attacker.damage += s.dmg;
+  foe.health = Math.max(0, foe.health - s.dmg);
+  foe.wobble = 0.5; foe.duck = 0; excite = 1;
+  if (foe.health === 0) finish(s.attacker);
 }
 
 // winner: the fighter who won, or null when time ran out (1 player)
@@ -269,7 +334,8 @@ function scoreCards() {
       <dl><dt>💥 Skada · Damage</dt><dd>${f.damage}</dd>
       <dt>👊 Träffar · Hits</dt><dd>${f.hits}</dd>
       <dt>🙂 Huvud · Head</dt><dd>${f.headHits}</dd>
-      <dt>👕 Kropp · Body</dt><dd>${f.bodyHits}</dd></dl></div>`;
+      <dt>👕 Kropp · Body</dt><dd>${f.bodyHits}</dd>
+      <dt>⭐ Superslag · Specials</dt><dd>${f.specials}</dd></dl></div>`;
   }).join('');
 }
 
@@ -384,7 +450,29 @@ function update(dt, now) {
   for (const f of fighters) {
     f.wobble = Math.max(0, f.wobble - dt);
     f.duck = Math.max(0, f.duck - dt);
+    f.cooldown = Math.max(0, f.cooldown - dt);
+    f.slow = Math.max(0, f.slow - dt);
+    f.tangle = Math.max(0, f.tangle - dt);
+    if (f.poison > 0) {
+      f.poison = Math.max(0, f.poison - dt);
+      f.poisonT -= dt;
+      // POISON: a little health every second, but never the last bit (a real punch has to finish them)
+      if (f.poisonT <= 0 && game.state === 'playing') {
+        f.poisonT += 1;
+        const dmg = Math.min(SUPER.poison.perSecond, f.health - 1);
+        if (dmg > 0) {
+          f.health -= dmg;
+          if (f.poisonBy) f.poisonBy.damage += dmg;
+          popWord(`-${dmg}`, f.x + 32 + Math.random() * 10 - 5, BOXER_Y + 22, '#e5b3ff', 9);
+        }
+      }
+    }
   }
+  // ZEUS's thunder storm: the bolts still to come
+  if (game.state === 'playing') {
+    for (const s of strikes) { s.t -= dt; if (s.t <= 0 && game.state === 'playing') strike(s); }
+    strikes = strikes.filter((s) => s.t > 0);
+  } else strikes = [];
   excite = Math.max(game.state === 'win' ? 1 : 0, excite - dt * 0.7);
 
   for (const f of fighters) moveGlove(f, dt);
@@ -394,7 +482,7 @@ function update(dt, now) {
 // Walk a boxer: keys walk it; on the webcam it walks toward where that player's body is.
 function walk(f, dt, c, tracker) {
   const keyDir = (anyHeld(c.right) ? 1 : 0) - (anyHeld(c.left) ? 1 : 0);
-  const step = RULES.walkSpeed * dt;
+  const step = RULES.walkSpeed * dt * (f.slow > 0 ? SUPER.slow.walk : 1);   // WATER: dripping wet = slower
   const before = f.x;
   if (keyDir) f.x += keyDir * step;
   else if (tracker && tracker.walkX !== null) {
@@ -408,8 +496,9 @@ function walk(f, dt, c, tracker) {
 
 function moveGlove(f, dt) {
   const gl = f.glove, d = f.dir, foe = fighters[1 - f.side];
+  const slowK = f.slow > 0 ? SUPER.slow.glove : 1;   // WATER: slower fists too
   if (gl.mode === 'out') {
-    gl.x += d * RULES.gloveSpeed * dt;
+    gl.x += d * RULES.gloveSpeed * slowK * dt;
     const tip = hitTip(foe, d);
     if (gl.dodged) gl.y = Math.max(BOXER_Y + 2, gl.y - 60 * dt);   // sails up over the ducking boxer
     else {
@@ -418,7 +507,8 @@ function moveGlove(f, dt) {
       const k = clamp(Math.abs(gl.x - gl.from) / span, 0, 1);
       gl.y = ARM_Y + (AIM_Y[gl.aim] - ARM_Y) * k * (2 - k);
     }
-    if (f.boxer.thunder) zap(gl.x - d * 44, gl.y, d);
+    if (gl.special) specialTrail(gl.special, gl.x - d * (gl.special === 'flame' ? 84 : 40), gl.y, d);
+    else if (f.boxer.thunder) zap(gl.x - d * 44, gl.y, d);
     else flame(gl.x - d * 40, gl.y, 1, d);
     const reached = d > 0 ? gl.x >= tip : gl.x <= tip;
     if (reached && !gl.dodged && game.state === 'playing') {
@@ -426,20 +516,22 @@ function moveGlove(f, dt) {
         gl.dodged = true;
         popWord('DODGE!', foe.x + 32, BOXER_Y + 8, COLORS.rope, 11);
         sfx.whoosh();
-      } else if (game.mode === 1 && gl.aim === 'head' && guard.up && foe.wobble <= 0 && !f.boxer.thunder) {
+      } else if (game.mode === 1 && gl.aim === 'head' && guard.up && foe.wobble <= 0 && !f.boxer.thunder && !gl.special) {
         gl.mode = 'bounce'; gl.vy = -120;
         popWord('BOING!', tip - 4 * d, gl.y - 14, COLORS.rope, 11);
         sfx.boing();
       } else {
         const thunder = f.boxer.thunder;
-        const dmg = thunder ? RULES.thunderDamage : RULES.damage[gl.aim];
+        let dmg = thunder ? RULES.thunderDamage : RULES.damage[gl.aim];
+        if (gl.special) dmg = specialHit(f, foe, gl.special, dmg, tip, gl.y);
+        else if (hasMeter(f)) f.super = Math.min(SUPER.full, f.super + dmg);   // normal hits charge the SUPER meter
         f.hits++; f.damage += dmg;
         if (gl.aim === 'head') f.headHits++; else f.bodyHits++;
         foe.health = Math.max(0, foe.health - dmg);
         playFrames(art['stars-burst'], tip + 2 * d, gl.y);
         starBurst(tip, gl.y, gl.aim === 'head' ? 12 : 7);
         popWord(thunder ? 'ZAP!' : gl.aim === 'head' ? 'POW!' : 'BAM!', tip - 10 * d, gl.y - 16, COLORS.sparkle, thunder ? 15 : 12);
-        popWord(`-${dmg}`, tip + 26 * d, gl.y - 6, thunder ? '#ffffff' : COLORS.rope, thunder ? 11 : 9);
+        if (dmg) popWord(`-${dmg}`, tip + 26 * d, gl.y - 6, thunder ? '#ffffff' : COLORS.rope, thunder ? 11 : 9);
         if (thunder) {
           // THUNDER: a lightning bolt from the sky onto the target, a white flash and a shake
           bolt(tip + 6 * d, 0, tip, gl.y, 0.4);
@@ -454,10 +546,10 @@ function moveGlove(f, dt) {
       }
     } else if (gl.x > W + 50 || gl.x < -50) gl.mode = 'back';
   } else if (gl.mode === 'back' || gl.mode === 'bounce') {
-    gl.x -= d * RULES.returnSpeed * dt;
+    gl.x -= d * RULES.returnSpeed * slowK * dt;
     if (gl.mode === 'bounce') { gl.y += gl.vy * dt; gl.vy += 500 * dt; gl.y = Math.min(gl.y, ARM_Y); }
     else gl.y += (ARM_Y - gl.y) * Math.min(1, dt * 4);
-    if (d > 0 ? gl.x <= launchTip(f) : gl.x >= launchTip(f)) gl.mode = 'home';
+    if (d > 0 ? gl.x <= launchTip(f) : gl.x >= launchTip(f)) { gl.mode = 'home'; if (f.slow > 0) f.cooldown = SUPER.slow.cooldown; }
   }
 }
 
@@ -514,7 +606,8 @@ function drawFighter(f, breathe) {
     g.drawImage(pose, -(fx - x), -69); g.restore();
     if (squash.sy < 0.5) return;
     y = fy - 69 * squash.sy;
-  } else put(pose, x, y);
+  } else put(f.poison > 0 && !lost ? tinted(pose, '#b05cf0', 0.3) : pose, x, y);
+  if (!lost && game.state === 'playing') drawStatus(f, x, y);
   // 2 players: a P1 / P2 tag over each head, so two of the same boxer can be told apart
   if (game.mode === 2 && !lost) {
     const ty = y - 7 + (f.duck > 0 && f.wobble <= 0 ? DUCK_DROP : 0), tx = Math.round(x + 32);
@@ -524,12 +617,25 @@ function drawFighter(f, breathe) {
   if (lost || f.wobble > 0) drawDizzy(g, x + (f.side ? 34 : 30), y + 4 + (f.duck > 0 ? DUCK_DROP : 0), time);
 }
 
+// The specials' effects on a boxer: wet drops, ivy round the legs, poison bubbles.
+function drawStatus(f, x, y) {
+  const duckY = f.duck > 0 ? DUCK_DROP : 0;
+  if (f.slow > 0 && Math.random() < 0.6) drip(x + 18 + Math.random() * 28, y + 6 + duckY + Math.random() * 30);
+  if (f.poison > 0 && Math.random() < 0.25) bubbles(x + 20 + Math.random() * 24, y + 4 + duckY + Math.random() * 20, 0);
+  if (f.tangle > 0) drawIvy(g, Math.round(x + 32), Math.round(y + 70), time);
+}
+
 function drawGlove(f) {
   const gl = f.glove;
   if (gl.mode === 'home') return;
   const frames = f.boxer.glove;
   const img = frames[Math.floor(time * 12) % frames.length];
-  if (gl.mode === 'out') putFacing(img, gl.x, gl.y - GLOVE_MID, f.dir, GLOVE_TIP);
+  if (gl.mode === 'out' && gl.special === 'ivy') drawVine(g, launchTip(f) - f.dir * 40, gl.x - f.dir * 40, gl.y, time);
+  if (gl.mode === 'out' && gl.special === 'flame') {
+    // the FLAME FIST: a glove twice as big
+    g.save(); g.translate(Math.round(gl.x), Math.round(gl.y)); g.scale(2 * f.dir, 2);
+    g.drawImage(img, -GLOVE_TIP, -GLOVE_MID); g.restore();
+  } else if (gl.mode === 'out') putFacing(img, gl.x, gl.y - GLOVE_MID, f.dir, GLOVE_TIP);
   // flying home: turn the rocket around so the flame points at the other boxer
   else putFacing(img, gl.x - f.dir * 44, gl.y - GLOVE_MID, -f.dir, GLOVE_TIP);
 }
@@ -562,9 +668,13 @@ function draw(dt) {
 
   drawEffects(g, dt);
   if (game.state === 'playing' || game.state === 'win' || game.state === 'timeup') {
-    if (game.mode === 2) { drawHealth(teal); drawHealth(orange); }
-    else {
+    if (game.mode === 2) {
+      drawHealth(teal); drawHealth(orange);
+      drawSuperMeter(g, teal, 22, 24, 70, time);
+      drawSuperMeter(g, orange, W - 92, 24, 70, time, true);
+    } else {
       drawHealth(orange);
+      drawSuperMeter(g, teal, 22, H - 18, 86, time);
       drawNumber(g, Math.ceil(timer.left), W / 2, 5, timer.left <= 10 ? COLORS.sparkle : COLORS.rope, 2, 'center');
     }
   }

@@ -1,6 +1,6 @@
 // The boxer WHEEL: a big pixel-art wheel that spins, slows down tick-tick-tick past the pegs and stops
 // under the pointer at the top. Then the boxer you got pops up in the middle (the reveal).
-// Slice sizes match the chances in roster.js, so ZEUS (1%) is a tiny lightning-yellow sliver.
+// Slice sizes match the chances in roster.js, so ZEUS (rare, ZEUS_CHANCE) is a small lightning-yellow slice.
 import { COLORS, disc } from './scene.js';
 import { BOXERS, pickBoxer } from './roster.js';
 import { sfx } from './sfx.js';
@@ -35,7 +35,8 @@ export function makeWheel(roster) {
   const shades = SLICES.map((s) => ({ main: rgb(s.b.color), light: rgb(s.b.light), dark: rgb(s.b.dark) }));
   const OUT = rgb(COLORS.outline), RIM = rgb(COLORS.ring), RIM_DARK = rgb(COLORS.ringDark);
 
-  let w = { phase: 'ready', rot: 0, t: 0, from: 0, total: 0, result: null, peg: 0, flick: 0 };
+  let w = { phase: 'ready', rot: 0, t: 0, from: 0, total: 0, result: null, peg: 0, flick: 0, blocked: null };
+  const GREY = { main: [118, 118, 132], light: [150, 150, 164], dark: [88, 88, 102] };
 
   // Paints the wheel face for the current turn, one pixel at a time (crisp pixel art at any angle).
   function paint(time) {
@@ -51,16 +52,24 @@ export function makeWheel(roster) {
         else if (dist > R - 6) c = OUT;
         else {
           const u = wrap(Math.atan2(dy, dx) - w.rot);
-          const k = SLICES.indexOf(sliceAt(u)), s = SLICES[k];
+          const k = SLICES.indexOf(sliceAt(u)), s = SLICES[k], sh = s.b.id === w.blocked ? GREY : shades[k];
           const edge = Math.min(u - s.a0, s.a1 - u) * dist;
-          if (edge < 0.9 && s.b.id !== 'zeus') c = OUT;
-          else if (s.b.id === 'zeus') c = (x * 7 + y * 3 + sparkle) % 5 === 0 ? [255, 255, 255] : shades[k].main;
-          else c = dist > R - 10 ? shades[k].light : dist < 14 ? shades[k].dark : shades[k].main;
+          if (edge < 0.9) c = OUT;
+          else if (s.b.id === 'zeus') c = (x * 7 + y * 3 + sparkle) % 5 === 0 && sh !== GREY ? [255, 255, 255] : sh.main;
+          else c = dist > R - 10 ? sh.light : dist < 14 ? sh.dark : sh.main;
         }
         d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255;
       }
     }
     fg.putImageData(img, 0, 0);
+  }
+
+  // a big red X over a boxer who can't be picked this spin
+  function crossOut(g, x, y, s) {
+    for (const [color, wide] of [[COLORS.outline, 3], ['#e0485a', 1]]) {
+      g.fillStyle = color;
+      for (let i = -s; i <= s; i++) { g.fillRect(x + i - (wide >> 1), y + i - (wide >> 1), wide, wide); g.fillRect(x + i - (wide >> 1), y - i - (wide >> 1), wide, wide); }
+    }
   }
 
   function stampBolt(g, x, y) {
@@ -74,12 +83,13 @@ export function makeWheel(roster) {
     get phase() { return w.phase; },
     get result() { return w.result; },
 
-    reset() { w = { ...w, phase: 'ready', t: 0, result: null }; },
+    // blocked = a boxer id greyed out for this spin (P1's boxer when P2 spins), or nothing
+    reset(blocked = null) { w = { ...w, phase: 'ready', t: 0, result: null, blocked }; },
 
     // Push the wheel. force = a boxer id to land on (testing). Returns false if it's already spinning.
     spin(force) {
       if (w.phase !== 'ready') return false;
-      const b = pickBoxer(force);
+      const b = pickBoxer(force, w.blocked);
       const s = SLICES.find((sl) => sl.b === b);
       const width = s.a1 - s.a0;
       const u = s.a0 + width * (b.id === 'zeus' ? 0.5 : 0.2 + Math.random() * 0.6);   // somewhere inside the slice
@@ -114,13 +124,16 @@ export function makeWheel(roster) {
       for (const s of SLICES) {
         if (s.b.id === 'zeus') continue;
         const a = (s.a0 + s.a1) / 2 + w.rot, head = roster[s.b.id].head;
-        const hx = cx + Math.cos(a) * r * 0.55, hy = cy + Math.sin(a) * r * 0.55;
-        g.drawImage(head, Math.round(hx - head.width / 2), Math.round(hy - head.height / 2));
+        const hx = Math.round(cx + Math.cos(a) * r * 0.55), hy = Math.round(cy + Math.sin(a) * r * 0.55);
+        if (s.b.id === w.blocked) { g.filter = 'grayscale(1) brightness(0.75)'; g.drawImage(head, hx - (head.width >> 1), hy - (head.height >> 1)); g.filter = 'none'; crossOut(g, hx, hy, 11); }
+        else g.drawImage(head, hx - (head.width >> 1), hy - (head.height >> 1));
       }
       // ZEUS: a lightning bolt sign just outside the rim, glinting
       const zs = SLICES.find((s) => s.b.id === 'zeus');
       const za = (zs.a0 + zs.a1) / 2 + w.rot;
-      stampBolt(g, Math.round(cx + Math.cos(za) * (r + 6)), Math.round(cy + Math.sin(za) * (r + 6)));
+      const bx = Math.round(cx + Math.cos(za) * (r + 6)), by = Math.round(cy + Math.sin(za) * (r + 6));
+      stampBolt(g, bx, by);
+      if (w.blocked === 'zeus') crossOut(g, bx, by, 5);
       // rim pegs
       for (let i = 0; i < WHEEL.pegs; i++) {
         const a = (i / WHEEL.pegs) * TAU + w.rot;
