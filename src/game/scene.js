@@ -88,9 +88,11 @@ export function drawRing(g, look = RING_LOOK) {
 
 // Flat dark oval under a boxer's feet.
 export function drawShadow(g, cx, y, w) {
-  g.fillStyle = 'rgba(11, 18, 38, 0.35)';
-  g.fillRect(Math.round(cx - w / 2), y, w, 3);
-  g.fillRect(Math.round(cx - w / 2 + 3), y + 3, w - 6, 1);
+  // a soft oval (drawn at screen resolution, so it is smooth under the detailed art)
+  g.fillStyle = 'rgba(11, 18, 38, 0.38)';
+  g.beginPath(); g.ellipse(cx, y + 1.5, w / 2, 2.6, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = 'rgba(11, 18, 38, 0.25)';
+  g.beginPath(); g.ellipse(cx, y + 1.5, w / 2 + 4, 3.6, 0, 0, Math.PI * 2); g.fill();
 }
 
 // Pixel digits (3x5) for the timer and health number, with a dark outline.

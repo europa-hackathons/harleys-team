@@ -11,16 +11,18 @@
 // Testing: game.fillSuper(0) fills P1's meter.
 // GET READY (camera play only): before each fight a BIG camera picture shows each player's STAND HERE box;
 // it turns green with a tick when someone moves in it. All boxes green for READY.startAfter s (or SPACE / click) = FIGHT.
-// The game is drawn on a small 256x144 picture and scaled up with big crisp pixels: the place on a BACK layer,
-// everything else on a front layer, so during a fight the camera picture can sit between them (behind the boxers).
+// The game thinks in a small 256x144 picture ("game pixels": positions, hits, speeds), but it is DRAWN at screen
+// resolution (RENDER below), so the art keeps all its detail: the place on a BACK layer, everything else on a front
+// layer, so during a fight the camera picture can sit between them (behind the boxers).
 import { keys } from './kit/input.js';
 import { startLoop } from './kit/loop.js';
 import { roundTimer } from './kit/timer.js';
 import { W, H, COLORS, drawArena, drawShadow, drawNumber } from './game/scene.js';
-import { PLACES, drawPlace, randomPlace } from './game/places.js';
+import { PLACES, drawPlace, randomPlace, hasPicture } from './game/places.js';
+import { blit, drawFacing, contentBox, lw, lh } from './game/sprite.js';
 import { LEVELS, foeFor } from './game/levels.js';
 import { loadArt } from './game/art.js';
-import { flame, zap, bolt, starBurst, popWord, playFrames, drawEffects, drawDizzy, clearEffects, drip, bubbles, sizzle } from './game/effects.js';
+import { flame, zap, bolt, starBurst, popWord, playFrames, drawEffects, drawDizzy, clearEffects, drip, bubbles, sizzle, fx, drawWord } from './game/effects.js';
 import { SUPER, SPECIALS, specialTrail, drawVine, drawIvy, tinted, drawSuperMeter, drawSwirl, drawLava } from './game/specials.js';
 import { sfx, wakeSound, muteBleeps } from './game/sfx.js';
 import { sound } from './kit/sound.js';
@@ -29,6 +31,7 @@ import { DUCK_DROP } from './game/poses.js';
 import { makeSumoFinish, SUMO } from './game/sumo-finish.js';
 import { buildRoster, ZEUS_CHANCE } from './game/roster.js';
 import { makeWheel, drawReveal } from './game/wheel.js';
+import { drawPoseSheet, makeRecorder } from './game/qa.js';
 import { t, boxerName, placeName, applyPage, toggleLang, onLangChange } from './game/i18n.js';
 
 // Real sound effects (assets/audio/*.mp3) on top of the code-made bleeps: one per special, and SUPER READY.
@@ -66,7 +69,10 @@ const LAUNCH_OFFSET = 78;                   // the glove's front edge, from the 
 const HIT_DEPTH = 18;                       // the glove hits this far into the other boxer's frame
 const ARM_Y = BOXER_Y + 33;                 // height of the punching arm: the glove leaves from here
 const AIM_Y = { head: BOXER_Y + 20, body: BOXER_Y + 41 };
-const GLOVE_TIP = 46, GLOVE_MID = 12;       // front edge and middle height inside the rocket-glove frame
+const GLOVE_TIP = 46, GLOVE_MID = 12;
+const RECOVER_TIME = 0.2;                   // seconds of the recovery pose after the glove clicks back on (looks only)
+const IDLE_FPS = 1.8;                       // breathing: idle1 <-> idle2 swaps a second
+const WIND_FX_TIME = 1.2;                   // seconds the WIND STORM swirl spins round the boxer it hit (looks only)       // front edge and middle height inside the rocket-glove frame
 
 // Keys for each player in each mode.
 const CONTROLS = {
@@ -83,18 +89,25 @@ const anyHeld = (codes) => codes.some((c) => keys.held(c));
 const canvas = document.getElementById('stage');
 const ctx = canvas.getContext('2d');
 const pixels = document.createElement('canvas');
-pixels.width = W; pixels.height = H;
 const g = pixels.getContext('2d');
 const back = document.createElement('canvas');   // the place (background) layer
-back.width = W; back.height = H;
 const gb = back.getContext('2d');
+// RENDER.scale = real pixels per game pixel on the two layers: the screen's own scale (so nothing is blown up
+// twice), at least RENDER.min so small windows still keep detail, at most RENDER.max to stay fast.
+const RENDER = { min: 4, max: 8, scale: 4 };
 
 const art = await loadArt();
 // every boxer on the wheel, with poses for both sides and rocket gloves facing right (flipped when flying left)
 const roster = buildRoster(art);
-const wheel = makeWheel(roster);
+const wheel = makeWheel(roster, art.hd.ui['wheel-rim-hub']?.[0]);   // (the HD rim and hub, if drawn)
 const FORCE_ZEUS = new URLSearchParams(location.search).get('zeus') === '1';
-const sumo = makeSumoFinish(art['sumo'], art['sumo-dust']);
+const HD_FX = art.hd.effects;
+fx.skyBolt = HD_FX['zeus-sky-bolt'] || null;   // Zeus's lightning: the drawn HD bolt (effects.js bolt())
+fx.hd = ['water', 'flame', 'ivy', 'poison', 'storm', 'wind'].every((k) => HD_FX[`${k}-trail`] && HD_FX[`${k}-impact`] && HD_FX[`${k}-status`]);
+const sumoHD = art.hd.characters.sumo?.poses;
+// HD: falls, belly-flops, stands up (recovery) as he hops off, then sits and waves (sittingWave)
+const sumo = makeSumoFinish(sumoHD?.fall && sumoHD.flop && sumoHD.sit ? [sumoHD.fall[0], sumoHD.flop[0], (sumoHD.recovery || sumoHD.sit)[0], sumoHD.sit[0]] : art['sumo'], HD_FX.dust || HD_FX['sumo-dust'] || art['sumo-dust']);
+const HIT_STARS = HD_FX['hit-stars'] || HD_FX.stars || HD_FX['stars-burst'] || HD_FX.impact || art['stars-burst'];
 
 let view = { x: 0, y: 0, w: W, h: H };
 function resize() {
@@ -103,6 +116,9 @@ function resize() {
   let s = Math.min(canvas.width / W, canvas.height / H);
   if (s >= 2) s = Math.floor(s);                       // whole-number scale = even pixels
   view = { w: W * s, h: H * s, x: Math.round((canvas.width - W * s) / 2), y: Math.round((canvas.height - H * s) / 2) };
+  RENDER.scale = Math.max(RENDER.min, Math.min(RENDER.max, Math.ceil(s - 0.01)));
+  for (const c of [pixels, back]) { c.width = W * RENDER.scale; c.height = H * RENDER.scale; }
+  for (const c of [g, gb]) { c.setTransform(RENDER.scale, 0, 0, RENDER.scale, 0, 0); c.imageSmoothingEnabled = false; }
 }
 addEventListener('resize', resize);
 resize();
@@ -130,7 +146,9 @@ function makeFighter(side) {
     glove: { mode: 'home', aim: 'body', x: 0, y: 0, vx: 0, vy: 0 }, wobble: 0, duck: 0, walking: 0, boxer: roster[side ? 'orange' : 'teal'],
     super: 0, specials: 0,                      // SUPER meter (damage dealt toward the next special) and special hits landed
     slow: 0, tangle: 0, poison: 0, poisonT: 0, poisonBy: null, cooldown: 0,
-    lava: 0, lavaT: 0, lavaBy: null, splats: [] };   // LAVA from the FLAME FIST: seconds left, next burn, splats on the body   // seconds left of each special's effect on this boxer
+    lava: 0, lavaT: 0, lavaBy: null, splats: [],
+    recover: 0,                                 // seconds left of the after-punch pose (the glove clicking back on; looks only)
+    windFx: 0, stormFx: 0 };                    // seconds left of the WIND STORM / THUNDER STORM swirl round this boxer (looks only)   // LAVA from the FLAME FIST: seconds left, next burn, splats on the body   // seconds left of each special's effect on this boxer
 }
 const fighters = [makeFighter(0), makeFighter(1)];
 const [teal, orange] = fighters;
@@ -172,6 +190,16 @@ game.debug.fight = (p1 = 'teal', p2 = 'orange') => { game.picks = [p1, p2]; star
 // jump straight into a 1-player level (keeps your boxer, or teal): game.debug.level(5)
 game.debug.level = (n = 1) => { setMode(1); clearRun(); game.level = clampLevel(n); game.picks = [game.picks[0] || 'teal', null]; startRound(); };
 game.debug.ai = () => ai;
+// look checks for the art (src/game/qa.js): game.debug.qa('zeus') / game.debug.qa('zeus', 'onion');
+// game.debug.record(12, 0.06) then game.debug.contact() shows 12 real frames side by side
+const recorder = makeRecorder();
+let qa = null;
+game.debug.qa = (id = 'teal', mode = 'sheet') => { qa = { id, mode }; game.state = 'qa'; show(null); hint.classList.add('hidden'); };
+game.debug.record = (n, every, region) => recorder.start(n, every, region);
+game.debug.contact = () => { game.state = 'contact'; show(null); hint.classList.add('hidden'); };
+game.debug.recording = () => recorder.active;
+game.debug.render = () => ({ scale: RENDER.scale, layer: [pixels.width, pixels.height], view, hd: Object.fromEntries(Object.values(roster).map((b) => [b.id, b.hd])),
+  places: Object.keys(art.hd.world), effects: Object.keys(HD_FX).length });
 
 function rand([a, b]) { return a + Math.random() * (b - a); }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -270,7 +298,7 @@ function updateReveal(dt) {
     reveal.next -= dt;
     if (reveal.next <= 0) {
       // the next place in the slot machine (never the same twice in a row), ticking slower and slower
-      const ids = Object.keys(PLACES).filter((id) => id !== reveal.shown && (!PLACES[id].artOnly || art[PLACES[id].art]));
+      const ids = Object.keys(PLACES).filter((id) => id !== reveal.shown && (!PLACES[id].artOnly || hasPicture(id, art)));
       reveal.shown = ids[Math.floor(Math.random() * ids.length)];
       revealText(reveal.shown);
       reveal.next = 0.06 + 0.16 * (reveal.t / REVEAL.spin);
@@ -412,10 +440,12 @@ function specialHit(f, foe, kind, dmg, x, y) {
     // WIND STORM: one huge gust of a punch
     starBurst(x, y, 18);
     shakeT = 0.35;
+    foe.windFx = WIND_FX_TIME;
     return SUPER.wind;
   } else if (kind === 'storm') {
     // THUNDER STORM: 3 bolts from the sky, one after another (the first one right now)
     SUPER.storm.forEach((d, i) => strikes.push({ t: i * SUPER.stormGap, target: foe, attacker: f, dmg: d }));
+    foe.stormFx = SUPER.storm.length * SUPER.stormGap + 0.6;
     return 0;
   }
   return dmg;
@@ -655,6 +685,9 @@ function update(dt, now) {
     f.wobble = Math.max(0, f.wobble - dt);
     f.duck = Math.max(0, f.duck - dt);
     f.cooldown = Math.max(0, f.cooldown - dt);
+    f.recover = Math.max(0, f.recover - dt);
+    f.windFx = Math.max(0, f.windFx - dt);
+    f.stormFx = Math.max(0, f.stormFx - dt);
     f.slow = Math.max(0, f.slow - dt);
     f.tangle = Math.max(0, f.tangle - dt);
     if (f.poison > 0) {
@@ -748,7 +781,10 @@ function moveGlove(f, dt) {
       const k = clamp(Math.abs(gl.x - gl.from) / span, 0, 1);
       gl.y = ARM_Y + (AIM_Y[gl.aim] - ARM_Y) * k * (2 - k);
     }
-    if (gl.special) specialTrail(gl.special, gl.x - d * (BIG_FIST[gl.special] ? 84 : 40), gl.y, d);
+    // sparks off the back of the flying glove (an HD glove has its own drawn jet instead of the pixel flame)
+    const back = gl.x - d * gloveLen(f) * (BIG_FIST[gl.special] ? 2 : 1);
+    if (gl.special) specialTrail(gl.special, back, gl.y, d);
+    else if (fxOf(f, 'trail')) { if (f.boxer.thunder && Math.random() < 0.25) zap(back, gl.y, d); }
     else if (f.boxer.thunder) zap(gl.x - d * 44, gl.y, d);
     else flame(gl.x - d * 40, gl.y, 1, d);
     const reached = d > 0 ? gl.x >= tip : gl.x <= tip;
@@ -773,7 +809,8 @@ function moveGlove(f, dt) {
         f.hits++; f.damage += dmg;
         if (gl.aim === 'head') f.headHits++; else f.bodyHits++;
         foe.health = Math.max(0, foe.health - dmg);
-        playFrames(art['stars-burst'], tip + 2 * d, gl.y);
+        playFrames(HIT_STARS, tip + 2 * d, gl.y);
+        if (gl.special && fxOf(f, 'impact')) playFrames(fxOf(f, 'impact'), tip, gl.y, 12, 1.4);
         starBurst(tip, gl.y, gl.aim === 'head' ? 12 : 7);
         popWord(t(thunder ? 'zap' : gl.special === 'wind' ? 'whoosh' : gl.aim === 'head' ? 'pow' : 'bam'), tip - 10 * d, gl.y - 16, COLORS.sparkle, thunder ? 15 : 12);
         if (dmg) popWord(`-${dmg}`, tip + 26 * d, gl.y - 6, thunder ? '#ffffff' : COLORS.rope, thunder ? 11 : 9);
@@ -794,21 +831,15 @@ function moveGlove(f, dt) {
     gl.x -= d * RULES.returnSpeed * slowK * dt;
     if (gl.mode === 'bounce') { gl.y += gl.vy * dt; gl.vy += 500 * dt; gl.y = Math.min(gl.y, ARM_Y); }
     else gl.y += (ARM_Y - gl.y) * Math.min(1, dt * 4);
-    if (d > 0 ? gl.x <= launchTip(f) : gl.x >= launchTip(f)) { gl.mode = 'home'; if (f.slow > 0) f.cooldown = SUPER.slow.cooldown; }
+    if (d > 0 ? gl.x <= launchTip(f) : gl.x >= launchTip(f)) {
+      gl.mode = 'home'; f.recover = RECOVER_TIME;   // the glove is back on the arm: the recovery pose, then idle
+      if (f.slow > 0) f.cooldown = SUPER.slow.cooldown;
+    }
   }
 }
 
 // ---------- drawing ----------
-function put(img, x, y) { g.drawImage(img, Math.round(x), Math.round(y)); }
-// a picture facing right (1) or flipped to face left (-1), with its column `anchor` placed at x
-function putFacing(img, x, y, facing, anchor) {
-  if (facing > 0) { put(img, x - anchor, y); return; }
-  g.save();
-  g.translate(Math.round(x + anchor), Math.round(y));
-  g.scale(-1, 1);
-  g.drawImage(img, 0, 0);
-  g.restore();
-}
+const FEET_Y = BOXER_Y + 69;                // the floor line the boxers stand on
 
 // Health bar. side 0 = you / P1 (top-left), side 1 = the computer / P2 (top-right).
 // With the camera on, the bars are shorter so the bigger camera picture fits between them.
@@ -824,54 +855,101 @@ function drawHealth(f) {
   const fx = f.side ? x + w - fill : x;
   g.fillStyle = fillC; g.fillRect(fx, y, fill, h);
   g.fillStyle = lightC; g.fillRect(fx, y, fill, 2);
+  g.fillStyle = f.boxer.dark; g.fillRect(fx, y + h - 1, fill, 1);                     // shade along the bottom
+  g.fillStyle = 'rgba(255, 255, 255, 0.75)'; g.fillRect(fx + 1, y + 0.5, Math.max(0, fill - 2), 0.5);   // shine
   drawNumber(g, f.health, f.side ? x + w : x, y + h + 3, COLORS.rope, 1, f.side ? 'right' : 'left');
-  // little head as a label, on the outside end of the bar
-  const lx = f.side ? x + w + 4 : x - 12;
-  g.fillStyle = COLORS.outline; g.fillRect(lx, y - 3, 9, 11);
-  g.fillStyle = '#f6c08e'; g.fillRect(lx + 1, y + 1, 7, 6);
-  g.fillStyle = f.boxer.dark; g.fillRect(lx + 1, y - 2, 7, 4);
-  g.fillStyle = f.boxer.color; g.fillRect(lx + 1, y + 1, 7, 1);
-  g.fillStyle = COLORS.outline; g.fillRect(lx + 3, y + 3, 1, 2); g.fillRect(lx + 6, y + 3, 1, 2);
+  // the boxer's portrait as a label, on the outside end of the bar, in a frame of their colour
+  const size = 15, lx = f.side ? x + w + 3 : x - 3 - size, ly = y - 4;
+  g.fillStyle = COLORS.outline; g.fillRect(lx - 1, ly - 1, size + 2, size + 2);
+  g.fillStyle = f.boxer.dark; g.fillRect(lx, ly, size, size);
+  const head = f.boxer.head, s = Math.min(size / lw(head), size / lh(head));
+  g.save(); g.beginPath(); g.rect(lx, ly, size, size); g.clip();
+  drawFacing(g, head, lx + size / 2, ly + size / 2, f.side ? -1 : 1, s, lw(head) / 2, lh(head) / 2);
+  g.restore();
+  g.strokeStyle = f.boxer.color; g.lineWidth = 0.5; g.strokeRect(lx + 0.25, ly + 0.25, size - 0.5, size - 0.5);
 }
 
-function drawFighter(f, breathe) {
+// Which pose a boxer shows right now (only reads the game state; changes nothing).
+function poseOf(f) {
+  const lost = game.loser === (f.side ? 'orange' : 'teal');
+  if (lost || f.wobble > 0) return 'hit';
+  if (f.duck > 0) return 'duck';
+  if (f.glove.mode !== 'home') return f.glove.special ? 'special' : 'punch';   // (the glove is off the arm)
+  if (f.recover > 0 && game.state === 'playing') return 'recovery';
+  if (game.state === 'win' && game.loser && (!sumo.active || sumo.time > SUMO.sitUp)) return 'victory';
+  if (game.mode === 1 && f.side === 1 && guard.up && game.state === 'playing' && ai.warn <= 0) return 'guard';
+  return 'idle';
+}
+// The frame of a pose: idle breathes (idle1 <-> idle2) on the beat; the others play once from when they began,
+// then hold the last frame.
+function frameOf(list, f, name) {
+  if (list.length === 1) return list[0];
+  if (name === 'idle') return list[Math.floor(time * IDLE_FPS + f.side * 0.5) % list.length];
+  const fps = list.fps || list[0].fps || 12;
+  return list[Math.min(list.length - 1, Math.floor(f.poseT * fps))];
+}
+
+function drawFighter(f, dt) {
   const p = f.boxer.poses[f.side];
   const lost = game.loser === (f.side ? 'orange' : 'teal');
-  let x = f.x, y = BOXER_Y, pose = p.idle[breathe];
+  const name = poseOf(f);
+  if (name !== f.poseName) { f.poseName = name; f.poseT = 0; } else f.poseT += dt;
+  const pose = frameOf(p[name], f, name);
+  // x, y = the top-left of the boxer's 64x72 game box (hits, effects); cx, feet = where it stands
+  let x = f.x, y = BOXER_Y;
   const squash = lost ? sumo.squash() : null;
   const hop = f.walking > 0 ? -(Math.floor(time * 10) % 2) : 0;
-  if (lost) { pose = p.hit; y += squash ? 0 : 3; x += squash ? 0 : Math.sin(time * 6) * 2; }
-  else if (f.wobble > 0) { pose = p.hit; x += Math.sin(f.wobble * 40) * 2 * (f.wobble / 0.5) - 3 * f.dir; }
-  else if (f.duck > 0) pose = p.duck[breathe];
-  else if (f.glove.mode !== 'home') { pose = p.punch; y += hop; }
+  if (lost) { y += squash ? 0 : 3; x += squash ? 0 : Math.sin(time * 6) * 2; }
+  else if (f.wobble > 0) x += Math.sin(f.wobble * 40) * 2 * (f.wobble / 0.5) - 3 * f.dir;
+  else if (name === 'duck' || name === 'guard') { /* planted */ }
   else if (game.mode === 1 && f.side === 1 && ai.warn > 0 && game.state === 'playing') x += Math.floor(time * 20) % 2;   // winding up a punch
-  else if (game.mode === 1 && f.side === 1 && guard.up && game.state === 'playing') pose = p.guard;
   else y += hop;
+  const cx = x + 32, feet = y + 69;
+  const box = contentBox(pose), headTop = feet - pose.ay + box.y;    // the top of the drawn head
   if (squash) {
     // flattened like a pancake by the sumo (cartoon!), stretched around the feet
-    const fx = x + (f.side ? 30 : 34), fy = y + 69;
-    g.save(); g.translate(Math.round(fx), fy); g.scale(squash.sx, squash.sy);
-    g.drawImage(pose, -(fx - x), -69); g.restore();
+    g.save(); g.translate(cx, feet); g.scale(squash.sx, squash.sy);
+    drawFacing(g, pose, 0, 0); g.restore();
     if (squash.sy < 0.5) return;
-    y = fy - 69 * squash.sy;
-  } else put(f.poison > 0 && !lost ? tinted(pose, '#b05cf0', 0.3) : pose, x, y);
+  } else {
+    const img = f.poison > 0 && !lost ? tinted(pose, '#b05cf0', 0.3) : pose;
+    drawFacing(g, img, cx, feet);
+  }
+  const top = squash ? feet - (feet - headTop) * squash.sy : headTop;
   if (!lost && game.state === 'playing') drawStatus(f, x, y);
   // 2 players: a P1 / P2 tag over each head, so two of the same boxer can be told apart
   if (game.mode === 2 && !lost) {
-    const ty = y - 7 + (f.duck > 0 && f.wobble <= 0 ? DUCK_DROP : 0), tx = Math.round(x + 32);
+    const ty = Math.round(top - 10), tx = Math.round(cx);
     drawNumber(g, `P${f.side + 1}`, tx, ty, SIDE_COLOR[f.side], 1, 'center');
     g.fillStyle = SIDE_COLOR[f.side]; g.fillRect(tx - 1, ty + 6, 3, 1); g.fillRect(tx, ty + 7, 1, 1);
   }
-  if (lost || f.wobble > 0) drawDizzy(g, x + (f.side ? 34 : 30), y + 4 + (f.duck > 0 ? DUCK_DROP : 0), time);
+  if (lost || f.wobble > 0) drawDizzy(g, cx + (f.side ? 2 : -2), top + 3, time);
 }
 
-// The specials' effects on a boxer: wet drops, ivy round the legs, poison bubbles.
+// SUPER READY: a gold aura spinning behind a boxer whose next punch is the special (HD art only).
+function drawAura(f) {
+  const aura = HD_FX['super-ready'];
+  if (!aura || game.state !== 'playing' || !hasMeter(f) || f.super < SUPER.full) return;
+  const duckY = f.duck > 0 ? DUCK_DROP : 0;
+  drawFacing(g, fxFrame(aura, time), f.x + 32, BOXER_Y + 36 + duckY, 1, 1.45);
+}
+
+// The specials' effects on a boxer: wet drops, ivy round the legs, poison bubbles; HD status loops on top.
+const STATUS = [['slow', 'water', 0.5, 1.1], ['lava', 'flame', 0.62, 1.0], ['tangle', 'ivy', 0.9, 1.1], ['poison', 'poison', 0.4, 1.1],
+  ['stormFx', 'storm', 0.5, 1.1], ['windFx', 'wind', 0.5, 1.25]];
 function drawStatus(f, x, y) {
   const duckY = f.duck > 0 ? DUCK_DROP : 0;
+  for (const [key, el, at, scale] of STATUS) {
+    const list = HD_FX[`${el}-status`];
+    if (!list || f[key] <= 0) continue;
+    g.globalAlpha = Math.min(1, f[key] * 2) * 0.9;
+    drawFacing(g, fxFrame(list, time + at), x + 32, y + duckY + 72 * at, f.dir, scale);
+    g.globalAlpha = 1;
+  }
   if (f.slow > 0 && Math.random() < 0.6) drip(x + 18 + Math.random() * 28, y + 6 + duckY + Math.random() * 30);
   if (f.poison > 0 && Math.random() < 0.25) bubbles(x + 20 + Math.random() * 24, y + 4 + duckY + Math.random() * 20, 0);
-  if (f.tangle > 0) drawIvy(g, Math.round(x + 32), Math.round(y + 70), time);
-  if (f.lava > 0) {
+  if (f.tangle > 0 && !fx.hd) drawIvy(g, Math.round(x + 32), Math.round(y + 70), time);
+  if (f.lava > 0 && !fx.hd) {
     // mirrored for the boxer facing left, so the splats sit on the body either way
     const splats = f.side ? f.splats.map((s) => ({ ...s, dx: 64 - s.dx })) : f.splats;
     drawLava(g, x, y + duckY, splats, time, Math.min(1, f.lava));
@@ -880,34 +958,51 @@ function drawStatus(f, x, y) {
 }
 
 const BIG_FIST = { flame: true, wind: true };
+// The HD effect animations of a boxer's element (water, flame, ivy, poison, storm, wind): kind = trail, impact, status.
+const elementOf = (boxer) => SPECIALS[boxer.id]?.kind;
+const fxOf = (f, kind) => HD_FX[`${elementOf(f.boxer)}-${kind}`];
+const fxFrame = (list, t) => list[(list.loop === false ? Math.min(list.length - 1, Math.floor(t * list.fps)) : Math.floor(t * (list.fps || 12)) % list.length)];
+// how long the flying glove is, front to back (game pixels)
+const gloveLen = (f) => { const img = f.boxer.glove[0]; return img.tip ? img.tip[0] - 2 : 44; };
 function drawGlove(f) {
   const gl = f.glove;
   if (gl.mode === 'home') return;
   const frames = f.boxer.glove;
-  const img = frames[Math.floor(time * 12) % frames.length];
-  if (gl.mode === 'out' && gl.special === 'ivy') drawVine(g, launchTip(f) - f.dir * 40, gl.x - f.dir * 40, gl.y, time);
+  const img = frames[Math.floor(time * (frames.fps || 12)) % frames.length];
+  const [tx, ty] = img.tip || [GLOVE_TIP, GLOVE_MID];   // the glove's front tip, at mid height, in its frame
+  const big = gl.mode === 'out' && BIG_FIST[gl.special] ? 2 : 1, len = gloveLen(f) * big;
+  const y = gl.y;
+  const trail = fxOf(f, 'trail');
+  if (gl.mode === 'out' && gl.special === 'ivy' && !trail) drawVine(g, launchTip(f) - f.dir * len, gl.x - f.dir * len, gl.y, time);
+  // the drawn jet behind the glove (HD): its attach point sits on the back of the glove. It never reaches back
+  // past the empty wrist cuff, so it doesn't cover the boxer.
+  if (trail) {
+    const out = gl.mode === 'out', dir = out ? f.dir : -f.dir, backX = out ? gl.x - f.dir * len : gl.x - f.dir * (tx - 2) + f.dir * len;
+    const cuff = f.x + 32 + f.dir * 26;
+    g.save(); g.beginPath();
+    g.rect(f.dir > 0 ? cuff : -50, 0, f.dir > 0 ? W + 50 - cuff : cuff + 50, H); g.clip();
+    const k = (gl.special ? 1.5 : 1) * (out ? 1 : 0.7), frame = fxFrame(trail, time + f.side * 0.13);
+    drawFacing(g, frame, backX, y, dir, k);
+    // IVY FIST: the vine reaches all the way back to the arm: more of the leafy trail behind the first one
+    if (out && gl.special === 'ivy') for (let bx = backX - f.dir * lw(frame) * k * 0.8; (bx - cuff) * f.dir > 0; bx -= f.dir * lw(frame) * k * 0.8) drawFacing(g, frame, bx, y, dir, k);
+    g.restore();
+  }
   if (gl.mode === 'out' && BIG_FIST[gl.special]) {
     // the FLAME FIST and WIND STORM: a glove twice as big (the wind one in a swirl)
-    if (gl.special === 'wind') drawSwirl(g, gl.x - f.dir * 46, gl.y, time);
-    g.save(); g.translate(Math.round(gl.x), Math.round(gl.y)); g.scale(2 * f.dir, 2);
-    g.drawImage(img, -GLOVE_TIP, -GLOVE_MID); g.restore();
-  } else if (gl.mode === 'out') putFacing(img, gl.x, gl.y - GLOVE_MID, f.dir, GLOVE_TIP);
+    if (gl.special === 'wind' && !fx.hd) drawSwirl(g, gl.x - f.dir * 46, gl.y, time);
+    drawFacing(g, img, gl.x, y, f.dir, 2, tx, ty);
+  } else if (gl.mode === 'out') drawFacing(g, img, gl.x, y, f.dir, 1, tx, ty);
   // flying home: turn the rocket around so the flame points at the other boxer
-  else putFacing(img, gl.x - f.dir * 44, gl.y - GLOVE_MID, -f.dir, GLOVE_TIP);
+  else drawFacing(g, img, gl.x - f.dir * (tx - 2), y, -f.dir, 1, tx, ty);
 }
 
 // Text with a dark outline on the small picture, centred at x, y.
 function label(text, x, y, color, size) {
-  g.font = `bold ${size}px "Trebuchet MS", sans-serif`;
-  g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillStyle = COLORS.outline;
-  for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1]]) g.fillText(text, Math.round(x) + dx, Math.round(y) + dy);
-  g.fillStyle = color;
-  g.fillText(text, Math.round(x), Math.round(y));
+  drawWord(g, text, Math.round(x), Math.round(y), color, size);
 }
 
 function drawWheelScene(dt) {
-  drawArena(g, time, 0.4);
+  drawPlace(g, 'arena', art, time, 0.4);
   g.fillStyle = 'rgba(11, 18, 38, 0.55)';
   g.fillRect(0, 0, W, H);
   if (wheel.phase === 'stopped') drawReveal(g, spin.boxer, spin.t, time);
@@ -915,14 +1010,23 @@ function drawWheelScene(dt) {
   // the boxers already picked, in the bottom corners
   game.picks.forEach((id, i) => {
     if (!id || (game.mode === 1 && i === 1) || (i === spin.who && wheel.phase === 'stopped')) return;
-    const head = roster[id].head, x = i ? W - head.width - 6 : 6, y = H - head.height - 6;
-    g.drawImage(head, x, y);
-    drawNumber(g, `P${i + 1}`, x + head.width / 2, y - 7, SIDE_COLOR[i], 1, 'center');
+    const head = roster[id].head, x = i ? W - lw(head) - 6 : 6, y = H - lh(head) - 6;
+    blit(g, head, x, y);
+    drawNumber(g, `P${i + 1}`, x + lw(head) / 2, y - 7, SIDE_COLOR[i], 1, 'center');
   });
   drawEffects(g, dt);
 }
 
+let lastDt = 0;
 function draw(dt) {
+  lastDt = dt;
+  if (game.state === 'contact') { recorder.draw(ctx, canvas); return; }
+  if (game.state === 'qa') {
+    g.clearRect(0, 0, W, H);
+    drawPoseSheet(g, roster[qa.id], { head: FEET_Y - AIM_Y.head, body: FEET_Y - AIM_Y.body, arm: FEET_Y - ARM_Y, launch: LAUNCH_OFFSET - 32 }, qa.mode, time);
+    present(false);
+    return;
+  }
   if (game.state === 'wheel') { drawWheelScene(dt); present(false); return; }
   if (game.state === 'reveal') {
     drawPlace(g, reveal.shown || game.place, art, time, 0.5);
@@ -936,8 +1040,8 @@ function draw(dt) {
   if (game.state === 'ready') { present(); return; }
   for (const f of fighters) drawShadow(g, Math.round(f.x) + 32, 121, f.duck > 0 ? 46 : 40);
   sumo.drawShadow(g);
-  const breathe = Math.floor(time * 2.5) % 2;
-  for (const f of fighters) drawFighter(f, breathe);
+  for (const f of fighters) drawAura(f);
+  for (const f of fighters) drawFighter(f, dt);
   for (const f of fighters) drawGlove(f);
   sumo.draw(g, time);
 
@@ -974,7 +1078,9 @@ function present(layered = true) {
   }
   ctx.fillStyle = COLORS.navy;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.imageSmoothingEnabled = false;
+  // the layers are drawn at RENDER.scale; only smooth them if the screen needs them shrunk
+  ctx.imageSmoothingEnabled = pixels.width > view.w;
+  ctx.imageSmoothingQuality = 'high';
   const shake = sumo.shake(), px = view.w / W;
   if (shakeT > 0) {
     const p = Math.min(1, shakeT / 0.4) * 4;
@@ -988,6 +1094,7 @@ function present(layered = true) {
   if (punchCam && layered) drawCamera(view.x + view.w * 0.285, view.y + view.h * 0.015, view.w * 0.43);
   ctx.drawImage(pixels, sx, sy, view.w, view.h);
   if (punchCam && !layered) drawCamera(view.x + view.w * 0.012, view.y + view.h * 0.02, view.w * 0.18);
+  recorder.grab(canvas, view, lastDt);
 }
 
 // The camera picture (4:3) at x, y, w wide, with each player's stand box in their boxer's colour.

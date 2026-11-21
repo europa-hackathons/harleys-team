@@ -1,10 +1,12 @@
 // The Sumo finish: when a fight ends, a cartoon sumo wrestler whistles down from the sky,
 // belly-flops onto the loser (cartoon squash, puff of dust and stars, nobody gets hurt),
 // sits up and waves, and the loser pops back up dizzy. Then the results screen shows.
-// Frames: sumo.png = [falling, belly-flop, sitting-waving]; sumo-dust.png = [small, big, fading].
+// Frames: [falling, belly-flop, sitting-waving] (first pixel art), or the HD
+// [descending, squash, recovery (standing up), sittingWave]; sumo-dust.png = [small, big, fading].
 import { COLORS, drawShadow } from './scene.js';
 import { starBurst, popWord, playFrames } from './effects.js';
 import { sfx } from './sfx.js';
+import { blit, lw, lh } from './sprite.js';
 
 // Timing in seconds (the whole show is about 3 s; a click or key skips it after SKIP_AFTER).
 export const SUMO = {
@@ -17,11 +19,15 @@ export const SUMO = {
   hop: 42,           // how far he hops off the loser (pixels, toward the middle of the ring)
 };
 
-const FEET_Y = 123;         // floor line where the boxers' feet are (BOXER_Y 54 + 69)
+const FEET_Y = 123;
+const HD_SIZE = 1.4;         // HD sumo frames are boxer-sized (64x72): he is this much bigger than a boxer         // floor line where the boxers' feet are (BOXER_Y 54 + 69)
 const BOTTOM = [64, 68, 65];   // lowest drawn row in each sumo frame
 const MID = [48, 48, 48];      // belly middle column in each frame
+const ART_FACES = 1;           // the sitting/standing-up sumo art looks to the right (+1)
 
 export function makeSumoFinish(frames, dust) {
+  // the first pixel-art frames: belly middle and lowest row as the anchor (HD frames bring their own)
+  frames.forEach((f, i) => { if (f.ax === undefined || !f.hd) { f.ax = MID[i]; f.ay = BOTTOM[i]; } });
   let s = null;   // { t, cx, inward, shake, landed, sat, popped }
 
   return {
@@ -43,7 +49,7 @@ export function makeSumoFinish(frames, dust) {
       s.shake = Math.max(0, s.shake - dt);
       if (!s.landed && s.t >= SUMO.land) {
         s.landed = true; s.shake = 0.4;
-        playFrames(dust, s.cx, FEET_Y - 18, 7);
+        if (dust[0].hd) playFrames(dust, s.cx, FEET_Y + 2, 9, 2.2); else playFrames(dust, s.cx, FEET_Y - 18, 7);
         starBurst(s.cx, FEET_Y - 14, 16);
         popWord('FLOMP!', s.cx, FEET_Y - 52, COLORS.sparkle, 16);
         sfx.thump();
@@ -84,7 +90,7 @@ export function makeSumoFinish(frames, dust) {
     draw(g, time) {
       if (!s || s.t < SUMO.fallStart) return;
       const t = s.t;
-      let f, x, bottom, sx = 1, sy = 1;
+      let f, x, bottom, sx = 1, sy = 1, face = 1;
       if (t < SUMO.land) {                                  // falling: speeds up as he drops
         const k = (t - SUMO.fallStart) / (SUMO.land - SUMO.fallStart);
         f = 0; x = s.cx; bottom = -10 + (FEET_Y + 2 - -10) * k * k;
@@ -94,18 +100,20 @@ export function makeSumoFinish(frames, dust) {
         const a = t - SUMO.land;
         const j = Math.exp(-a * 6) * Math.cos(a * 30);
         sy = 1 - 0.25 * j; sx = 1 + 0.12 * j;
-      } else {                                              // hop off, sit and wave
-        f = 2;
+      } else {                                              // hop off (HD: standing up), then sit and wave
         const a = Math.min(1, (t - SUMO.sitUp) / 0.3);
+        f = frames[3] && a < 1 ? 2 : frames.length - 1;
         x = s.cx + s.inward * SUMO.hop * a;
         bottom = FEET_Y + 1 - Math.sin(a * Math.PI) * 16;
         if (a >= 1) bottom -= Math.floor(time * 6) % 2;     // happy wave bob
+        face = -s.inward * ART_FACES;                       // he sits beside the loser: turn to wave at them
       }
       const img = frames[f];
       g.save();
       g.translate(Math.round(x), Math.round(bottom));
-      g.scale(sx, sy);
-      g.drawImage(img, -MID[f], -BOTTOM[f]);
+      g.scale(sx * face, sy);                               // mirrored around his floor anchor
+      const k = img.hd ? HD_SIZE : 1;   // the HD sumo is drawn on a boxer-sized frame: show him bigger
+      blit(g, img, -img.ax * k, -img.ay * k, lw(img) * k, lh(img) * k);
       g.restore();
     },
   };

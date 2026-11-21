@@ -3,6 +3,7 @@
 // in sprites.json). Until a picture exists, a code-drawn stand-in in the same pixel style is used.
 // The real pictures are whole scenes (floor included), so nothing is drawn over them.
 import { W, H, COLORS, FLOOR_Y, disc, drawArena, drawRing } from './scene.js';
+import { blit } from './sprite.js';
 
 export const PLACES = {
   arena: { name: 'ARENA', sv: 'ARENAN', icon: '🏟️', art: 'bg-1-arena' },
@@ -15,7 +16,7 @@ export const PLACES = {
 
 // Places 2 players can get at random (a place marked artOnly joins only when its picture has landed).
 export function randomPlace(art) {
-  const ids = Object.keys(PLACES).filter((id) => !PLACES[id].artOnly || art[PLACES[id].art]);
+  const ids = Object.keys(PLACES).filter((id) => !PLACES[id].artOnly || hasPicture(id, art));
   return ids[Math.floor(Math.random() * ids.length)];
 }
 
@@ -31,13 +32,27 @@ const LOOKS = {
 // Draws the place. time = seconds (for twinkles, embers), excite = how hard the arena crowd cheers.
 export function drawPlace(g, id, art, time, excite = 0) {
   const p = PLACES[id] || PLACES.arena;
+  // HD place picture (a whole scene, ring included) first, then the first pixel-art one
+  const hd = art.hd?.world?.[id];
+  if (hd) { drawCover(g, hd.img); return; }
   const pic = art[p.art];
-  if (pic) { g.drawImage(pic[0], 0, 0, W, H); return; }
+  if (pic) { blit(g, pic[0], 0, 0, W, H); return; }
   if (!LOOKS[id]) { drawArena(g, time, excite); return; }
   g.drawImage(still(id), 0, 0);
   MOVING[id]?.(g, time);
   drawRing(g, LOOKS[id]);
 }
+
+// A whole-scene picture stretched over the 256x144 game (smooth when shrunk, crisp when blown up).
+function drawCover(g, img) {
+  const t = g.getTransform(), shrink = img.width / (W * t.a);
+  g.imageSmoothingEnabled = shrink > 1.05;
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(img, 0, 0, W, H);
+  g.imageSmoothingEnabled = false;
+}
+// true when this place has a whole-scene picture (no code-drawn ring on top)
+export const hasPicture = (id, art) => !!(art.hd?.world?.[id] || art[(PLACES[id] || PLACES.arena).art]);
 
 // ---------- the stand-ins: a still picture made once, plus a few moving bits ----------
 const stills = {};

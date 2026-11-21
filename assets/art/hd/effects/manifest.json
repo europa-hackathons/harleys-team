@@ -1,0 +1,2165 @@
+{
+  "generator": "Built-in ImageGen via GPT Astra",
+  "units": "rect [x,y,width,height] in source pixels; drawSize and anchor [x,y] in logical pixels relative to frame top left",
+  "frames": {
+    "star-hit-1": {
+      "image": "bursts.png",
+      "rect": [
+        143,
+        152,
+        205,
+        207
+      ],
+      "drawSize": [
+        18.45,
+        18.63
+      ],
+      "anchor": [
+        9.225,
+        9.315
+      ]
+    },
+    "star-hit-2": {
+      "image": "bursts.png",
+      "rect": [
+        544,
+        46,
+        406,
+        379
+      ],
+      "drawSize": [
+        36.54,
+        34.11
+      ],
+      "anchor": [
+        18.27,
+        17.055
+      ]
+    },
+    "star-hit-3": {
+      "image": "bursts.png",
+      "rect": [
+        1085,
+        56,
+        381,
+        362
+      ],
+      "drawSize": [
+        34.29,
+        32.58
+      ],
+      "anchor": [
+        17.145,
+        16.29
+      ]
+    },
+    "dust-still-1": {
+      "image": "bursts.png",
+      "rect": [
+        96,
+        683,
+        268,
+        180
+      ],
+      "drawSize": [
+        42.88,
+        28.8
+      ],
+      "anchor": [
+        21.44,
+        28.8
+      ]
+    },
+    "dust-still-2": {
+      "image": "bursts.png",
+      "rect": [
+        460,
+        592,
+        521,
+        304
+      ],
+      "drawSize": [
+        83.36,
+        48.64
+      ],
+      "anchor": [
+        41.68,
+        48.64
+      ]
+    },
+    "aura-still-3": {
+      "image": "bursts.png",
+      "rect": [
+        1034,
+        496,
+        477,
+        458
+      ],
+      "drawSize": [
+        69.165,
+        66.41
+      ],
+      "anchor": [
+        34.5825,
+        33.205
+      ]
+    },
+    "flame-trail-1": {
+      "image": "flame-motion.png",
+      "rect": [
+        31,
+        85,
+        326,
+        168
+      ],
+      "drawSize": [
+        36.512,
+        18.816
+      ],
+      "anchor": [
+        36.512,
+        9.408
+      ]
+    },
+    "flame-trail-2": {
+      "image": "flame-motion.png",
+      "rect": [
+        406,
+        81,
+        335,
+        180
+      ],
+      "drawSize": [
+        37.52,
+        20.16
+      ],
+      "anchor": [
+        37.52,
+        10.08
+      ]
+    },
+    "flame-trail-3": {
+      "image": "flame-motion.png",
+      "rect": [
+        786,
+        81,
+        339,
+        180
+      ],
+      "drawSize": [
+        37.968,
+        20.16
+      ],
+      "anchor": [
+        37.968,
+        10.08
+      ]
+    },
+    "flame-trail-4": {
+      "image": "flame-motion.png",
+      "rect": [
+        1176,
+        88,
+        333,
+        173
+      ],
+      "drawSize": [
+        37.296,
+        19.376
+      ],
+      "anchor": [
+        37.296,
+        9.688
+      ]
+    },
+    "flame-impact-1": {
+      "image": "flame-motion.png",
+      "rect": [
+        120,
+        435,
+        134,
+        136
+      ],
+      "drawSize": [
+        12.864,
+        13.056
+      ],
+      "anchor": [
+        6.432,
+        6.528
+      ]
+    },
+    "flame-impact-2": {
+      "image": "flame-motion.png",
+      "rect": [
+        441,
+        390,
+        247,
+        214
+      ],
+      "drawSize": [
+        23.712,
+        20.544
+      ],
+      "anchor": [
+        11.856,
+        10.272
+      ]
+    },
+    "flame-impact-3": {
+      "image": "flame-motion.png",
+      "rect": [
+        775,
+        348,
+        344,
+        294
+      ],
+      "drawSize": [
+        33.024,
+        28.224
+      ],
+      "anchor": [
+        16.512,
+        14.112
+      ]
+    },
+    "flame-impact-4": {
+      "image": "flame-motion.png",
+      "rect": [
+        1160,
+        348,
+        356,
+        293
+      ],
+      "drawSize": [
+        34.176,
+        28.128
+      ],
+      "anchor": [
+        17.088,
+        14.064
+      ]
+    },
+    "flame-status-1": {
+      "image": "flame-motion.png",
+      "rect": [
+        49,
+        703,
+        290,
+        271
+      ],
+      "drawSize": [
+        31.32,
+        29.268
+      ],
+      "anchor": [
+        15.66,
+        14.634
+      ]
+    },
+    "flame-status-2": {
+      "image": "flame-motion.png",
+      "rect": [
+        427,
+        692,
+        301,
+        291
+      ],
+      "drawSize": [
+        32.508,
+        31.428
+      ],
+      "anchor": [
+        16.254,
+        15.714
+      ]
+    },
+    "flame-status-3": {
+      "image": "flame-motion.png",
+      "rect": [
+        792,
+        692,
+        327,
+        295
+      ],
+      "drawSize": [
+        35.316,
+        31.86
+      ],
+      "anchor": [
+        17.658,
+        15.93
+      ]
+    },
+    "flame-status-4": {
+      "image": "flame-motion.png",
+      "rect": [
+        1201,
+        692,
+        288,
+        279
+      ],
+      "drawSize": [
+        31.104,
+        30.132
+      ],
+      "anchor": [
+        15.552,
+        15.066
+      ]
+    },
+    "glove-water": {
+      "image": "gloves.png",
+      "rect": [
+        43,
+        98,
+        441,
+        332
+      ],
+      "drawSize": [
+        20.286,
+        15.272
+      ],
+      "anchor": [
+        10.143,
+        7.636
+      ]
+    },
+    "glove-flame": {
+      "image": "gloves.png",
+      "rect": [
+        542,
+        87,
+        443,
+        344
+      ],
+      "drawSize": [
+        20.378,
+        15.824
+      ],
+      "anchor": [
+        10.189,
+        7.912
+      ]
+    },
+    "glove-ivy": {
+      "image": "gloves.png",
+      "rect": [
+        1046,
+        89,
+        449,
+        352
+      ],
+      "drawSize": [
+        20.654,
+        16.192
+      ],
+      "anchor": [
+        10.327,
+        8.096
+      ]
+    },
+    "glove-poison": {
+      "image": "gloves.png",
+      "rect": [
+        42,
+        590,
+        441,
+        357
+      ],
+      "drawSize": [
+        20.286,
+        16.422
+      ],
+      "anchor": [
+        10.143,
+        8.211
+      ]
+    },
+    "glove-storm": {
+      "image": "gloves.png",
+      "rect": [
+        536,
+        594,
+        446,
+        333
+      ],
+      "drawSize": [
+        20.516,
+        15.318
+      ],
+      "anchor": [
+        10.258,
+        7.659
+      ]
+    },
+    "glove-wind": {
+      "image": "gloves.png",
+      "rect": [
+        1047,
+        590,
+        461,
+        336
+      ],
+      "drawSize": [
+        21.206,
+        15.456
+      ],
+      "anchor": [
+        10.603,
+        7.728
+      ]
+    },
+    "impact-water": {
+      "image": "impacts.png",
+      "rect": [
+        18,
+        26,
+        461,
+        444
+      ],
+      "drawSize": [
+        44.256,
+        42.624
+      ],
+      "anchor": [
+        22.128,
+        21.312
+      ]
+    },
+    "impact-flame": {
+      "image": "impacts.png",
+      "rect": [
+        526,
+        24,
+        477,
+        454
+      ],
+      "drawSize": [
+        45.792,
+        43.584
+      ],
+      "anchor": [
+        22.896,
+        21.792
+      ]
+    },
+    "impact-ivy": {
+      "image": "impacts.png",
+      "rect": [
+        1051,
+        26,
+        468,
+        437
+      ],
+      "drawSize": [
+        44.928,
+        41.952
+      ],
+      "anchor": [
+        22.464,
+        20.976
+      ]
+    },
+    "impact-poison": {
+      "image": "impacts.png",
+      "rect": [
+        19,
+        540,
+        451,
+        442
+      ],
+      "drawSize": [
+        43.296,
+        42.432
+      ],
+      "anchor": [
+        21.648,
+        21.216
+      ]
+    },
+    "impact-storm": {
+      "image": "impacts.png",
+      "rect": [
+        523,
+        528,
+        468,
+        450
+      ],
+      "drawSize": [
+        44.928,
+        43.2
+      ],
+      "anchor": [
+        22.464,
+        21.6
+      ]
+    },
+    "impact-wind": {
+      "image": "impacts.png",
+      "rect": [
+        1041,
+        536,
+        478,
+        440
+      ],
+      "drawSize": [
+        45.888,
+        42.24
+      ],
+      "anchor": [
+        22.944,
+        21.12
+      ]
+    },
+    "ivy-trail-1": {
+      "image": "ivy-motion.png",
+      "rect": [
+        12,
+        101,
+        361,
+        114
+      ],
+      "drawSize": [
+        40.432,
+        12.768
+      ],
+      "anchor": [
+        40.432,
+        6.384
+      ]
+    },
+    "ivy-trail-2": {
+      "image": "ivy-motion.png",
+      "rect": [
+        404,
+        94,
+        353,
+        127
+      ],
+      "drawSize": [
+        39.536,
+        14.224
+      ],
+      "anchor": [
+        39.536,
+        7.112
+      ]
+    },
+    "ivy-trail-3": {
+      "image": "ivy-motion.png",
+      "rect": [
+        786,
+        81,
+        355,
+        153
+      ],
+      "drawSize": [
+        39.76,
+        17.136
+      ],
+      "anchor": [
+        39.76,
+        8.568
+      ]
+    },
+    "ivy-trail-4": {
+      "image": "ivy-motion.png",
+      "rect": [
+        1172,
+        93,
+        353,
+        126
+      ],
+      "drawSize": [
+        39.536,
+        14.112
+      ],
+      "anchor": [
+        39.536,
+        7.056
+      ]
+    },
+    "ivy-impact-1": {
+      "image": "ivy-motion.png",
+      "rect": [
+        141,
+        415,
+        110,
+        109
+      ],
+      "drawSize": [
+        10.56,
+        10.464
+      ],
+      "anchor": [
+        5.28,
+        5.232
+      ]
+    },
+    "ivy-impact-2": {
+      "image": "ivy-motion.png",
+      "rect": [
+        461,
+        370,
+        223,
+        194
+      ],
+      "drawSize": [
+        21.408,
+        18.624
+      ],
+      "anchor": [
+        10.704,
+        9.312
+      ]
+    },
+    "ivy-impact-3": {
+      "image": "ivy-motion.png",
+      "rect": [
+        793,
+        329,
+        326,
+        278
+      ],
+      "drawSize": [
+        31.296,
+        26.688
+      ],
+      "anchor": [
+        15.648,
+        13.344
+      ]
+    },
+    "ivy-impact-4": {
+      "image": "ivy-motion.png",
+      "rect": [
+        1181,
+        324,
+        322,
+        283
+      ],
+      "drawSize": [
+        30.912,
+        27.168
+      ],
+      "anchor": [
+        15.456,
+        13.584
+      ]
+    },
+    "ivy-status-1": {
+      "image": "ivy-motion.png",
+      "rect": [
+        37,
+        667,
+        316,
+        300
+      ],
+      "drawSize": [
+        34.128,
+        32.4
+      ],
+      "anchor": [
+        17.064,
+        16.2
+      ]
+    },
+    "ivy-status-2": {
+      "image": "ivy-motion.png",
+      "rect": [
+        416,
+        665,
+        319,
+        301
+      ],
+      "drawSize": [
+        34.452,
+        32.508
+      ],
+      "anchor": [
+        17.226,
+        16.254
+      ]
+    },
+    "ivy-status-3": {
+      "image": "ivy-motion.png",
+      "rect": [
+        790,
+        666,
+        332,
+        304
+      ],
+      "drawSize": [
+        35.856,
+        32.832
+      ],
+      "anchor": [
+        17.928,
+        16.416
+      ]
+    },
+    "ivy-status-4": {
+      "image": "ivy-motion.png",
+      "rect": [
+        1183,
+        674,
+        318,
+        294
+      ],
+      "drawSize": [
+        34.344,
+        31.752
+      ],
+      "anchor": [
+        17.172,
+        15.876
+      ]
+    },
+    "sumo-dust-1": {
+      "image": "landing-ready.png",
+      "rect": [
+        100,
+        325,
+        247,
+        48
+      ],
+      "drawSize": [
+        39.52,
+        7.68
+      ],
+      "anchor": [
+        19.76,
+        7.68
+      ]
+    },
+    "sumo-dust-2": {
+      "image": "landing-ready.png",
+      "rect": [
+        480,
+        220,
+        365,
+        149
+      ],
+      "drawSize": [
+        58.4,
+        23.84
+      ],
+      "anchor": [
+        29.2,
+        23.84
+      ]
+    },
+    "sumo-dust-3": {
+      "image": "landing-ready.png",
+      "rect": [
+        919,
+        210,
+        378,
+        159
+      ],
+      "drawSize": [
+        60.48,
+        25.44
+      ],
+      "anchor": [
+        30.24,
+        25.44
+      ]
+    },
+    "sumo-dust-4": {
+      "image": "landing-ready.png",
+      "rect": [
+        1367,
+        243,
+        365,
+        126
+      ],
+      "drawSize": [
+        58.4,
+        20.16
+      ],
+      "anchor": [
+        29.2,
+        20.16
+      ]
+    },
+    "super-ready-1": {
+      "image": "landing-ready.png",
+      "rect": [
+        48,
+        472,
+        350,
+        350
+      ],
+      "drawSize": [
+        50.75,
+        50.75
+      ],
+      "anchor": [
+        25.375,
+        25.375
+      ]
+    },
+    "super-ready-2": {
+      "image": "landing-ready.png",
+      "rect": [
+        492,
+        481,
+        351,
+        343
+      ],
+      "drawSize": [
+        50.895,
+        49.735
+      ],
+      "anchor": [
+        25.4475,
+        24.8675
+      ]
+    },
+    "super-ready-3": {
+      "image": "landing-ready.png",
+      "rect": [
+        936,
+        481,
+        349,
+        340
+      ],
+      "drawSize": [
+        50.605,
+        49.3
+      ],
+      "anchor": [
+        25.3025,
+        24.65
+      ]
+    },
+    "super-ready-4": {
+      "image": "landing-ready.png",
+      "rect": [
+        1373,
+        481,
+        355,
+        343
+      ],
+      "drawSize": [
+        51.475,
+        49.735
+      ],
+      "anchor": [
+        25.7375,
+        24.8675
+      ]
+    },
+    "poison-trail-1": {
+      "image": "poison-motion.png",
+      "rect": [
+        19,
+        49,
+        352,
+        209
+      ],
+      "drawSize": [
+        39.424,
+        23.408
+      ],
+      "anchor": [
+        39.424,
+        11.704
+      ]
+    },
+    "poison-trail-2": {
+      "image": "poison-motion.png",
+      "rect": [
+        402,
+        36,
+        353,
+        228
+      ],
+      "drawSize": [
+        39.536,
+        25.536
+      ],
+      "anchor": [
+        39.536,
+        12.768
+      ]
+    },
+    "poison-trail-3": {
+      "image": "poison-motion.png",
+      "rect": [
+        781,
+        23,
+        358,
+        251
+      ],
+      "drawSize": [
+        40.096,
+        28.112
+      ],
+      "anchor": [
+        40.096,
+        14.056
+      ]
+    },
+    "poison-trail-4": {
+      "image": "poison-motion.png",
+      "rect": [
+        1165,
+        30,
+        358,
+        224
+      ],
+      "drawSize": [
+        40.096,
+        25.088
+      ],
+      "anchor": [
+        40.096,
+        12.544
+      ]
+    },
+    "poison-impact-1": {
+      "image": "poison-motion.png",
+      "rect": [
+        119,
+        407,
+        148,
+        131
+      ],
+      "drawSize": [
+        14.208,
+        12.576
+      ],
+      "anchor": [
+        7.104,
+        6.288
+      ]
+    },
+    "poison-impact-2": {
+      "image": "poison-motion.png",
+      "rect": [
+        446,
+        356,
+        260,
+        227
+      ],
+      "drawSize": [
+        24.96,
+        21.792
+      ],
+      "anchor": [
+        12.48,
+        10.896
+      ]
+    },
+    "poison-impact-3": {
+      "image": "poison-motion.png",
+      "rect": [
+        782,
+        317,
+        357,
+        305
+      ],
+      "drawSize": [
+        34.272,
+        29.28
+      ],
+      "anchor": [
+        17.136,
+        14.64
+      ]
+    },
+    "poison-impact-4": {
+      "image": "poison-motion.png",
+      "rect": [
+        1178,
+        312,
+        332,
+        303
+      ],
+      "drawSize": [
+        31.872,
+        29.088
+      ],
+      "anchor": [
+        15.936,
+        14.544
+      ]
+    },
+    "poison-status-1": {
+      "image": "poison-motion.png",
+      "rect": [
+        33,
+        659,
+        319,
+        335
+      ],
+      "drawSize": [
+        34.452,
+        36.18
+      ],
+      "anchor": [
+        17.226,
+        18.09
+      ]
+    },
+    "poison-status-2": {
+      "image": "poison-motion.png",
+      "rect": [
+        408,
+        656,
+        332,
+        339
+      ],
+      "drawSize": [
+        35.856,
+        36.612
+      ],
+      "anchor": [
+        17.928,
+        18.306
+      ]
+    },
+    "poison-status-3": {
+      "image": "poison-motion.png",
+      "rect": [
+        784,
+        654,
+        350,
+        340
+      ],
+      "drawSize": [
+        37.8,
+        36.72
+      ],
+      "anchor": [
+        18.9,
+        18.36
+      ]
+    },
+    "poison-status-4": {
+      "image": "poison-motion.png",
+      "rect": [
+        1174,
+        654,
+        337,
+        340
+      ],
+      "drawSize": [
+        36.396,
+        36.72
+      ],
+      "anchor": [
+        18.198,
+        18.36
+      ]
+    },
+    "status-water": {
+      "image": "status.png",
+      "rect": [
+        97,
+        45,
+        313,
+        419
+      ],
+      "drawSize": [
+        33.804,
+        45.252
+      ],
+      "anchor": [
+        16.902,
+        22.626
+      ]
+    },
+    "status-flame": {
+      "image": "status.png",
+      "rect": [
+        542,
+        82,
+        448,
+        341
+      ],
+      "drawSize": [
+        48.384,
+        36.828
+      ],
+      "anchor": [
+        24.192,
+        18.414
+      ]
+    },
+    "status-ivy": {
+      "image": "status.png",
+      "rect": [
+        1093,
+        34,
+        377,
+        441
+      ],
+      "drawSize": [
+        40.716,
+        47.628
+      ],
+      "anchor": [
+        20.358,
+        23.814
+      ]
+    },
+    "status-poison": {
+      "image": "status.png",
+      "rect": [
+        33,
+        554,
+        430,
+        409
+      ],
+      "drawSize": [
+        46.44,
+        44.172
+      ],
+      "anchor": [
+        23.22,
+        22.086
+      ]
+    },
+    "status-storm": {
+      "image": "status.png",
+      "rect": [
+        570,
+        528,
+        384,
+        442
+      ],
+      "drawSize": [
+        41.472,
+        47.736
+      ],
+      "anchor": [
+        20.736,
+        23.868
+      ]
+    },
+    "status-wind": {
+      "image": "status.png",
+      "rect": [
+        1056,
+        535,
+        434,
+        440
+      ],
+      "drawSize": [
+        46.872,
+        47.52
+      ],
+      "anchor": [
+        23.436,
+        23.76
+      ]
+    },
+    "storm-trail-1": {
+      "image": "storm-motion.png",
+      "rect": [
+        25,
+        92,
+        342,
+        145
+      ],
+      "drawSize": [
+        38.304,
+        16.24
+      ],
+      "anchor": [
+        38.304,
+        8.12
+      ]
+    },
+    "storm-trail-2": {
+      "image": "storm-motion.png",
+      "rect": [
+        402,
+        82,
+        349,
+        162
+      ],
+      "drawSize": [
+        39.088,
+        18.144
+      ],
+      "anchor": [
+        39.088,
+        9.072
+      ]
+    },
+    "storm-trail-3": {
+      "image": "storm-motion.png",
+      "rect": [
+        785,
+        75,
+        350,
+        261
+      ],
+      "drawSize": [
+        39.2,
+        29.232
+      ],
+      "anchor": [
+        39.2,
+        14.616
+      ]
+    },
+    "storm-trail-4": {
+      "image": "storm-motion.png",
+      "rect": [
+        1162,
+        63,
+        357,
+        205
+      ],
+      "drawSize": [
+        39.984,
+        22.96
+      ],
+      "anchor": [
+        39.984,
+        11.48
+      ]
+    },
+    "storm-impact-1": {
+      "image": "storm-motion.png",
+      "rect": [
+        134,
+        414,
+        119,
+        141
+      ],
+      "drawSize": [
+        11.424,
+        13.536
+      ],
+      "anchor": [
+        5.712,
+        6.768
+      ]
+    },
+    "storm-impact-2": {
+      "image": "storm-motion.png",
+      "rect": [
+        458,
+        374,
+        238,
+        222
+      ],
+      "drawSize": [
+        22.848,
+        21.312
+      ],
+      "anchor": [
+        11.424,
+        10.656
+      ]
+    },
+    "storm-impact-3": {
+      "image": "storm-motion.png",
+      "rect": [
+        785,
+        336,
+        335,
+        304
+      ],
+      "drawSize": [
+        32.16,
+        29.184
+      ],
+      "anchor": [
+        16.08,
+        14.592
+      ]
+    },
+    "storm-impact-4": {
+      "image": "storm-motion.png",
+      "rect": [
+        1172,
+        338,
+        334,
+        293
+      ],
+      "drawSize": [
+        32.064,
+        28.128
+      ],
+      "anchor": [
+        16.032,
+        14.064
+      ]
+    },
+    "storm-status-1": {
+      "image": "storm-motion.png",
+      "rect": [
+        41,
+        689,
+        304,
+        275
+      ],
+      "drawSize": [
+        32.832,
+        29.7
+      ],
+      "anchor": [
+        16.416,
+        14.85
+      ]
+    },
+    "storm-status-2": {
+      "image": "storm-motion.png",
+      "rect": [
+        416,
+        686,
+        320,
+        290
+      ],
+      "drawSize": [
+        34.56,
+        31.32
+      ],
+      "anchor": [
+        17.28,
+        15.66
+      ]
+    },
+    "storm-status-3": {
+      "image": "storm-motion.png",
+      "rect": [
+        789,
+        674,
+        337,
+        313
+      ],
+      "drawSize": [
+        36.396,
+        33.804
+      ],
+      "anchor": [
+        18.198,
+        16.902
+      ]
+    },
+    "storm-status-4": {
+      "image": "storm-motion.png",
+      "rect": [
+        1188,
+        679,
+        311,
+        295
+      ],
+      "drawSize": [
+        33.588,
+        31.86
+      ],
+      "anchor": [
+        16.794,
+        15.93
+      ]
+    },
+    "trail-water": {
+      "image": "trails.png",
+      "rect": [
+        31,
+        142,
+        547,
+        193
+      ],
+      "drawSize": [
+        61.264,
+        21.616
+      ],
+      "anchor": [
+        61.264,
+        10.808
+      ]
+    },
+    "trail-flame": {
+      "image": "trails.png",
+      "rect": [
+        609,
+        147,
+        549,
+        187
+      ],
+      "drawSize": [
+        61.488,
+        20.944
+      ],
+      "anchor": [
+        61.488,
+        10.472
+      ]
+    },
+    "trail-ivy": {
+      "image": "trails.png",
+      "rect": [
+        1199,
+        138,
+        542,
+        207
+      ],
+      "drawSize": [
+        60.704,
+        23.184
+      ],
+      "anchor": [
+        60.704,
+        11.592
+      ]
+    },
+    "trail-poison": {
+      "image": "trails.png",
+      "rect": [
+        32,
+        561,
+        545,
+        205
+      ],
+      "drawSize": [
+        61.04,
+        22.96
+      ],
+      "anchor": [
+        61.04,
+        11.48
+      ]
+    },
+    "trail-storm": {
+      "image": "trails.png",
+      "rect": [
+        609,
+        558,
+        545,
+        226
+      ],
+      "drawSize": [
+        61.04,
+        25.312
+      ],
+      "anchor": [
+        61.04,
+        12.656
+      ]
+    },
+    "trail-wind": {
+      "image": "trails.png",
+      "rect": [
+        1199,
+        568,
+        549,
+        199
+      ],
+      "drawSize": [
+        61.488,
+        22.288
+      ],
+      "anchor": [
+        61.488,
+        11.144
+      ]
+    },
+    "water-trail-1": {
+      "image": "water-motion.png",
+      "rect": [
+        0,
+        87,
+        384,
+        165
+      ],
+      "drawSize": [
+        43.008,
+        18.48
+      ],
+      "anchor": [
+        43.008,
+        9.24
+      ]
+    },
+    "water-trail-2": {
+      "image": "water-motion.png",
+      "rect": [
+        384,
+        51,
+        384,
+        227
+      ],
+      "drawSize": [
+        43.008,
+        25.424
+      ],
+      "anchor": [
+        43.008,
+        12.712
+      ]
+    },
+    "water-trail-3": {
+      "image": "water-motion.png",
+      "rect": [
+        768,
+        61,
+        384,
+        259
+      ],
+      "drawSize": [
+        43.008,
+        29.008
+      ],
+      "anchor": [
+        43.008,
+        14.504
+      ]
+    },
+    "water-trail-4": {
+      "image": "water-motion.png",
+      "rect": [
+        1152,
+        84,
+        384,
+        236
+      ],
+      "drawSize": [
+        43.008,
+        26.432
+      ],
+      "anchor": [
+        43.008,
+        13.216
+      ]
+    },
+    "water-impact-1": {
+      "image": "water-motion.png",
+      "rect": [
+        113,
+        399,
+        155,
+        255
+      ],
+      "drawSize": [
+        14.88,
+        24.48
+      ],
+      "anchor": [
+        7.44,
+        12.24
+      ]
+    },
+    "water-impact-2": {
+      "image": "water-motion.png",
+      "rect": [
+        423,
+        322,
+        344,
+        332
+      ],
+      "drawSize": [
+        33.024,
+        31.872
+      ],
+      "anchor": [
+        16.512,
+        15.936
+      ]
+    },
+    "water-impact-3": {
+      "image": "water-motion.png",
+      "rect": [
+        767,
+        320,
+        385,
+        334
+      ],
+      "drawSize": [
+        36.96,
+        32.064
+      ],
+      "anchor": [
+        18.48,
+        16.032
+      ]
+    },
+    "water-impact-4": {
+      "image": "water-motion.png",
+      "rect": [
+        1152,
+        320,
+        384,
+        334
+      ],
+      "drawSize": [
+        36.864,
+        32.064
+      ],
+      "anchor": [
+        18.432,
+        16.032
+      ]
+    },
+    "water-status-1": {
+      "image": "water-motion.png",
+      "rect": [
+        12,
+        654,
+        372,
+        342
+      ],
+      "drawSize": [
+        40.176,
+        36.936
+      ],
+      "anchor": [
+        20.088,
+        18.468
+      ]
+    },
+    "water-status-2": {
+      "image": "water-motion.png",
+      "rect": [
+        384,
+        654,
+        384,
+        352
+      ],
+      "drawSize": [
+        41.472,
+        38.016
+      ],
+      "anchor": [
+        20.736,
+        19.008
+      ]
+    },
+    "water-status-3": {
+      "image": "water-motion.png",
+      "rect": [
+        768,
+        654,
+        384,
+        348
+      ],
+      "drawSize": [
+        41.472,
+        37.584
+      ],
+      "anchor": [
+        20.736,
+        18.792
+      ]
+    },
+    "water-status-4": {
+      "image": "water-motion.png",
+      "rect": [
+        1152,
+        654,
+        370,
+        340
+      ],
+      "drawSize": [
+        39.96,
+        36.72
+      ],
+      "anchor": [
+        19.98,
+        18.36
+      ]
+    },
+    "wind-trail-1": {
+      "image": "wind-motion.png",
+      "rect": [
+        34,
+        99,
+        330,
+        132
+      ],
+      "drawSize": [
+        36.96,
+        14.784
+      ],
+      "anchor": [
+        36.96,
+        7.392
+      ]
+    },
+    "wind-trail-2": {
+      "image": "wind-motion.png",
+      "rect": [
+        411,
+        85,
+        339,
+        151
+      ],
+      "drawSize": [
+        37.968,
+        16.912
+      ],
+      "anchor": [
+        37.968,
+        8.456
+      ]
+    },
+    "wind-trail-3": {
+      "image": "wind-motion.png",
+      "rect": [
+        784,
+        65,
+        349,
+        179
+      ],
+      "drawSize": [
+        39.088,
+        20.048
+      ],
+      "anchor": [
+        39.088,
+        10.024
+      ]
+    },
+    "wind-trail-4": {
+      "image": "wind-motion.png",
+      "rect": [
+        1163,
+        70,
+        356,
+        181
+      ],
+      "drawSize": [
+        39.872,
+        20.272
+      ],
+      "anchor": [
+        39.872,
+        10.136
+      ]
+    },
+    "wind-impact-1": {
+      "image": "wind-motion.png",
+      "rect": [
+        119,
+        426,
+        143,
+        135
+      ],
+      "drawSize": [
+        13.728,
+        12.96
+      ],
+      "anchor": [
+        6.864,
+        6.48
+      ]
+    },
+    "wind-impact-2": {
+      "image": "wind-motion.png",
+      "rect": [
+        443,
+        379,
+        260,
+        224
+      ],
+      "drawSize": [
+        24.96,
+        21.504
+      ],
+      "anchor": [
+        12.48,
+        10.752
+      ]
+    },
+    "wind-impact-3": {
+      "image": "wind-motion.png",
+      "rect": [
+        790,
+        347,
+        334,
+        305
+      ],
+      "drawSize": [
+        32.064,
+        29.28
+      ],
+      "anchor": [
+        16.032,
+        14.64
+      ]
+    },
+    "wind-impact-4": {
+      "image": "wind-motion.png",
+      "rect": [
+        1164,
+        337,
+        348,
+        311
+      ],
+      "drawSize": [
+        33.408,
+        29.856
+      ],
+      "anchor": [
+        16.704,
+        14.928
+      ]
+    },
+    "wind-status-1": {
+      "image": "wind-status.png",
+      "rect": [
+        0,
+        0,
+        627,
+        627
+      ],
+      "drawSize": [
+        52,
+        52
+      ],
+      "anchor": [
+        26.0,
+        26.0
+      ]
+    },
+    "wind-status-2": {
+      "image": "wind-status.png",
+      "rect": [
+        627,
+        0,
+        627,
+        627
+      ],
+      "drawSize": [
+        52,
+        52
+      ],
+      "anchor": [
+        26.0,
+        26.0
+      ]
+    },
+    "wind-status-3": {
+      "image": "wind-status.png",
+      "rect": [
+        0,
+        627,
+        627,
+        627
+      ],
+      "drawSize": [
+        52,
+        52
+      ],
+      "anchor": [
+        26.0,
+        26.0
+      ]
+    },
+    "wind-status-4": {
+      "image": "wind-status.png",
+      "rect": [
+        627,
+        627,
+        627,
+        627
+      ],
+      "drawSize": [
+        52,
+        52
+      ],
+      "anchor": [
+        26.0,
+        26.0
+      ]
+    },
+    "zeus-sky-bolt-1": {
+      "image": "zeus-sky-bolt.png",
+      "rect": [
+        0,
+        0,
+        543,
+        724
+      ],
+      "drawSize": [
+        48,
+        74
+      ],
+      "anchor": [
+        24.0,
+        74
+      ]
+    },
+    "zeus-sky-bolt-2": {
+      "image": "zeus-sky-bolt.png",
+      "rect": [
+        543,
+        0,
+        543,
+        724
+      ],
+      "drawSize": [
+        48,
+        74
+      ],
+      "anchor": [
+        24.0,
+        74
+      ]
+    },
+    "zeus-sky-bolt-3": {
+      "image": "zeus-sky-bolt.png",
+      "rect": [
+        1086,
+        0,
+        543,
+        724
+      ],
+      "drawSize": [
+        48,
+        74
+      ],
+      "anchor": [
+        24.0,
+        74
+      ]
+    },
+    "zeus-sky-bolt-4": {
+      "image": "zeus-sky-bolt.png",
+      "rect": [
+        1629,
+        0,
+        543,
+        724
+      ],
+      "drawSize": [
+        48,
+        74
+      ],
+      "anchor": [
+        24.0,
+        74
+      ]
+    }
+  },
+  "animations": {
+    "star-hit": {
+      "frames": [
+        "star-hit-1",
+        "star-hit-2",
+        "star-hit-3"
+      ],
+      "fps": 12,
+      "loop": false
+    },
+    "flame-trail": {
+      "frames": [
+        "flame-trail-1",
+        "flame-trail-2",
+        "flame-trail-3",
+        "flame-trail-4"
+      ],
+      "fps": 12,
+      "loop": true
+    },
+    "flame-impact": {
+      "frames": [
+        "flame-impact-1",
+        "flame-impact-2",
+        "flame-impact-3",
+        "flame-impact-4"
+      ],
+      "fps": 12,
+      "loop": false
+    },
+    "flame-status": {
+      "frames": [
+        "flame-status-1",
+        "flame-status-2",
+        "flame-status-3",
+        "flame-status-4"
+      ],
+      "fps": 12,
+      "loop": true
+    },
+    "ivy-trail": {
+      "frames": [
+        "ivy-trail-1",
+        "ivy-trail-2",
+        "ivy-trail-3",
+        "ivy-trail-4"
+      ],
+      "fps": 12,
+      "loop": true
+    },
+    "ivy-impact": {
+      "frames": [
+        "ivy-impact-1",
+        "ivy-impact-2",
+        "ivy-impact-3",
+        "ivy-impact-4"
+      ],
+      "fps": 12,
+      "loop": false
+    },
+    "ivy-status": {
+      "frames": [
+        "ivy-status-1",
+        "ivy-status-2",
+        "ivy-status-3",
+        "ivy-status-4"
+      ],
+      "fps": 12,
+      "loop": true
+    },
+    "sumo-dust": {
+      "frames": [
+        "sumo-dust-1",
+        "sumo-dust-2",
+        "sumo-dust-3",
+        "sumo-dust-4"
+      ],
+      "fps": 12,
+      "loop": false
+    },
+    "super-ready": {
+      "frames": [
+        "super-ready-1",
+        "super-ready-2",
+        "super-ready-3",
+        "super-ready-4"
+      ],
+      "fps": 12,
+      "loop": true
+    },
+    "poison-trail": {
+      "frames": [
+        "poison-trail-1",
+        "poison-trail-2",
+        "poison-trail-3",
+        "poison-trail-4"
+      ],
+      "fps": 12,
+      "loop": true
+    },
+    "poison-impact": {
+      "frames": [
+        "poison-impact-1",
+        "poison-impact-2",
+        "poison-impact-3",
+        "poison-impact-4"
+      ],
+      "fps": 12,
+      "loop": false
+    },
+    "poison-status": {
+      "frames": [
+        "poison-status-1",
+        "poison-status-2",
+        "poison-status-3",
+        "poison-status-4"
+      ],
+      "fps": 12,
+      "loop": true
+    },
+    "storm-trail": {
+      "frames": [
+        "storm-trail-1",
+        "storm-trail-2",
+        "storm-trail-3",
+        "storm-trail-4"
+      ],
+      "fps": 12,
+      "loop": true
+    },
+    "storm-impact": {
+      "frames": [
+        "storm-impact-1",
+        "storm-impact-2",
+        "storm-impact-3",
+        "storm-impact-4"
+      ],
+      "fps": 12,
+      "loop": false
+    },
+    "storm-status": {
+      "frames": [
+        "storm-status-1",
+        "storm-status-2",
+        "storm-status-3",
+        "storm-status-4"
+      ],
+      "fps": 12,
+      "loop": true
+    },
+    "water-trail": {
+      "frames": [
+        "water-trail-1",
+        "water-trail-2",
+        "water-trail-3",
+        "water-trail-4"
+      ],
+      "fps": 12,
+      "loop": true
+    },
+    "water-impact": {
+      "frames": [
+        "water-impact-1",
+        "water-impact-2",
+        "water-impact-3",
+        "water-impact-4"
+      ],
+      "fps": 12,
+      "loop": false
+    },
+    "water-status": {
+      "frames": [
+        "water-status-1",
+        "water-status-2",
+        "water-status-3",
+        "water-status-4"
+      ],
+      "fps": 12,
+      "loop": true
+    },
+    "wind-trail": {
+      "frames": [
+        "wind-trail-1",
+        "wind-trail-2",
+        "wind-trail-3",
+        "wind-trail-4"
+      ],
+      "fps": 12,
+      "loop": true
+    },
+    "wind-impact": {
+      "frames": [
+        "wind-impact-1",
+        "wind-impact-2",
+        "wind-impact-3",
+        "wind-impact-4"
+      ],
+      "fps": 12,
+      "loop": false
+    },
+    "wind-status": {
+      "frames": [
+        "wind-status-1",
+        "wind-status-2",
+        "wind-status-3",
+        "wind-status-4"
+      ],
+      "fps": 8,
+      "loop": true
+    },
+    "zeus-sky-bolt": {
+      "frames": [
+        "zeus-sky-bolt-1",
+        "zeus-sky-bolt-2",
+        "zeus-sky-bolt-3",
+        "zeus-sky-bolt-4"
+      ],
+      "fps": 20,
+      "loop": false
+    }
+  }
+}

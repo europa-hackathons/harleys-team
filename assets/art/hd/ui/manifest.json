@@ -1,0 +1,40 @@
+{
+  "generator": "Built-in ImageGen via GPT Astra",
+  "units": "rect [x,y,width,height] in source pixels; drawSize and anchor [x,y] in logical pixels relative to frame top left",
+  "frames": {
+    "title-logo": {
+      "image": "title-logo.png",
+      "rect": [
+        0,
+        0,
+        2172,
+        724
+      ],
+      "drawSize": [
+        184,
+        61.333
+      ],
+      "anchor": [
+        92.0,
+        30.6665
+      ]
+    },
+    "wheel-rim-hub": {
+      "image": "wheel-rim-hub.png",
+      "rect": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "drawSize": [
+        114,
+        114.0
+      ],
+      "anchor": [
+        57.0,
+        57.0
+      ]
+    }
+  }
+}

@@ -1,7 +1,13 @@
 // Pixel effects on the 256x144 picture: rocket flames, star bursts, sparkles and pop-up words.
 import { COLORS } from './scene.js';
+import { blitCentre, blitAt } from './sprite.js';
 
 const bits = [];
+// fx.hd = true when the drawn HD effect animations are in (main.js): then the chunky code-made flame, water,
+// leaf, bubble, lava-sizzle and wind particles are left out (the HD trails, impacts and status loops replace them).
+// fx.skyBolt = the HD Zeus sky-bolt animation (effects/manifest.json "zeus-sky-bolt"): when it is in, every bolt()
+// plays it instead of the code-drawn zig-zag.
+export const fx = { hd: false, skyBolt: null };
 const words = [];
 const anims = [];
 const bolts = [];
@@ -22,6 +28,7 @@ function stamp(g, shape, x, y, color) {
 // dir = 1 when the glove flies right (flame blows left), -1 when it flies left.
 // big = 2 makes the huge FLAME FIST version (more, bigger, longer-lasting puffs).
 export function flame(x, y, power = 1, dir = 1, big = 1) {
+  if (fx.hd) return;
   for (let i = 0; i < 3 * big; i++) {
     bits.push({ kind: 'flame', x, y: y + (Math.random() * 4 - 2) * big, vx: dir * (-30 - Math.random() * 50 * power), vy: (Math.random() * 16 - 8) * big,
       age: 0, life: (0.18 + Math.random() * 0.14) * big, size: (3 + Math.random() * 2) * big });
@@ -36,6 +43,7 @@ const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
 // WATER FIST: a spray of water drops flying off behind the glove (call every frame while it flies).
 export function splash(x, y, dir = 1) {
+  if (fx.hd) return;
   for (let i = 0; i < 4; i++) {
     bits.push({ kind: 'drop', x: x + Math.random() * 6 - 3, y: y + Math.random() * 8 - 4, vx: dir * (-20 - Math.random() * 50), vy: -50 + Math.random() * 40,
       age: 0, life: 0.35 + Math.random() * 0.25, color: pick(WATER), grav: 300 });
@@ -43,15 +51,18 @@ export function splash(x, y, dir = 1) {
 }
 // A water drop falling off a DRIPPING WET boxer.
 export function drip(x, y) {
+  if (fx.hd) return;
   bits.push({ kind: 'drop', x, y, vx: Math.random() * 10 - 5, vy: 5 + Math.random() * 10, age: 0, life: 0.45 + Math.random() * 0.2, color: pick(WATER), grav: 220 });
 }
 // IVY FIST: little leaves fluttering off the vine.
 export function leaves(x, y, dir = 1) {
+  if (fx.hd) return;
   bits.push({ kind: 'leaf', x: x + Math.random() * 6 - 3, y: y + Math.random() * 8 - 4, vx: dir * (-10 - Math.random() * 20), vy: 10 + Math.random() * 20,
     age: 0, life: 0.5 + Math.random() * 0.3, color: pick(LEAF) });
 }
 // POISON: purple cartoon bubbles that float up and pop. dir = 0 for bubbles rising off a poisoned boxer.
 export function bubbles(x, y, dir = 1) {
+  if (fx.hd) return;
   bits.push({ kind: 'bubble', x: x + Math.random() * 6 - 3, y: y + Math.random() * 8 - 4, vx: dir * (-15 - Math.random() * 25) + Math.random() * 8 - 4, vy: -15 - Math.random() * 20,
     age: 0, life: 0.5 + Math.random() * 0.4, color: pick(POISON), r: Math.random() < 0.4 ? 2 : 1 });
 }
@@ -59,12 +70,14 @@ export function bubbles(x, y, dir = 1) {
 // LAVA: little sizzle sparks hopping up off a lava splat.
 const SIZZLE = ['#fff4c2', '#ffd23f', '#ff9f2e', '#f0662c'];
 export function sizzle(x, y) {
+  if (fx.hd) return;
   bits.push({ kind: 'drop', x: x + Math.random() * 4 - 2, y, vx: Math.random() * 30 - 15, vy: -30 - Math.random() * 30, age: 0, life: 0.25 + Math.random() * 0.2, color: pick(SIZZLE), grav: 120 });
 }
 
 // WIND STORM (the boss): white and pale-blue gusts swirling off behind the big fist.
 const WIND = ['#ffffff', '#bfe8ff', '#8ff0e6'];
 export function wind(x, y, dir = 1) {
+  if (fx.hd) return;
   for (let i = 0; i < 4; i++) {
     const a = Math.random() * Math.PI * 2;
     bits.push({ kind: 'drop', x: x + Math.cos(a) * 12, y: y + Math.sin(a) * 12, vx: dir * (-30 - Math.random() * 40) - Math.sin(a) * 50, vy: Math.cos(a) * 50,
@@ -82,7 +95,21 @@ export function zap(x, y, dir = 1) {
 
 // A zig-zag lightning bolt from (x0, y0) down to (x1, y1) that crackles for `life` seconds.
 export function bolt(x0, y0, x1, y1, life = 0.35) {
-  bolts.push({ x0, y0, x1, y1, age: 0, life });
+  const seq = fx.skyBolt;
+  bolts.push({ x0, y0, x1, y1, age: 0, life: seq ? Math.max(life, seq.length / (seq.fps || 20)) : life });
+}
+
+// The HD sky bolt: its anchor (bottom middle, where it strikes) on the target, sized so it reaches up to y0 and
+// leaning along the line from (x0, y0). The drawn sequence plays once, then its last two frames flicker out.
+function drawSkyBolt(g, b, seq) {
+  const fps = seq.fps || 20, i = Math.floor(b.age * fps);
+  const fr = i < seq.length ? seq[i] : seq[seq.length - 2 + (Math.floor(b.age * 30) % 2)];
+  const scale = Math.max(0.6, (b.y1 - b.y0) / fr.lh);
+  g.save();
+  g.translate(b.x1, b.y1);
+  g.rotate(-Math.atan2(b.x1 - b.x0, b.y1 - b.y0));
+  blitAt(g, fr, 0, 0, scale);
+  g.restore();
 }
 
 function line(g, ax, ay, bx, by, size) {
@@ -120,8 +147,8 @@ export function popWord(text, x, y, color = COLORS.sparkle, size = 11) {
 }
 
 // Plays a row of sprite frames once, centred on (x, y): the hit-stars sheet.
-export function playFrames(frames, x, y, fps = 14) {
-  anims.push({ frames, x, y, fps, age: 0 });
+export function playFrames(frames, x, y, fps = 14, scale = 1) {
+  anims.push({ frames, x, y, fps: frames.fps || fps, age: 0, scale });
 }
 
 export function clearEffects() { bits.length = 0; words.length = 0; anims.length = 0; bolts.length = 0; }
@@ -132,14 +159,15 @@ export function drawEffects(g, dt) {
     a.age += dt;
     const f = Math.floor(a.age * a.fps);
     if (f >= a.frames.length) { anims.splice(i, 1); continue; }
-    const img = a.frames[f];
-    g.drawImage(img, Math.round(a.x - img.width / 2), Math.round(a.y - img.height / 2));
+    const fr = a.frames[f];
+    if (fr.hd) blitAt(g, fr, a.x, a.y, a.scale); else blitCentre(g, fr, a.x, a.y, a.scale);
   }
   for (let i = bolts.length - 1; i >= 0; i--) {
     const b = bolts[i];
     b.age += dt;
     if (b.age >= b.life) { bolts.splice(i, 1); continue; }
-    if (b.age < b.life * 0.6 || Math.floor(b.age * 30) % 2) drawBolt(g, b);   // flickers out
+    if (fx.skyBolt) drawSkyBolt(g, b, fx.skyBolt);
+    else if (b.age < b.life * 0.6 || Math.floor(b.age * 30) % 2) drawBolt(g, b);   // flickers out
   }
   for (let i = bits.length - 1; i >= 0; i--) {
     const b = bits[i];
@@ -183,13 +211,7 @@ export function drawEffects(g, dt) {
     const grow = Math.min(1, w.age / 0.1);
     const size = Math.round(w.size * (0.6 + 0.4 * grow));
     const y = Math.round(w.y - w.age * 18);
-    g.font = `bold ${size}px "Trebuchet MS", sans-serif`;
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillStyle = COLORS.outline;
-    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1]]) g.fillText(w.text, Math.round(w.x) + dx, y + dy);
-    g.fillStyle = w.color;
-    g.fillText(w.text, Math.round(w.x), y);
+    drawWord(g, w.text, Math.round(w.x), y, w.color, size);
   }
 }
 
@@ -199,4 +221,30 @@ export function drawDizzy(g, cx, cy, time) {
     const a = time * 5 + (i * Math.PI * 2) / 3;
     stamp(g, STAR, Math.round(cx + Math.cos(a) * 10), Math.round(cy + Math.sin(a) * 3), COLORS.sparkle);
   }
+}
+
+// A chunky arcade word: heavy letters, a thick dark outline with a drop below, and a shine from the top
+// (big gold words like FIGHT! get a gold-to-orange fill). Drawn at screen resolution, so the edges are clean.
+export function drawWord(g, text, x, y, color, size) {
+  g.font = `900 ${size}px "Arial Black", "Trebuchet MS", sans-serif`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineJoin = 'round';
+  g.lineWidth = Math.max(1.2, size * 0.2);
+  g.strokeStyle = COLORS.outline;
+  g.strokeText(text, x + size * 0.04, y + size * 0.09);   // drop
+  g.strokeText(text, x, y);
+  let fill = color;
+  if (size >= 13) {
+    const grad = g.createLinearGradient(0, y - size / 2, 0, y + size / 2);
+    grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.18, color);
+    grad.addColorStop(0.62, color); grad.addColorStop(1, color === COLORS.sparkle ? '#f07a1a' : shade(color));
+    fill = grad;
+  }
+  g.fillStyle = fill;
+  g.fillText(text, x, y);
+}
+// a darker copy of a #rrggbb colour
+function shade(hex) {
+  const n = [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * 0.68));
+  return `rgb(${n.join(',')})`;
 }

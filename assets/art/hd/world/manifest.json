@@ -1,0 +1,112 @@
+{
+  "generator": "Built-in ImageGen via GPT Astra",
+  "units": "rect [x,y,width,height] in source pixels; drawSize and anchor [x,y] in logical pixels relative to frame top left",
+  "frames": {
+    "apartment": {
+      "image": "apartment.png",
+      "rect": [
+        0,
+        0,
+        1672,
+        941
+      ],
+      "drawSize": [
+        256,
+        144
+      ],
+      "anchor": [
+        0,
+        0
+      ]
+    },
+    "arena": {
+      "image": "arena.png",
+      "rect": [
+        0,
+        0,
+        1672,
+        941
+      ],
+      "drawSize": [
+        256,
+        144
+      ],
+      "anchor": [
+        0,
+        0
+      ]
+    },
+    "cliffside": {
+      "image": "cliffside.png",
+      "rect": [
+        0,
+        0,
+        1672,
+        941
+      ],
+      "drawSize": [
+        256,
+        144
+      ],
+      "anchor": [
+        0,
+        0
+      ]
+    },
+    "jungle": {
+      "image": "jungle.png",
+      "rect": [
+        0,
+        0,
+        1672,
+        941
+      ],
+      "drawSize": [
+        256,
+        144
+      ],
+      "anchor": [
+        0,
+        0
+      ]
+    },
+    "space": {
+      "image": "space.png",
+      "rect": [
+        0,
+        0,
+        1672,
+        941
+      ],
+      "drawSize": [
+        256,
+        144
+      ],
+      "anchor": [
+        0,
+        0
+      ]
+    },
+    "volcano": {
+      "image": "volcano.png",
+      "rect": [
+        0,
+        0,
+        1672,
+        941
+      ],
+      "drawSize": [
+        256,
+        144
+      ],
+      "anchor": [
+        0,
+        0
+      ]
+    }
+  },
+  "animations": {},
+  "ringBaked": true,
+  "floorBaseline": 112,
+  "reference": "assets/concepts/mid-fight-paintover.png"
+}

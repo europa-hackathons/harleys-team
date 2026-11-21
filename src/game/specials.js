@@ -4,6 +4,7 @@
 import { COLORS } from './scene.js';
 import { splash, flame, leaves, bubbles, zap, wind } from './effects.js';
 import { t } from './i18n.js';
+import { sameMeta } from './sprite.js';
 
 export const SUPER = {
   full: 300,                                                  // damage dealt to fill the meter
@@ -114,7 +115,7 @@ export function tinted(img, color, amount) {
   sg.fillRect(0, 0, img.width, img.height);
   sg.globalAlpha = 1;
   sg.globalCompositeOperation = 'source-over';
-  return scratch;
+  return sameMeta(scratch, img);
 }
 
 // The SUPER meter: a thin bar that fills in the boxer's colour and flashes when full.

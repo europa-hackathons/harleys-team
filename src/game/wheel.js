@@ -4,6 +4,8 @@
 import { COLORS, disc } from './scene.js';
 import { BOXERS, pickBoxer } from './roster.js';
 import { sfx } from './sfx.js';
+import { blit, blitCentre, blitAt, lw, lh } from './sprite.js';
+import { fx } from './effects.js';
 
 export const WHEEL = {
   cx: 128, cy: 80, r: 54,   // centre and radius on the 256x144 picture
@@ -26,8 +28,13 @@ const sliceAt = (u) => SLICES.find((s) => u >= s.a0 && u < s.a1) || SLICES[SLICE
 const wrap = (a) => ((a % TAU) + TAU) % TAU;
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 
-export function makeWheel(roster) {
-  const size = WHEEL.r * 2 + 1;
+// rim = the HD rim-and-hub picture (assets/art/hd/ui "wheel-rim-hub", 114x114 game pixels, opening radius 45,
+// hub radius 9): drawn over the painted face, turning with it. Without it the code-drawn rim, pegs and hub are used.
+const RIM_OPEN = 44.5, HUB_R = 9.3;
+export function makeWheel(roster, rim = null) {
+  // the face is painted FACE_RES real pixels per game pixel, so it stays sharp on the big screen
+  const FACE_RES = 3;
+  const size = (WHEEL.r * 2 + 1) * FACE_RES;
   const face = document.createElement('canvas');
   face.width = face.height = size;
   const fg = face.getContext('2d');
@@ -42,9 +49,10 @@ export function makeWheel(roster) {
   function paint(time) {
     const d = img.data, R = WHEEL.r;
     const sparkle = Math.floor(time * 12);
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const dx = x - R, dy = y - R, dist = Math.hypot(dx, dy), i = (y * size + x) * 4;
+    for (let py = 0; py < size; py++) {
+      for (let px = 0; px < size; px++) {
+        const x = (px + 0.5) / FACE_RES - 0.5, y = (py + 0.5) / FACE_RES - 0.5;   // in game pixels
+        const dx = x - R, dy = y - R, dist = Math.hypot(dx, dy), i = (py * size + px) * 4;
         if (dist > R + 0.5) { d[i + 3] = 0; continue; }
         let c;
         if (dist > R - 1) c = OUT;
@@ -54,8 +62,8 @@ export function makeWheel(roster) {
           const u = wrap(Math.atan2(dy, dx) - w.rot);
           const k = SLICES.indexOf(sliceAt(u)), s = SLICES[k], sh = s.b.id === w.blocked ? GREY : shades[k];
           const edge = Math.min(u - s.a0, s.a1 - u) * dist;
-          if (edge < 0.9) c = OUT;
-          else if (s.b.id === 'zeus') c = (x * 7 + y * 3 + sparkle) % 5 === 0 && sh !== GREY ? [255, 255, 255] : sh.main;
+          if (edge < 0.6) c = OUT;
+          else if (s.b.id === 'zeus') c = (Math.floor(x) * 7 + Math.floor(y) * 3 + sparkle) % 5 === 0 && sh !== GREY ? [255, 255, 255] : sh.main;
           else c = dist > R - 10 ? sh.light : dist < 14 ? sh.dark : sh.main;
         }
         d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255;
@@ -118,19 +126,34 @@ export function makeWheel(roster) {
       paint(time);
       // shadow, then the face
       g.fillStyle = 'rgba(11, 18, 38, 0.6)';
-      disc(g, cx + 3, cy + 4, r);
-      g.drawImage(face, cx - r, cy - r);
+      disc(g, cx + 3, cy + 4, rim ? Math.round(lw(rim) / 2) : r);
+      g.drawImage(face, cx - r, cy - r, WHEEL.r * 2 + 1, WHEEL.r * 2 + 1);
+      // the heads sit in the middle of the band you can see (between the hub and the rim's opening)
+      const headR = rim ? (RIM_OPEN + HUB_R) / 2 : r * 0.55;
       // boxer heads in the big slices, always upright
       for (const s of SLICES) {
         if (s.b.id === 'zeus') continue;
         const a = (s.a0 + s.a1) / 2 + w.rot, head = roster[s.b.id].head;
-        const hx = Math.round(cx + Math.cos(a) * r * 0.55), hy = Math.round(cy + Math.sin(a) * r * 0.55);
-        if (s.b.id === w.blocked) { g.filter = 'grayscale(1) brightness(0.75)'; g.drawImage(head, hx - (head.width >> 1), hy - (head.height >> 1)); g.filter = 'none'; crossOut(g, hx, hy, 11); }
-        else g.drawImage(head, hx - (head.width >> 1), hy - (head.height >> 1));
+        const hx = Math.round(cx + Math.cos(a) * headR), hy = Math.round(cy + Math.sin(a) * headR);
+        if (s.b.id === w.blocked) { g.filter = 'grayscale(1) brightness(0.75)'; blitCentre(g, head, hx, hy); g.filter = 'none'; crossOut(g, hx, hy, 11); }
+        else blitCentre(g, head, hx, hy);
       }
       // ZEUS: a lightning bolt sign just outside the rim, glinting
       const zs = SLICES.find((s) => s.b.id === 'zeus');
       const za = (zs.a0 + zs.a1) / 2 + w.rot;
+      if (rim) {
+        // HD: the drawn sky bolt inside ZEUS's thin slice (flickering through its frames), then the rim and hub,
+        // turning with the face so its lights sweep past the pointer
+        const zr = RIM_OPEN - 10, zx = Math.round(cx + Math.cos(za) * zr), zy = Math.round(cy + Math.sin(za) * zr);
+        const seq = fx.skyBolt;
+        if (seq) { const fr = seq[Math.floor(time * 6) % seq.length]; blitAt(g, fr, zx, zy + fr.lh * 0.17, 0.34); }
+        if (w.blocked === 'zeus') crossOut(g, zx, zy, 5);
+        g.save(); g.translate(cx, cy); g.rotate(w.rot);
+        blitCentre(g, rim, 0, 0);
+        g.restore();
+        drawPointer(g, cx, cy - lw(rim) / 2 - 3);
+        return;
+      }
       const bx = Math.round(cx + Math.cos(za) * (r + 6)), by = Math.round(cy + Math.sin(za) * (r + 6));
       stampBolt(g, bx, by);
       if (w.blocked === 'zeus') crossOut(g, bx, by, 5);
@@ -145,8 +168,13 @@ export function makeWheel(roster) {
       g.fillStyle = COLORS.outline; disc(g, cx, cy, 8);
       g.fillStyle = COLORS.rope; disc(g, cx, cy, 7);
       g.fillStyle = COLORS.sparkle; disc(g, cx, cy, 4);
-      // pointer at the top, flicking sideways at each peg
-      const px = cx + (w.flick > 0 ? -2 : 0), top = cy - r - 9;
+      drawPointer(g, cx, cy - r - 9);
+    },
+  };
+
+  // pointer at the top, flicking sideways at each peg
+  function drawPointer(g, cx, top) {
+    const px = cx + (w.flick > 0 ? -2 : 0);
       for (const [color, grow] of [[COLORS.outline, 1], [COLORS.sparkle, 0]]) {
         g.fillStyle = color;
         for (let row = 0; row < 12; row++) {
@@ -155,40 +183,36 @@ export function makeWheel(roster) {
         }
       }
       g.fillStyle = '#ffffff'; g.fillRect(px - 3, top + 1, 2, 3);
-    },
-  };
+  }
 }
 
 // The reveal: rays spinning behind the boxer you got, who pops up big in the middle.
 // t = seconds since the wheel stopped.
-const rays = document.createElement('canvas');
-rays.width = 256; rays.height = 144;
-const rg = rays.getContext('2d');
-const rayImg = rg.createImageData(256, 144);
-
 export function drawReveal(g, boxer, t, time) {
   const { cx, cy } = WHEEL;
   g.fillStyle = 'rgba(11, 18, 38, 0.72)';
   g.fillRect(0, 0, 256, 144);
-  // sun rays, crisp pixel by pixel
-  const color = rgb(boxer.thunder ? (Math.floor(time * 10) % 2 ? '#fff4c2' : COLORS.sparkle) : boxer.color);
-  const count = 12, spin = time * (boxer.thunder ? 1.6 : 0.6), d = rayImg.data;
-  for (let y = 0; y < 144; y++) {
-    for (let x = 0; x < 256; x++) {
-      const i = (y * 256 + x) * 4, dx = x - cx, dy = y - cy;
-      const on = dx * dx + dy * dy > 400 && wrap(Math.atan2(dy, dx) - spin) / TAU * count % 1 < 0.45;
-      d[i] = color[0]; d[i + 1] = color[1]; d[i + 2] = color[2]; d[i + 3] = on ? 150 : 0;
-    }
+  // sun rays: wedges drawn at screen resolution, with a hole in the middle
+  const color = boxer.thunder ? (Math.floor(time * 10) % 2 ? '#fff4c2' : COLORS.sparkle) : boxer.color;
+  const count = 12, spin = time * (boxer.thunder ? 1.6 : 0.6), wedge = (TAU / count) * 0.45;
+  g.save();
+  g.globalAlpha = 150 / 255;
+  g.fillStyle = color;
+  g.beginPath();
+  for (let i = 0; i < count; i++) {
+    const a0 = spin + (i * TAU) / count;
+    g.moveTo(cx + Math.cos(a0) * 20, cy + Math.sin(a0) * 20);
+    g.arc(cx, cy, 320, a0, a0 + wedge);
+    g.arc(cx, cy, 20, a0 + wedge, a0, true);
+    g.closePath();
   }
-  rg.putImageData(rayImg, 0, 0);
-  g.drawImage(rays, 0, 0);
+  g.fill();
+  g.restore();
   // the boxer pops up with a springy overshoot
   const k = Math.min(1, t / 0.35);
   const pop = k < 1 ? k * 1.25 : 1 + 0.08 * Math.exp(-(t - 0.35) * 6) * Math.sin((t - 0.35) * 25);
   const img = boxer.reveal;
-  const h = Math.round(img.height * 1.5 * pop), wd = Math.round(img.width * 1.5 * pop);
-  if (h > 0) {
-    g.imageSmoothingEnabled = false;
-    g.drawImage(img, Math.round(cx - wd / 2), Math.round(cy + 52 - h), wd, h);
-  }
+  // a 72-pixel-tall boxer shows 1.5x as big; taller HD art is fitted to the same height
+  const s = (108 / Math.max(lh(img), 1)) * pop, h = lh(img) * s, wd = lw(img) * s;
+  if (h > 0) blit(g, img, cx - wd / 2, cy + 52 - h, wd, h);
 }
