@@ -1,11 +1,11 @@
 // The boxer WHEEL: a big pixel-art wheel that spins, slows down tick-tick-tick past the pegs and stops
 // under the pointer at the top. Then the boxer you got pops up in the middle (the reveal).
 // Slice sizes match the chances in roster.js, so ZEUS (rare, ZEUS_CHANCE) is a small lightning-yellow slice.
+// Every boxer's head is fitted inside its own slice, however thin (see layout()).
 import { COLORS, disc } from './scene.js';
 import { BOXERS, pickBoxer } from './roster.js';
 import { sfx } from './sfx.js';
-import { blit, blitCentre, blitAt, lw, lh } from './sprite.js';
-import { fx } from './effects.js';
+import { blit, blitCentre, lw, lh } from './sprite.js';
 
 export const WHEEL = {
   cx: 128, cy: 80, r: 54,   // centre and radius on the 256x144 picture
@@ -16,7 +16,6 @@ export const WHEEL = {
 };
 const TAU = Math.PI * 2;
 const POINTER = -Math.PI / 2;   // the pointer sits at the top
-const BOLT = ['..##', '.##.', '####', '.##.', '##..', '#...'];
 
 // slice ranges in wheel angles (0..TAU), in BOXERS order
 const SLICES = [];
@@ -31,6 +30,54 @@ const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 // rim = the HD rim-and-hub picture (assets/art/hd/ui "wheel-rim-hub", 114x114 game pixels, opening radius 45,
 // hub radius 9): drawn over the painted face, turning with it. Without it the code-drawn rim, pegs and hub are used.
 const RIM_OPEN = 44.5, HUB_R = 9.3;
+const HEAD_PAD = 1.2;     // game pixels kept clear between a head and its slice's edges, the rim and the hub
+const HEAD_MAX = 1.1;     // a head is never drawn bigger than this times its portrait size
+
+// The smallest circle round a picture's drawn (non-see-through) pixels, in game pixels from its top-left:
+// { x, y, r }. Heads stay upright while the wheel turns, so this circle is what has to fit in the slice.
+const circles = new WeakMap();
+function headCircle(img) {
+  if (circles.has(img)) return circles.get(img);
+  const c = document.createElement('canvas');
+  c.width = img.width; c.height = img.height;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, c.width, c.height).data, k = img.width / lw(img), pts = [];
+  const step = Math.max(1, Math.round(k / 2));
+  for (let y = 0; y < c.height; y += step) for (let x = 0; x < c.width; x += step) {
+    if (d[(y * c.width + x) * 4 + 3] < 40) continue;
+    // all four corners of the pixel block, so the circle covers whole pixels
+    for (const [ox, oy] of [[0, 0], [step, 0], [0, step], [step, step]]) pts.push([(x + ox) / k, (y + oy) / k]);
+  }
+  let out = { x: lw(img) / 2, y: lh(img) / 2, r: Math.hypot(lw(img), lh(img)) / 2 };
+  if (pts.length) {
+    // walk the centre toward the farthest point a little less each time (Badoiu-Clarkson): close to the smallest circle
+    let [px, py] = pts[0];
+    for (let i = 1; i <= 400; i++) {
+      let far = pts[0], best = -1;
+      for (const q of pts) { const dd = (q[0] - px) ** 2 + (q[1] - py) ** 2; if (dd > best) { best = dd; far = q; } }
+      px += (far[0] - px) / (i + 1); py += (far[1] - py) / (i + 1);
+    }
+    let r = 0;
+    for (const q of pts) r = Math.max(r, Math.hypot(q[0] - px, q[1] - py));
+    out = { x: px, y: py, r };
+  }
+  circles.set(img, out);
+  return out;
+}
+
+// The biggest circle that fits inside a ring slice (from hub to opening, half-angle `half`), keeping `pad`
+// clear of every edge: { rc (its distance from the wheel's middle), rho (its radius) }.
+function sliceCircle(half, hub, open, pad) {
+  const side = Math.sin(Math.min(half, Math.PI / 2));
+  let best = { rc: (hub + open) / 2, rho: 0 };
+  for (let i = 0; i <= 400; i++) {
+    const rc = hub + ((open - hub) * i) / 400;
+    const rho = Math.min(open - pad - rc, rc - hub - pad, half >= Math.PI / 2 ? Infinity : rc * side - pad);
+    if (rho > best.rho) best = { rc, rho };
+  }
+  return best;
+}
 export function makeWheel(roster, rim = null) {
   // the face is painted FACE_RES real pixels per game pixel, so it stays sharp on the big screen
   const FACE_RES = 3;
@@ -42,7 +89,23 @@ export function makeWheel(roster, rim = null) {
   const shades = SLICES.map((s) => ({ main: rgb(s.b.color), light: rgb(s.b.light), dark: rgb(s.b.dark) }));
   const OUT = rgb(COLORS.outline), RIM = rgb(COLORS.ring), RIM_DARK = rgb(COLORS.ringDark);
 
-  let w = { phase: 'ready', rot: 0, t: 0, from: 0, total: 0, result: null, peg: 0, flick: 0, blocked: null };
+  let w = { phase: 'ready', rot: 0, t: 0, from: 0, total: 0, result: null, peg: 0, flick: 0, blocked: null, hold: false };
+
+  // Where each boxer's head goes: as big as fits inside its own slice (ZEUS's thin one too), worked out once.
+  // The head's circle sits on the slice's middle line at rc from the wheel's middle.
+  const open = rim ? RIM_OPEN : WHEEL.r - 6, hub = rim ? HUB_R : 8;
+  const heads = SLICES.map((s) => {
+    const img = roster[s.b.id].head, c = headCircle(img), fit = sliceCircle((s.a1 - s.a0) / 2, hub, open, HEAD_PAD);
+    const scale = Math.min(HEAD_MAX, fit.rho / c.r);
+    return { id: s.b.id, img, c, scale, rc: fit.rc, mid: (s.a0 + s.a1) / 2 };
+  });
+  // the heads for a wheel turn: { id, img, x, y, w, h } (top-left and size in game pixels), cx/cy = the circle's middle
+  function layout(rot = w.rot) {
+    return heads.map((h) => {
+      const a = h.mid + rot, cx = WHEEL.cx + Math.cos(a) * h.rc, cy = WHEEL.cy + Math.sin(a) * h.rc;
+      return { id: h.id, img: h.img, x: cx - h.c.x * h.scale, y: cy - h.c.y * h.scale, w: lw(h.img) * h.scale, h: lh(h.img) * h.scale, cx, cy, r: h.c.r * h.scale };
+    });
+  }
   const GREY = { main: [118, 118, 132], light: [150, 150, 164], dark: [88, 88, 102] };
 
   // Paints the wheel face for the current turn, one pixel at a time (crisp pixel art at any angle).
@@ -80,19 +143,17 @@ export function makeWheel(roster, rim = null) {
     }
   }
 
-  function stampBolt(g, x, y) {
-    for (const [color, o] of [[COLORS.outline, 1], [COLORS.sparkle, 0]]) {
-      g.fillStyle = color;
-      BOLT.forEach((row, dy) => [...row].forEach((ch, dx) => { if (ch === '#') g.fillRect(x + dx - 2 + o, y + dy - 3 + o, 1, 1); }));
-    }
-  }
-
   return {
     get phase() { return w.phase; },
     get result() { return w.result; },
 
     // blocked = a boxer id greyed out for this spin (P1's boxer when P2 spins), or nothing
     reset(blocked = null) { w = { ...w, phase: 'ready', t: 0, result: null, blocked }; },
+
+    layout,
+    // testing: hold the wheel still at this turn (radians), or let it turn again with hold(null)
+    hold(rot) { w.hold = rot !== null && rot !== undefined; if (w.hold) w.rot = rot; },
+    get rot() { return w.rot; },
 
     // Push the wheel. force = a boxer id to land on (testing). Returns false if it's already spinning.
     spin(force) {
@@ -110,7 +171,7 @@ export function makeWheel(roster, rim = null) {
     // Returns the boxer once, on the frame the wheel stops; otherwise null.
     update(dt) {
       w.flick = Math.max(0, w.flick - dt);
-      if (w.phase === 'ready') { w.rot += WHEEL.idleSpeed * dt; return null; }
+      if (w.phase === 'ready') { if (!w.hold) w.rot += WHEEL.idleSpeed * dt; return null; }
       if (w.phase !== 'spinning') return null;
       w.t += dt;
       const k = Math.min(1, w.t / WHEEL.spinTime);
@@ -128,35 +189,21 @@ export function makeWheel(roster, rim = null) {
       g.fillStyle = 'rgba(11, 18, 38, 0.6)';
       disc(g, cx + 3, cy + 4, rim ? Math.round(lw(rim) / 2) : r);
       g.drawImage(face, cx - r, cy - r, WHEEL.r * 2 + 1, WHEEL.r * 2 + 1);
-      // the heads sit in the middle of the band you can see (between the hub and the rim's opening)
-      const headR = rim ? (RIM_OPEN + HUB_R) / 2 : r * 0.55;
-      // boxer heads in the big slices, always upright
-      for (const s of SLICES) {
-        if (s.b.id === 'zeus') continue;
-        const a = (s.a0 + s.a1) / 2 + w.rot, head = roster[s.b.id].head;
-        const hx = Math.round(cx + Math.cos(a) * headR), hy = Math.round(cy + Math.sin(a) * headR);
-        if (s.b.id === w.blocked) { g.filter = 'grayscale(1) brightness(0.75)'; blitCentre(g, head, hx, hy); g.filter = 'none'; crossOut(g, hx, hy, 11); }
-        else blitCentre(g, head, hx, hy);
+      // every boxer's head, upright, fitted inside its own slice (layout above)
+      for (const h of layout()) {
+        if (h.id === w.blocked) {
+          g.filter = 'grayscale(1) brightness(0.75)'; blit(g, h.img, h.x, h.y, h.w, h.h); g.filter = 'none';
+          crossOut(g, Math.round(h.cx), Math.round(h.cy), Math.max(4, Math.round(h.r * 0.7)));
+        } else blit(g, h.img, h.x, h.y, h.w, h.h);
       }
-      // ZEUS: a lightning bolt sign just outside the rim, glinting
-      const zs = SLICES.find((s) => s.b.id === 'zeus');
-      const za = (zs.a0 + zs.a1) / 2 + w.rot;
       if (rim) {
-        // HD: the drawn sky bolt inside ZEUS's thin slice (flickering through its frames), then the rim and hub,
-        // turning with the face so its lights sweep past the pointer
-        const zr = RIM_OPEN - 10, zx = Math.round(cx + Math.cos(za) * zr), zy = Math.round(cy + Math.sin(za) * zr);
-        const seq = fx.skyBolt;
-        if (seq) { const fr = seq[Math.floor(time * 6) % seq.length]; blitAt(g, fr, zx, zy + fr.lh * 0.17, 0.34); }
-        if (w.blocked === 'zeus') crossOut(g, zx, zy, 5);
+        // HD: the rim and hub turn with the face, so their lights sweep past the pointer
         g.save(); g.translate(cx, cy); g.rotate(w.rot);
         blitCentre(g, rim, 0, 0);
         g.restore();
         drawPointer(g, cx, cy - lw(rim) / 2 - 3);
         return;
       }
-      const bx = Math.round(cx + Math.cos(za) * (r + 6)), by = Math.round(cy + Math.sin(za) * (r + 6));
-      stampBolt(g, bx, by);
-      if (w.blocked === 'zeus') crossOut(g, bx, by, 5);
       // rim pegs
       for (let i = 0; i < WHEEL.pegs; i++) {
         const a = (i / WHEEL.pegs) * TAU + w.rot;

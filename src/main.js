@@ -168,7 +168,7 @@ const game = window.game = {
 };
 let punchCam = null;
 let guard = { up: false, t: 2 };
-let ai = { t: 99, warn: 0, aim: 'head' };   // the computer's next punch: t = seconds to wait, warn = "!" showing
+let ai = { t: 99, warn: 0, aim: 'head', combo: null };   // the computer's next punch: t = seconds to wait, warn = "!" showing, combo = aim of a quick follow-up
 let nextT = 0;                              // seconds the LEVEL screen has shown
 const STATS = ['damage', 'hits', 'headHits', 'bodyHits', 'specials'];
 let run = {};                               // 1 player: your totals from the levels already beaten
@@ -190,6 +190,8 @@ game.debug.fight = (p1 = 'teal', p2 = 'orange') => { game.picks = [p1, p2]; star
 // jump straight into a 1-player level (keeps your boxer, or teal): game.debug.level(5)
 game.debug.level = (n = 1) => { setMode(1); clearRun(); game.level = clampLevel(n); game.picks = [game.picks[0] || 'teal', null]; startRound(); };
 game.debug.ai = () => ai;
+// the wheel for checks: game.debug.wheel.hold(1.2) holds it at a turn; .layout() says where each head is drawn
+game.debug.wheel = wheel;
 // look checks for the art (src/game/qa.js): game.debug.qa('zeus') / game.debug.qa('zeus', 'onion');
 // game.debug.record(12, 0.06) then game.debug.contact() shows 12 real frames side by side
 const recorder = makeRecorder();
@@ -222,7 +224,7 @@ function startRound() {
     timer.reset(lvl().seconds);
   }
   guard = { up: false, t: game.mode === 1 ? rand(lvl().guardOpen) : 99 };
-  ai = { t: game.mode === 1 && lvl().attack ? rand(lvl().attack) + 1 : 99, warn: 0, aim: 'head' };
+  ai = { t: game.mode === 1 && lvl().attack ? rand(lvl().attack) + 1.5 : 99, warn: 0, aim: 'head', combo: null };   // (+1.5 s while FIGHT! shows)
   excite = 0;
   strikes = [];
   clearEffects();
@@ -734,23 +736,33 @@ function update(dt, now) {
 
 // The computer boxer (1 player): raises and drops its guard, and fires rocket fists back (gently on level 1).
 // Before each punch a "!" flashes over its head for lvl().warn seconds, so you have time to duck a HIGH one.
+// Its punch clock keeps running while it wobbles from your hits (it only waits for the wobble to end before its
+// "!"), so punching it a lot doesn't stop it punching back. Sometimes a quick second punch follows the other way.
 function computer(dt) {
   const L = lvl(), f = orange;
   if (ai.warn > 0) {
     ai.warn -= dt;
-    if (ai.warn <= 0) { ai.warn = 0; fire(f, ai.aim); ai.t = rand(L.attack); }
+    if (ai.warn <= 0) {
+      ai.warn = 0;
+      const went = f.glove.mode === 'home' && f.cooldown <= 0;
+      fire(f, ai.aim);
+      // a quick follow-up the other way (high <-> low), or the usual wait; if the fist couldn't go, try again soon
+      const combo = went && !ai.combo && Math.random() < (L.combo || 0);
+      ai.t = !went ? 0.2 : combo ? rand(L.comboGap || [0.3, 0.5]) : rand(L.attack);
+      ai.combo = combo ? (ai.aim === 'head' ? 'body' : 'head') : null;
+    }
     return;
   }
+  if (L.attack && f.glove.mode === 'home') ai.t -= dt * (f.slow > 0 ? SUPER.slow.glove : 1);   // WATER: a wet computer punches less often too
   if (f.wobble > 0) return;
   guard.t -= dt;
   if (guard.t <= 0) { guard.up = !guard.up; guard.t = rand(guard.up ? L.guardUp : L.guardOpen); }
-  if (!L.attack || f.glove.mode !== 'home') return;
-  ai.t -= dt * (f.slow > 0 ? SUPER.slow.glove : 1);   // WATER: a wet computer punches less often too
-  if (ai.t <= 0) {
-    ai.warn = L.warn;
-    ai.aim = Math.random() < L.high ? 'head' : 'body';
-    guard.up = false; guard.t = rand(L.guardOpen);
-  }
+  if (!L.attack || f.glove.mode !== 'home' || f.cooldown > 0 || ai.t > 0) return;
+  // fair play: no punch while you're tangled in IVY and can't duck (no unavoidable head punches)
+  if (teal.tangle > 0) return;
+  ai.warn = L.warn;
+  ai.aim = ai.combo || (Math.random() < L.high ? 'head' : 'body');
+  guard.up = false; guard.t = rand(L.guardOpen);
 }
 
 // Walk a boxer: keys walk it; on the webcam it walks toward where that player's body is.

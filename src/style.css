@@ -89,6 +89,7 @@ h2 { font-size: clamp(1.6rem, 5vw, 2.6rem); margin: 0; color: #ffd23f; text-shad
 #ready-help { white-space: normal; }
 .wheel-title {
   margin: 0; font-size: clamp(1.4rem, 5.5vw, 3rem); letter-spacing: 0.04em; color: #f4e4c4;
+  max-width: 100%; text-wrap: balance;   /* long names or a wider phone font wrap instead of spilling off the side */
   text-shadow: 3px 3px 0 #0b1226, -2px -2px 0 #0b1226;
 }
 .wheel-title .en { font-size: 0.5em; }
@@ -164,4 +165,7 @@ h2 { font-size: clamp(1.6rem, 5vw, 2.6rem); margin: 0; color: #ffd23f; text-shad
   #title-screen .panel > .title-logo { flex-basis: auto; width: min(38rem, calc(100vw - 40px - 2 * var(--pad-x, 2rem)), 72vh); }
   #title-screen .title-logo, #title-screen .subtitle, #title-screen .keys { order: -2; }
   #title-screen .sides { order: -1; }
+  /* ZEUS! on one line, so the heading stays above the Zeus picture instead of across his head */
+  .wheel-title.zeus { font-size: clamp(1.6rem, 9vh, 2.4rem); }
+  .wheel-title.zeus .en { display: inline; margin: 0 0 0 0.4em; }
 }
