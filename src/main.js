@@ -617,24 +617,20 @@ document.getElementById('level-screen').addEventListener('pointerdown', goNextLe
 for (const id of ['menu', 'menu-over', 'menu-champ']) {
   document.getElementById(id).addEventListener('click', () => { game.state = 'title'; sumo.stop(); titleMusic(); show('title-screen'); });
 }
-// SOUND BUTTON: a small speaker in the title's corner. It shows sound as off until the browser's audio has been
-// woken by a tap (any tap does that); then a tap on it mutes or unmutes everything. M does the same anywhere.
+// SOUND BUTTON: a small speaker in the title's corner. Sound is ON by default: it shows 🔊 from the start, and the
+// music begins at the first tap, click or key (browsers stay silent until then). A tap on it mutes or unmutes
+// everything, the very first tap too; M does the same anywhere. Waking the audio never changes the choice.
 const soundButton = document.getElementById('sound-toggle');
-let soundWoken = false;   // has a tap or key (not on the button) woken the audio yet?
 function showSound() {
-  const on = soundWoken && !sound.muted;
+  const on = !sound.muted;
   soundButton.textContent = on ? '🔊' : '🔇';
   soundButton.setAttribute('aria-pressed', String(on));
   soundButton.setAttribute('aria-label', t('soundButton'));
   soundButton.title = t(on ? 'soundOn' : 'soundOff');
 }
-for (const type of ['pointerdown', 'keydown']) {
-  addEventListener(type, (e) => { if (!soundWoken && e.target !== soundButton) { soundWoken = true; showSound(); } });
-}
 soundButton.addEventListener('click', () => {
   sound.unlock();
-  if (soundWoken && !sound.muted) sound.muted = true;   // it showed ON: switch off
-  else { soundWoken = true; sound.muted = false; }       // it showed OFF: switch on (also the very first tap)
+  sound.toggleMute();
   showSound();
 });
 showSound();
