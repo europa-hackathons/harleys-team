@@ -1,0 +1,12 @@
+Title music (made 2026-11-22 with tools/elevenlabs_audio.py music, model music_v2_5, forced instrumental).
+Original prompts; no franchise melodies asked for. Files are used exactly as generated (no local edits).
+
+music-intro.mp3  (asked 6 s; came back 9.04 s: ~6.5 s of music, then the last chord fades out)
+  --seconds 6 --prompt "Original instrumental 1990s arcade fighting game opening sting, 6 seconds, 150 BPM, key of D minor. Explosive drum fill, rising fast square-wave arpeggios, bright heroic pulse-wave lead fanfare, gritty FM chip bass, ends on a triumphant held chord ready to lead into the title theme. Chiptune, 16-bit FM synth, no vocals."
+
+music-title.mp3  (asked 32 s; 32.03 s, full energy to the end = 20 bars at 150 BPM)
+  --seconds 32 --prompt "Original instrumental 1990s arcade fighting game title screen theme, seamless loop, 150 BPM, key of D minor. Heroic catchy pulse/square-wave lead melody, fast chiptune arpeggios, gritty driving FM synth bass, punchy retro drum machine, energetic triumphant rivalry mood. 16-bit FM chiptune, constant energy start to end so it loops cleanly, no intro fade, no ending, no vocals."
+
+In the game (src/main.js, TITLE MUSIC): the intro plays once per visit; the title loop starts 6.4 s
+(16 beats) into it while the intro's tail fades over 0.6 s; the loop repeats 0..32.0 s.
+Cost: 38 s of music asked for, about 475 credits (the tool reported no credit figure for music).

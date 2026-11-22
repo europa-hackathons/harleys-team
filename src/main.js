@@ -24,7 +24,7 @@ import { LEVELS, foeFor } from './game/levels.js';
 import { loadArt } from './game/art.js';
 import { flame, zap, bolt, starBurst, popWord, playFrames, drawEffects, drawDizzy, clearEffects, drip, bubbles, sizzle, fx, drawWord } from './game/effects.js';
 import { SUPER, SPECIALS, specialTrail, drawVine, drawIvy, tinted, drawSuperMeter, drawSwirl, drawLava } from './game/specials.js';
-import { sfx, wakeSound, muteBleeps } from './game/sfx.js';
+import { sfx, wakeSound } from './game/sfx.js';
 import { sound } from './kit/sound.js';
 import { startPunchCam, trackBody, DUCK, READY } from './game/punch-cam.js';
 import { DUCK_DROP } from './game/poses.js';
@@ -46,6 +46,12 @@ const MUSIC = { arena: 'music-arena', apartment: 'music-apartment', jungle: 'mus
 const MUSIC_VOLUME = 0.35;
 const fightMusic = () => sound.music(MUSIC[game.place] || MUSIC.arena, { volume: MUSIC_VOLUME, fadeSeconds: 0.8 });
 const stopFightMusic = () => sound.stopMusic(1.2);
+// TITLE MUSIC: a short opening sting (music-intro, once per visit) flowing into the title loop (music-title,
+// 150 BPM: the loop comes in 16 beats = 6.4 s into the sting and loops its 20 bars = 32 s). It plays on the
+// title, camera, wheel and place screens, and the fight music crossfades over it. Browsers stay silent until the
+// first tap, click or key, so it starts then (sound.js); see assets/audio/title-music-prompts.txt.
+const titleMusic = () => sound.music('music-title', { volume: 0.4, fadeSeconds: 0.8, intro: 'music-intro', introSeconds: 6.4, loopEnd: 32 });
+titleMusic();
 
 // Rules: the Team's win rule plus first-version guesses, all easy to change.
 export const RULES = {
@@ -332,7 +338,7 @@ function startWheel() {
   game.state = 'wheel';
   game.winner = null; game.loser = null;
   sumo.stop();
-  stopFightMusic();
+  titleMusic();   // the title loop goes on under the wheel (or comes back after a fight) until the fight music takes over
   game.picks = [null, null];          // 1 player: the computer boxer comes from the level
   game.level = URL_LEVEL;
   clearRun();
@@ -609,20 +615,42 @@ for (const id of ['skip-camera', 'play-keys', 'again-win', 'again-over', 'again-
 }
 document.getElementById('level-screen').addEventListener('pointerdown', goNextLevel);
 for (const id of ['menu', 'menu-over', 'menu-champ']) {
-  document.getElementById(id).addEventListener('click', () => { game.state = 'title'; sumo.stop(); stopFightMusic(); show('title-screen'); });
+  document.getElementById(id).addEventListener('click', () => { game.state = 'title'; sumo.stop(); titleMusic(); show('title-screen'); });
 }
+// SOUND BUTTON: a small speaker in the title's corner. It shows sound as off until the browser's audio has been
+// woken by a tap (any tap does that); then a tap on it mutes or unmutes everything. M does the same anywhere.
+const soundButton = document.getElementById('sound-toggle');
+let soundWoken = false;   // has a tap or key (not on the button) woken the audio yet?
+function showSound() {
+  const on = soundWoken && !sound.muted;
+  soundButton.textContent = on ? '🔊' : '🔇';
+  soundButton.setAttribute('aria-pressed', String(on));
+  soundButton.setAttribute('aria-label', t('soundButton'));
+  soundButton.title = t(on ? 'soundOn' : 'soundOff');
+}
+for (const type of ['pointerdown', 'keydown']) {
+  addEventListener(type, (e) => { if (!soundWoken && e.target !== soundButton) { soundWoken = true; showSound(); } });
+}
+soundButton.addEventListener('click', () => {
+  sound.unlock();
+  if (soundWoken && !sound.muted) sound.muted = true;   // it showed ON: switch off
+  else { soundWoken = true; sound.muted = false; }       // it showed OFF: switch on (also the very first tap)
+  showSound();
+});
+showSound();
 setMode(2);
 // LANGUAGE: one language at a time; the title-screen button switches it (src/game/i18n.js)
 applyPage();
 document.getElementById('lang').addEventListener('click', toggleLang);
-onLangChange(() => { setMode(game.mode); setHint(); });
+onLangChange(() => { setMode(game.mode); setHint(); showSound(); });
 
 // ---------- update ----------
 function update(dt, now) {
   time = now;
   const ctrls = CONTROLS[game.mode];
   if (keys.pressed('KeyM')) {   // mute / unmute everything
-    muteBleeps(sound.toggleMute());
+    sound.toggleMute();
+    showSound();
     popWord(t(sound.muted ? 'soundOff' : 'soundOn'), W / 2, 100, COLORS.rope, 10);
   }
   if (game.state === 'playing') {

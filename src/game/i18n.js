@@ -55,7 +55,7 @@ export const STRINGS = {
     // pop-up words on the game picture
     levelN: 'NIVÅ {n}', boss: 'BOSS: {name}!', fight: 'KÖR!', time: 'TIDEN UTE!', dodge: 'UNDAN!', boing: 'BOING!',
     pow: 'POW!', bam: 'BAM!', zap: 'ZAP!', whoosh: 'SVISCH!', flomp: 'FLOMP!', duck: 'DUCKA!',
-    soundOff: 'LJUD AV', soundOn: 'LJUD PÅ', superReady: 'SUPER REDO!', tangled: 'FAST!', lava: 'LAVA!',
+    soundOff: 'LJUD AV', soundOn: 'LJUD PÅ', soundButton: 'Ljud', superReady: 'SUPER REDO!', tangled: 'FAST!', lava: 'LAVA!',
     // the camera's boxes
     stand: 'STÅ', here: 'HÄR', ready: 'REDO!', head: 'HUVUD', body: 'KROPP', high: 'HÖGT', low: 'LÅGT',
     // specials: the name when it fires, and the word over the one it hits
@@ -121,7 +121,7 @@ export const STRINGS = {
     placeHelp: 'Click · SPACE to go on',
     levelN: 'LEVEL {n}', boss: 'BOSS: {name}!', fight: 'FIGHT!', time: 'TIME!', dodge: 'DODGE!', boing: 'BOING!',
     pow: 'POW!', bam: 'BAM!', zap: 'ZAP!', whoosh: 'WHOOSH!', flomp: 'FLOMP!', duck: 'DUCK!',
-    soundOff: 'SOUND OFF', soundOn: 'SOUND ON', superReady: 'SUPER READY!', tangled: 'TANGLED!', lava: 'LAVA!',
+    soundOff: 'SOUND OFF', soundOn: 'SOUND ON', soundButton: 'Sound', superReady: 'SUPER READY!', tangled: 'TANGLED!', lava: 'LAVA!',
     stand: 'STAND', here: 'HERE', ready: 'READY!', head: 'HEAD', body: 'BODY', high: 'HIGH', low: 'LOW',
     water: 'WATER FIST!', waterHit: 'SLOW!',
     flame: 'FLAME FIST!', flameHit: 'MEGA BURN!',

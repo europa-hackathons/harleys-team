@@ -3,9 +3,15 @@
 //   sound.play('coin');                          // assets/audio/coin.mp3, one-shot
 //   sound.play('coin', { volume: 0.6, pitch: 1.2 });   // pitch 1.2 = 20 % higher, nice for variety
 //   sound.music('theme');                        // loops; another sound.music(...) crossfades to it
+//   sound.music('theme', { intro: 'theme-intro', introSeconds: 6.4, loopEnd: 32 })
+//        // plays theme-intro first (only the first time), then the loop starts exactly introSeconds in;
+//        // loopEnd (seconds) trims a tail off the loop. Both are timed on the audio clock, so a later
+//        // sound.music/stopMusic cancels them cleanly (no leftover timers).
 //   sound.stopMusic();
 //   sound.toggleMute();                          // or sound.muted = true
 //   sound.preload('coin', 'jump');               // optional: fetch early so the first play isn't late
+//   sound.unlock();                              // call inside a click/tap handler to start the audio engine
+//   sound.engine();                              // { ctx, out } for code-made bleeps (shares the mute), or null
 // A name is a file in assets/audio without .mp3; a path ending in .mp3 is used as-is (relative to the page).
 // Browsers stay silent until the player clicks, taps or presses a key, so the audio engine starts on
 // that first input (e.g. the PLAY button). Music asked for before then starts on it; sound effects
@@ -14,24 +20,35 @@
 let ctx = null, master, musicBus;
 let muted = false;
 let current = null;      // { name, source, gain } of the music playing now
-let wanted = null;       // { name, volume, fadeSeconds } of the music asked for last
+let wanted = null;       // { name, volume, fadeSeconds, intro, introSeconds, loopEnd } of the music asked for last
+const introsPlayed = new Set();   // an intro plays once per page visit
 const files = new Map();     // name -> Promise<ArrayBuffer | null>
 const decoded = new Map();   // name -> Promise<AudioBuffer | null>
 const warned = new Set();
 
+// Must run inside a real click, tap or key press (browsers only allow sound to start there).
 function unlock() {
   if (!ctx) {
-    ctx = new AudioContext();
+    try { ctx = new AudioContext(); } catch { return; }
     master = ctx.createGain();
     master.gain.value = muted ? 0 : 1;
     master.connect(ctx.destination);
     musicBus = ctx.createGain();
     musicBus.connect(master);
+    // a silent blip started inside the tap: older iPhones only wake the audio this way
+    const blip = ctx.createBufferSource();
+    blip.buffer = ctx.createBuffer(1, 1, 22050);
+    blip.connect(ctx.destination);
+    blip.start();
   }
-  if (ctx.state !== 'running') ctx.resume();
+  if (ctx.state !== 'running') ctx.resume().catch(() => {});   // can be refused; the next tap tries again
   if (wanted && current?.name !== wanted.name) startMusic(wanted);
 }
-for (const type of ['pointerdown', 'keydown', 'touchstart']) addEventListener(type, unlock, { capture: true });
+for (const type of ['pointerdown', 'pointerup', 'click', 'keydown', 'touchstart', 'touchend']) addEventListener(type, unlock, { capture: true });
+// Back to the tab (or the phone woke up): resume if the browser paused the audio. If it says no, the next tap does it.
+document.addEventListener('visibilitychange', () => {
+  if (ctx && !document.hidden && ctx.state !== 'running') ctx.resume().catch(() => {});
+});
 
 function url(name) {
   return name.endsWith('.mp3') ? new URL(name, document.baseURI).href
@@ -68,26 +85,42 @@ function fade(gain, to, seconds) {
 }
 
 function startMusic(want) {
-  load(want.name).then((buffer) => {
+  const withIntro = want.intro && !introsPlayed.has(want.intro);
+  Promise.all([load(want.name), withIntro ? load(want.intro) : null]).then(([buffer, introBuffer]) => {
     if (!buffer || wanted !== want || current?.name === want.name) return;
     if (current) stopCurrent(want.fadeSeconds);
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = true;
     const gain = ctx.createGain();
+    gain.connect(musicBus);
+    const sources = [];
+    const add = (buf, out = gain) => { const s = ctx.createBufferSource(); s.buffer = buf; s.connect(out); sources.push(s); return s; };
+    let at = ctx.currentTime;
+    if (introBuffer && !introsPlayed.has(want.intro)) {
+      introsPlayed.add(want.intro);
+      const introGain = ctx.createGain();
+      introGain.connect(gain);
+      const intro = add(introBuffer, introGain);
+      intro.start(at);
+      at += Math.min(want.introSeconds ?? introBuffer.duration, introBuffer.duration);
+      // the loop comes in on the beat while the intro's last chord rings out under it
+      introGain.gain.setValueAtTime(1, at);
+      introGain.gain.linearRampToValueAtTime(0, at + 0.6);
+      intro.stop(at + 0.65);
+    }
+    const source = add(buffer);
+    source.loop = true;
+    if (want.loopEnd && want.loopEnd < buffer.duration) source.loopEnd = want.loopEnd;
+    source.start(at);
     gain.gain.value = 0;
-    source.connect(gain).connect(musicBus);
-    source.start();
-    fade(gain, want.volume, want.fadeSeconds);
-    current = { name: want.name, source, gain };
+    fade(gain, want.volume, sources.length > 1 ? 0.05 : want.fadeSeconds);
+    current = { name: want.name, sources, gain };
   });
 }
 
 function stopCurrent(fadeSeconds) {
-  const { source, gain } = current;
+  const { sources, gain } = current;
   current = null;
   fade(gain, 0, fadeSeconds);
-  source.stop(ctx.currentTime + fadeSeconds + 0.05);
+  for (const s of sources) s.stop(ctx.currentTime + fadeSeconds + 0.05);   // also cancels a loop not started yet
 }
 
 export const sound = {
@@ -107,8 +140,12 @@ export const sound = {
     });
   },
 
-  music(name, { volume = 0.5, fadeSeconds = 1 } = {}) {
-    wanted = { name, volume, fadeSeconds };
+  unlock,
+  engine() { return ctx && ctx.state === 'running' ? { ctx, out: master } : null; },
+  get running() { return ctx?.state === 'running'; },
+
+  music(name, { volume = 0.5, fadeSeconds = 1, intro = null, introSeconds = null, loopEnd = null } = {}) {
+    wanted = { name, volume, fadeSeconds, intro, introSeconds, loopEnd };
     if (!ctx) { fetchFile(name); return; }
     if (current?.name === name) fade(current.gain, volume, fadeSeconds);
     else startMusic(wanted);
@@ -120,7 +157,10 @@ export const sound = {
   },
 
   get muted() { return muted; },
-  set muted(on) { muted = !!on; if (master) master.gain.value = muted ? 0 : 1; },
+  set muted(on) {
+    muted = !!on;
+    if (master) { master.gain.cancelScheduledValues(0); master.gain.value = muted ? 0 : 1; }
+  },
   toggleMute() { sound.muted = !muted; return muted; },
 
   get musicPlaying() { return current?.name ?? null; },

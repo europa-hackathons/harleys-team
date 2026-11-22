@@ -1,17 +1,17 @@
-// Tiny made-up sound effects with Web Audio (no files needed). Swap for real sounds later with src/kit/sound.js.
-let ac = null;
-let muted = false;
-// The mute key (M) silences these bleeps too.
-export function muteBleeps(on) { muted = !!on; }
+// Tiny made-up sound effects with Web Audio (no files needed). They play through src/kit/sound.js's
+// audio engine, so the mute (M key, sound button) covers them and a phone only has one audio engine.
+import { sound } from '../kit/sound.js';
+
+// Kept for older callers: muting now happens in sound.js for everything.
+export function muteBleeps() {}
 
 // Call from a click or key press: browsers keep sound off until the player does something.
-export function wakeSound() {
-  if (!ac) { try { ac = new AudioContext(); } catch { return; } }
-  if (ac.state !== 'running') ac.resume();
-}
+export function wakeSound() { sound.unlock(); }
 
 function tone({ type = 'square', from = 440, to = from, time = 0.15, volume = 0.15, delay = 0 }) {
-  if (!ac || ac.state !== 'running' || muted) return;
+  const e = sound.engine();
+  if (!e) return;
+  const ac = e.ctx;
   const t = ac.currentTime + delay;
   const osc = ac.createOscillator(), gain = ac.createGain();
   osc.type = type;
@@ -19,13 +19,15 @@ function tone({ type = 'square', from = 440, to = from, time = 0.15, volume = 0.
   osc.frequency.exponentialRampToValueAtTime(Math.max(20, to), t + time);
   gain.gain.setValueAtTime(volume, t);
   gain.gain.exponentialRampToValueAtTime(0.001, t + time);
-  osc.connect(gain).connect(ac.destination);
+  osc.connect(gain).connect(e.out);
   osc.start(t);
   osc.stop(t + time + 0.02);
 }
 
 function noise(time = 0.2, volume = 0.12, freq = 900) {
-  if (!ac || ac.state !== 'running' || muted) return;
+  const e = sound.engine();
+  if (!e) return;
+  const ac = e.ctx;
   const buf = ac.createBuffer(1, Math.floor(ac.sampleRate * time), ac.sampleRate);
   const d = buf.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
@@ -33,7 +35,7 @@ function noise(time = 0.2, volume = 0.12, freq = 900) {
   filter.type = 'bandpass'; filter.frequency.value = freq;
   gain.gain.value = volume;
   src.buffer = buf;
-  src.connect(filter).connect(gain).connect(ac.destination);
+  src.connect(filter).connect(gain).connect(e.out);
   src.start();
 }
 
