@@ -11,6 +11,7 @@ _Not designed yet. The Helper fills this in during Design from the Team's answer
 - **Round length:** aim for 60–90 seconds of play.
 
 ## Style
+- **Title logo direction:** ROCKET PUNCH! uses a 1990s fighting-game title-screen emblem inspired by the Team's reference collage: angular slanted lettering, hot gradients, strong dark extrusion, bright bevel highlights and an energetic rocket/impact shape. Keep the exact title readable and the background transparent, with a responsive fit on phone and desktop screens.
 _Written when the Team picks a concept (the Style Lock). Every picture and building brief follows it._
 - **2D or 3D / camera view:** 2D pixel art, side view of the boxing ring: player boxer on the left facing right, opponent on the right facing left, crowd silhouettes behind.
 - **Palette (hex):** night navy `#0f2347` (background), crowd blue `#1e5a7a`, player teal `#1fb8b0`, opponent orange `#f0662c`, ring red `#e0485a`, rope cream `#f4e4c4`, sparkle yellow `#ffd23f`.
