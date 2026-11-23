@@ -176,3 +176,7 @@ docs/                       Game plan, architecture decisions, and game-jam agen
 ### Using This Repo for Your Own Kids' Game Jam
 
 This repository also contains the agent playbooks used to run the session. To host your own jam, clone into your own copy, open it in your AI coding agent, and point it at [AGENTS.md](AGENTS.md) — it will detect a non-team machine and walk through [docs/agents/setup.md](docs/agents/setup.md) and [docs/agents/environment.md](docs/agents/environment.md). Please do not push to or file issues on the original team's repository.
+
+## Credits
+
+Created by: Gregor, Maxwell, and Elian under Ben's supervision
